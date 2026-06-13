@@ -20,7 +20,7 @@ export default async function StudentsPage({
     (() => {
       let q = supabase
         .from("students")
-        .select("*, classrooms(name)")
+        .select("*, classrooms(name, level)")
         .eq("school_id", schoolId)
         .order("last_name");
       if (params.q) q = q.or(`first_name.ilike.%${params.q}%,last_name.ilike.%${params.q}%,admission_number.ilike.%${params.q}%`);
