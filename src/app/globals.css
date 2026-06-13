@@ -1,26 +1,127 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500&display=swap");
+
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Brand: Indigo (primary / structural) */
+  --indigo-50: #eeedfa;
+  --indigo-100: #dad8f4;
+  --indigo-200: #b9b5e9;
+  --indigo-300: #918bd9;
+  --indigo-400: #6e64c6;
+  --indigo-500: #564bb0;
+  --indigo-600: #453a95;
+  --indigo-700: #372d74;
+  --indigo-800: #2e2660;
+  --indigo-900: #262262;
+  --indigo-950: #191540;
+
+  /* Brand: Plum (accent) */
+  --plum-50: #fbeafa;
+  --plum-100: #f7d6f5;
+  --plum-500: #ab31a6;
+  --plum-600: #92278f;
+  --plum-700: #761e73;
+
+  /* Neutral (violet-tinted slate) */
+  --neutral-0: #ffffff;
+  --neutral-50: #f8f8fb;
+  --neutral-100: #f1f0f6;
+  --neutral-200: #e4e2ec;
+  --neutral-300: #cfccda;
+  --neutral-400: #a6a2b6;
+  --neutral-500: #7c7890;
+  --neutral-600: #5c5872;
+  --neutral-700: #46435a;
+  --neutral-800: #322f44;
+  --neutral-900: #211f30;
+
+  /* Semantic */
+  --green-50: #e6f6ef;
+  --green-100: #c5ecda;
+  --green-600: #128a5a;
+  --green-700: #0e6e48;
+  --amber-50: #fcf2e0;
+  --amber-100: #f8e3bd;
+  --amber-500: #e0931a;
+  --amber-600: #c77d11;
+  --red-50: #fbe9e9;
+  --red-100: #f6cfcf;
+  --red-600: #d23b3b;
+  --red-700: #a82c2c;
+  --teal-50: #e2f4f8;
+  --teal-100: #c0e7ef;
+  --teal-600: #0e8aa8;
+  --teal-700: #0a6b84;
+
+  /* Gradients */
+  --gradient-brand: linear-gradient(135deg, #92278f 0%, #262262 100%);
+
+  /* Semantic aliases */
+  --brand: var(--indigo-600);
+  --brand-hover: var(--indigo-700);
+  --brand-active: var(--indigo-800);
+  --brand-subtle: var(--indigo-50);
+  --brand-ink: var(--indigo-900);
+  --accent: var(--plum-600);
+  --accent-subtle: var(--plum-50);
+
+  --bg: var(--neutral-50);
+  --surface: var(--neutral-0);
+  --surface-hover: var(--neutral-100);
+
+  --text-strong: var(--neutral-900);
+  --text-body: var(--neutral-700);
+  --text-muted: var(--neutral-500);
+  --text-subtle: var(--neutral-400);
+  --text-on-brand: #ffffff;
+
+  --border: var(--neutral-200);
+  --border-strong: var(--neutral-300);
+  --ring: var(--indigo-400);
+
+  --success: var(--green-600);
+  --success-bg: var(--green-50);
+  --success-text: var(--green-700);
+  --warning: var(--amber-600);
+  --warning-bg: var(--amber-50);
+  --danger: var(--red-600);
+  --danger-bg: var(--red-50);
+  --danger-text: var(--red-700);
+  --info: var(--teal-600);
+  --info-bg: var(--teal-50);
+  --info-text: var(--teal-700);
+
+  --sync-online: var(--green-600);
+  --sync-pending: var(--amber-500);
+  --sync-offline: var(--neutral-400);
+
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --shadow-sm: 0 1px 3px rgba(38,34,98,.06), 0 1px 2px rgba(38,34,98,.04);
+  --shadow-md: 0 4px 12px rgba(38,34,98,.10), 0 1px 4px rgba(38,34,98,.06);
+  --shadow-lg: 0 8px 24px rgba(38,34,98,.14), 0 2px 8px rgba(38,34,98,.08);
+  --shadow-focus: 0 0 0 3px rgba(110,100,198,.35);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* { box-sizing: border-box; }
+
+html {
+  font-family: var(--font-sans);
+  color: var(--text-body);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-}
+body { margin: 0; min-height: 100vh; }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--neutral-300); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--neutral-400); }
