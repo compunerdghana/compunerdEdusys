@@ -8,54 +8,55 @@ export default async function StudentProfilePage({ params }: { params: Promise<{
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: viewer } = await supabase.from("profiles").select("school_id, role").eq("id", user.id).single();
+  const { data: viewer } = await supabase.from("profiles").select("school_id, role, id").eq("id", user.id).single();
   if (!viewer?.school_id) redirect("/dashboard");
 
   const [
-    { data: student },
-    { data: parents },
-    { data: fees },
-    { data: attendance },
-    { data: scores },
-    { data: classes },
+    studentRes,
+    parentsRes,
+    feesRes,
+    attendanceRes,
+    scoresRes,
+    classesRes,
+    medicalRes,
+    docsRes,
+    disciplineRes,
+    awardsRes,
+    promotionsRes,
+    timelineRes,
   ] = await Promise.all([
-    supabase
-      .from("students")
-      .select("*, classrooms(id, name, level)")
-      .eq("id", id)
-      .eq("school_id", viewer.school_id)
-      .single(),
+    supabase.from("students").select("*, classrooms(id, name, level)").eq("id", id).eq("school_id", viewer.school_id).single(),
     supabase.from("parents").select("*").eq("student_id", id).order("is_primary", { ascending: false }),
-    supabase
-      .from("fee_payments")
-      .select("*, fee_types(name), terms(name)")
-      .eq("student_id", id)
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("attendance_records")
-      .select("date, status, terms(name)")
-      .eq("student_id", id)
-      .order("date", { ascending: false })
-      .limit(60),
-    supabase
-      .from("exam_scores")
-      .select("*, subjects(name), terms(name)")
-      .eq("student_id", id)
-      .order("created_at", { ascending: false }),
+    supabase.from("fee_payments").select("*, fee_types(name), terms(name)").eq("student_id", id).order("created_at", { ascending: false }),
+    supabase.from("attendance_records").select("date, status, terms(name)").eq("student_id", id).order("date", { ascending: false }),
+    supabase.from("exam_scores").select("*, subjects(name), terms(name)").eq("student_id", id).order("created_at", { ascending: false }),
     supabase.from("classrooms").select("id, name, level").eq("school_id", viewer.school_id).order("name"),
+    supabase.from("student_medical").select("*").eq("student_id", id).maybeSingle(),
+    supabase.from("student_documents").select("*").eq("student_id", id).order("uploaded_at", { ascending: false }),
+    supabase.from("student_discipline").select("*").eq("student_id", id).order("incident_date", { ascending: false }),
+    supabase.from("student_awards").select("*").eq("student_id", id).order("awarded_date", { ascending: false }),
+    supabase.from("student_promotions").select("*").eq("student_id", id).order("created_at"),
+    supabase.from("student_timeline").select("*").eq("student_id", id).order("event_date", { ascending: false }),
   ]);
 
-  if (!student) notFound();
+  if (!studentRes.data) notFound();
 
   return (
     <StudentProfile
-      student={student}
-      parents={parents ?? []}
-      fees={fees ?? []}
-      attendance={(attendance ?? []) as never}
-      scores={scores ?? []}
-      classes={classes ?? []}
+      student={studentRes.data}
+      parents={parentsRes.data ?? []}
+      fees={feesRes.data ?? []}
+      attendance={(attendanceRes.data ?? []) as never}
+      scores={scoresRes.data ?? []}
+      classes={classesRes.data ?? []}
+      medical={medicalRes.data ?? null}
+      documents={docsRes.data ?? []}
+      discipline={disciplineRes.data ?? []}
+      awards={awardsRes.data ?? []}
+      promotions={promotionsRes.data ?? []}
+      timeline={timelineRes.data ?? []}
       viewerRole={viewer.role}
+      viewerId={viewer.id}
     />
   );
 }

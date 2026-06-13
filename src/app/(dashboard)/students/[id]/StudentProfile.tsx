@@ -1,601 +1,1386 @@
 "use client";
-
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
-import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
 import {
   ArrowLeft, User, Users, CreditCard, ClipboardList, BarChart2,
-  Phone, Edit3, Save, X, Plus, Trash2, CheckCircle2, AlertCircle, Clock, FileDown,
+  Phone, Edit3, Save, X, Plus, Trash2, FileDown, Camera,
+  Heart, FileText, AlertTriangle, Trophy, TrendingUp, Clock,
+  CheckCircle2, AlertCircle, Shield, BookOpen, Star, Award,
+  Calendar, ChevronRight, Upload,
 } from "lucide-react";
 import { formatDate, formatCurrency, getInitials, cn } from "@/lib/utils";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { Badge } from "@/components/ui/Badge";
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  LineChart, Line, CartesianGrid, Legend,
+} from "recharts";
 import type { Student, Parent, FeePayment, AttendanceRecord, ExamScore } from "@/types/database";
 
-type Tab = "info" | "parents" | "fees" | "attendance" | "results";
-
-const STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "default"> = {
-  active: "success", inactive: "default", graduated: "brand" as never,
-  transferred: "warning", withdrawn: "danger",
-};
-const ATT_ICON: Record<string, React.ReactNode> = {
-  present: <CheckCircle2 size={13} className="text-[var(--success)]" />,
-  absent: <AlertCircle size={13} className="text-[var(--danger)]" />,
-  late: <Clock size={13} className="text-[var(--warning)]" />,
-  excused: <Clock size={13} className="text-[var(--info)]" />,
-};
-const ATT_COLOR: Record<string, string> = {
-  present: "var(--success)", absent: "var(--danger)", late: "var(--warning)", excused: "var(--info)",
-};
-
-interface ClassRoom { id: string; name: string; level: string; }
+// ── Types ────────────────────────────────────────────────────────
+type ClassRoom = { id: string; name: string; level: string };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Medical    = Record<string, any> | null;
+type DocRow     = { id:string; document_type:string; file_name:string|null; file_url:string; uploaded_at:string };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Discipline = Record<string, any>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Award      = Record<string, any>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Promotion  = Record<string, any>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Timeline   = Record<string, any>;
 
 interface Props {
   student: Student & { classrooms: ClassRoom | null };
   parents: Parent[];
-  fees: (FeePayment & { fee_types: { name: string } | null; terms: { name: string } | null })[];
-  attendance: (Pick<AttendanceRecord, "date" | "status"> & { terms: { name: string } | { name: string }[] | null })[];
-  scores: (ExamScore & { subjects: { name: string } | null; terms: { name: string } | null })[];
+  fees: (FeePayment & { fee_types: { name:string }|null; terms: { name:string }|null })[];
+  attendance: (Pick<AttendanceRecord,"date"|"status"> & { terms: { name:string }|{ name:string }[]|null })[];
+  scores: (ExamScore & { subjects: { name:string }|null; terms: { name:string }|null })[];
   classes: ClassRoom[];
+  medical: Medical;
+  documents: DocRow[];
+  discipline: Discipline[];
+  awards: Award[];
+  promotions: Promotion[];
+  timeline: Timeline[];
   viewerRole: string;
+  viewerId: string;
 }
 
-export function StudentProfile({ student: initial, parents: initialParents, fees, attendance, scores, classes, viewerRole }: Props) {
+const TABS = [
+  { id:"biodata",     label:"Bio Data",        icon:User },
+  { id:"admission",   label:"Admission",        icon:FileText },
+  { id:"parents",     label:"Parents",          icon:Users },
+  { id:"medical",     label:"Medical",          icon:Heart },
+  { id:"academic",    label:"Academic",         icon:BookOpen },
+  { id:"attendance",  label:"Attendance",       icon:ClipboardList },
+  { id:"finance",     label:"Finance",          icon:CreditCard },
+  { id:"discipline",  label:"Discipline",       icon:Shield },
+  { id:"awards",      label:"Awards",           icon:Trophy },
+  { id:"documents",   label:"Documents",        icon:FileText },
+  { id:"promotions",  label:"Promotion History",icon:TrendingUp },
+  { id:"timeline",    label:"Timeline",         icon:Clock },
+];
+
+const STATUS_COLORS: Record<string,{bg:string;text:string}> = {
+  active:       { bg:"#d1fae5", text:"#065f46" },
+  graduated:    { bg:"#dbeafe", text:"#1e40af" },
+  "transfer out":{ bg:"#fef3c7", text:"#92400e" },
+  withdrawn:    { bg:"#fee2e2", text:"#991b1b" },
+  suspended:    { bg:"#fde8d8", text:"#9a3412" },
+  expelled:     { bg:"#fce7f3", text:"#9d174d" },
+  deceased:     { bg:"#f3f4f6", text:"#374151" },
+};
+
+const DOC_TYPES = [
+  "Birth Certificate","Passport Photo","Admission Letter","Transfer Letter",
+  "Medical Documents","Report Card","Other",
+];
+const INCIDENT_TYPES = [
+  "Lateness","Absenteeism","Fighting","Insubordination","Vandalism",
+  "Bullying","Cheating","Substance Abuse","Other",
+];
+const AWARD_TYPES = ["Academic","Sports","Leadership","Competition","Cultural","Other"];
+const BLOOD_GROUPS = ["A+","A-","B+","B-","AB+","AB-","O+","O-"];
+const RELIGIONS = ["Christianity","Islam","Traditional","Other","Prefer not to say"];
+const ADMISSION_TYPES = ["New Admission","Transfer","Re-Admission","Scholarship"];
+const STATUSES = ["active","graduated","transfer out","withdrawn","suspended","expelled","deceased"];
+
+export function StudentProfile({
+  student: initial, parents: initialParents, fees, attendance, scores, classes,
+  medical: initialMedical, documents: initialDocs, discipline: initialDisc,
+  awards: initialAwards, promotions: initialPromotions, timeline: initialTimeline,
+  viewerRole, viewerId,
+}: Props) {
   const router = useRouter();
   const supabase = createClient();
-  const [tab, setTab] = useState<Tab>("info");
+
+  const [tab, setTab]         = useState("biodata");
   const [student, setStudent] = useState(initial);
   const [editing, setEditing] = useState(false);
-  const [editForm, setEditForm] = useState({
-    first_name: initial.first_name, middle_name: initial.middle_name ?? "",
-    last_name: initial.last_name, date_of_birth: initial.date_of_birth ?? "",
-    gender: initial.gender, class_id: initial.class_id ?? "",
-    status: initial.status, previous_school: initial.previous_school ?? "",
-    medical_notes: initial.medical_notes ?? "",
-  });
-  const [saving, setSaving] = useState(false);
-  const [parents, setParents] = useState(initialParents);
-  const [addingParent, setAddingParent] = useState(false);
+  const [saving, setSaving]   = useState(false);
+
+  const [parents, setParents]       = useState(initialParents);
+  const [medical, setMedical]       = useState(initialMedical);
+  const [docs, setDocs]             = useState(initialDocs);
+  const [discipline, setDiscipline] = useState(initialDisc);
+  const [awards, setAwards]         = useState(initialAwards);
+  const [promotions, setPromotions] = useState(initialPromotions);
+  const [timeline, setTimeline]     = useState(initialTimeline);
+
+  const [photoPreview, setPhotoPreview] = useState<string>(initial.photo_url ?? "");
+  const photoRef = useRef<HTMLInputElement>(null);
+  const docRef   = useRef<HTMLInputElement>(null);
+
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const [parentForm, setParentForm] = useState({ full_name: "", phone: "", relationship: "Father", email: "", occupation: "", address: "" });
+  const [confirmDeleteType, setConfirmDeleteType] = useState<"parent"|"doc"|"disc"|"award">("parent");
+
+  const canEdit    = ["headmaster","owner","teacher","admin"].includes(viewerRole);
+  const canFinance = ["headmaster","owner","accountant"].includes(viewerRole);
+  const canSensitive = ["headmaster","owner"].includes(viewerRole);
+
+  const fullName = [student.first_name, student.middle_name, student.last_name].filter(Boolean).join(" ");
+
+  // ── Edit form state ────────────────────────────────────────────
+  const [ef, setEf] = useState({
+    first_name: initial.first_name,
+    middle_name: initial.middle_name ?? "",
+    last_name: initial.last_name,
+    date_of_birth: initial.date_of_birth ?? "",
+    gender: initial.gender,
+    class_id: initial.class_id ?? "",
+    status: initial.status,
+    previous_school: initial.previous_school ?? "",
+    medical_notes: initial.medical_notes ?? "",
+    student_id_manual: (initial as never as Record<string,string>).student_id_manual ?? "",
+    nationality: (initial as never as Record<string,string>).nationality ?? "Ghanaian",
+    place_of_birth: (initial as never as Record<string,string>).place_of_birth ?? "",
+    religion: (initial as never as Record<string,string>).religion ?? "",
+    blood_group: (initial as never as Record<string,string>).blood_group ?? "",
+    admission_type: (initial as never as Record<string,string>).admission_type ?? "new",
+    previous_class: (initial as never as Record<string,string>).previous_class ?? "",
+    admission_year: (initial as never as Record<string,string>).admission_year ?? "",
+  });
+
+  // ── Parent form ────────────────────────────────────────────────
+  const [addingParent, setAddingParent] = useState(false);
+  const [pf, setPf] = useState({
+    full_name:"", phone:"", relationship:"Father", email:"",
+    occupation:"", employer:"", address:"", digital_address:"",
+  });
   const [savingParent, setSavingParent] = useState(false);
 
-  const canEdit = ["headmaster", "owner", "teacher"].includes(viewerRole);
-  const canSeeFinance = ["headmaster", "owner", "accountant"].includes(viewerRole);
+  // ── Medical form ───────────────────────────────────────────────
+  const [editMedical, setEditMedical] = useState(false);
+  const [mf, setMf] = useState({
+    blood_group: medical?.blood_group ?? "",
+    allergies: medical?.allergies ?? "",
+    medical_conditions: medical?.medical_conditions ?? "",
+    special_needs: medical?.special_needs ?? "",
+    hospital_name: medical?.hospital_name ?? "",
+    doctor_name: medical?.doctor_name ?? "",
+    insurance_provider: medical?.insurance_provider ?? "",
+    insurance_number: medical?.insurance_number ?? "",
+  });
 
-  const totalDue = fees.reduce((s, f) => s + f.amount_due, 0);
-  const totalPaid = fees.reduce((s, f) => s + f.amount_paid, 0);
-  const totalBalance = totalDue - totalPaid;
+  // ── Discipline form ────────────────────────────────────────────
+  const [addingDisc, setAddingDisc] = useState(false);
+  const [df, setDf] = useState({
+    incident_date:"", incident_type:"", description:"", action_taken:"", parent_notified:false,
+  });
 
-  const presentCount = attendance.filter((a) => a.status === "present").length;
-  const attRate = attendance.length > 0 ? Math.round((presentCount / attendance.length) * 100) : null;
+  // ── Award form ─────────────────────────────────────────────────
+  const [addingAward, setAddingAward] = useState(false);
+  const [awf, setAwf] = useState({
+    award_type:"Academic", title:"", description:"", awarded_date:"", awarded_by:"",
+  });
 
-  async function exportStudentPDF() {
-    const { default: jsPDF } = await import("jspdf");
-    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    const margin = 20;
-    let y = margin;
+  // ── Promotion form ─────────────────────────────────────────────
+  const [addingPromo, setAddingPromo] = useState(false);
+  const [prf, setPrf] = useState({ academic_year:"", class_id:"", notes:"" });
 
-    doc.setFillColor(38, 34, 98);
-    doc.rect(0, 0, 210, 32, "F");
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(18);
-    doc.setFont("helvetica", "bold");
-    doc.text("Student Profile", margin, 14);
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Generated ${new Date().toLocaleDateString("en-GH")}`, margin, 22);
-    y = 44;
+  // ── Document upload ────────────────────────────────────────────
+  const [docType, setDocType]   = useState(DOC_TYPES[0]);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
 
-    doc.setTextColor(38, 34, 98);
-    doc.setFontSize(16);
-    doc.setFont("helvetica", "bold");
-    doc.text(fullName, margin, y); y += 7;
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(100, 100, 100);
-    doc.text(`${student.admission_number}  ·  ${student.classrooms?.name ?? "No class"}  ·  ${student.status}`, margin, y); y += 12;
+  // ── Summary stats ──────────────────────────────────────────────
+  const totalDue  = fees.reduce((s,f)=>s+f.amount_due,0);
+  const totalPaid = fees.reduce((s,f)=>s+f.amount_paid,0);
+  const balance   = totalDue - totalPaid;
+  const present   = attendance.filter(a=>a.status==="present").length;
+  const absent    = attendance.filter(a=>a.status==="absent").length;
+  const late      = attendance.filter(a=>a.status==="late").length;
+  const attRate   = attendance.length > 0 ? Math.round((present/attendance.length)*100) : null;
 
-    doc.setDrawColor(200, 200, 200);
-    doc.line(margin, y, 190, y); y += 8;
-
-    const fields: [string, string][] = [
-      ["Full name", fullName],
-      ["Admission No.", student.admission_number],
-      ["Gender", student.gender.charAt(0).toUpperCase() + student.gender.slice(1)],
-      ["Date of birth", student.date_of_birth ? formatDate(student.date_of_birth) : "—"],
-      ["Class", student.classrooms?.name ?? "—"],
-      ["Status", student.status.charAt(0).toUpperCase() + student.status.slice(1)],
-      ["Admission date", formatDate(student.admission_date)],
-      ["Previous school", student.previous_school ?? "—"],
-    ];
-
-    doc.setFontSize(10);
-    fields.forEach(([label, value]) => {
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(80, 80, 80);
-      doc.text(label + ":", margin, y);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(30, 30, 30);
-      doc.text(value, margin + 38, y);
-      y += 7;
+  // ── Monthly attendance chart data ──────────────────────────────
+  const monthlyAtt = (() => {
+    const map: Record<string,{present:number;absent:number;late:number}> = {};
+    attendance.forEach(a => {
+      const m = a.date.slice(0,7); // YYYY-MM
+      if (!map[m]) map[m] = {present:0,absent:0,late:0};
+      if (a.status==="present") map[m].present++;
+      else if (a.status==="absent") map[m].absent++;
+      else if (a.status==="late") map[m].late++;
     });
+    return Object.entries(map).sort(([a],[b])=>a.localeCompare(b)).slice(-6).map(([m,v])=>({
+      month: new Date(m+"-01").toLocaleDateString("en-GH",{month:"short"}),
+      ...v,
+    }));
+  })();
 
-    if (student.medical_notes) {
-      y += 4;
-      doc.line(margin, y, 190, y); y += 8;
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(80, 80, 80);
-      doc.text("Notes:", margin, y); y += 6;
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(30, 30, 30);
-      const lines = doc.splitTextToSize(student.medical_notes, 160);
-      doc.text(lines, margin, y); y += lines.length * 5 + 8;
+  // ── Academic trend chart data ──────────────────────────────────
+  const academicTrend = (() => {
+    const byTerm: Record<string, number[]> = {};
+    scores.forEach(s => {
+      const t = s.terms?.name ?? "Unknown";
+      if (!byTerm[t]) byTerm[t] = [];
+      if (s.total != null) byTerm[t].push(Number(s.total));
+    });
+    return Object.entries(byTerm).map(([term, vals]) => ({
+      term,
+      avg: vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : 0,
+    }));
+  })();
+
+  // ── Handlers ───────────────────────────────────────────────────
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setPhotoPreview(URL.createObjectURL(f));
+    const ext = f.name.split(".").pop();
+    const path = `students/${student.id}-photo.${ext}`;
+    const { error } = await supabase.storage.from("school-assets").upload(path, f, { upsert: true });
+    if (!error) {
+      const { data } = supabase.storage.from("school-assets").getPublicUrl(path);
+      await supabase.from("students").update({ photo_url: data.publicUrl }).eq("id", student.id);
+      setPhotoPreview(data.publicUrl);
     }
-
-    if (parents.length > 0) {
-      doc.line(margin, y, 190, y); y += 8;
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.setTextColor(38, 34, 98);
-      doc.text("Parents / Guardians", margin, y); y += 7;
-      parents.forEach((p) => {
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(30, 30, 30);
-        doc.text(`${p.full_name} (${p.relationship})`, margin, y); y += 5;
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(100, 100, 100);
-        doc.text(`Phone: ${p.phone}${p.email ? `  ·  Email: ${p.email}` : ""}`, margin + 4, y); y += 7;
-      });
-    }
-
-    doc.save(`student_${student.admission_number}.pdf`);
   }
 
   async function saveEdit() {
     setSaving(true);
-    const { data, error } = await supabase
-      .from("students")
-      .update({
-        first_name: editForm.first_name.trim(),
-        middle_name: editForm.middle_name.trim() || null,
-        last_name: editForm.last_name.trim(),
-        date_of_birth: editForm.date_of_birth || null,
-        gender: editForm.gender as "male" | "female",
-        class_id: editForm.class_id || null,
-        status: editForm.status as Student["status"],
-        previous_school: editForm.previous_school.trim() || null,
-        medical_notes: editForm.medical_notes.trim() || null,
-      })
-      .eq("id", student.id)
-      .select("*, classrooms(id, name, level)")
-      .single();
+    const { data, error } = await supabase.from("students").update({
+      first_name: ef.first_name.trim(),
+      middle_name: ef.middle_name.trim() || null,
+      last_name: ef.last_name.trim(),
+      date_of_birth: ef.date_of_birth || null,
+      gender: ef.gender as "male"|"female",
+      class_id: ef.class_id || null,
+      status: ef.status as Student["status"],
+      previous_school: ef.previous_school.trim() || null,
+      medical_notes: ef.medical_notes.trim() || null,
+      student_id_manual: ef.student_id_manual.trim() || null,
+      nationality: ef.nationality || "Ghanaian",
+      place_of_birth: ef.place_of_birth.trim() || null,
+      religion: ef.religion || null,
+      blood_group: ef.blood_group || null,
+      admission_type: ef.admission_type || null,
+      previous_class: ef.previous_class.trim() || null,
+      admission_year: ef.admission_year.trim() || null,
+    }).eq("id", student.id).select("*, classrooms(id,name,level)").single();
     setSaving(false);
     if (!error && data) { setStudent(data); setEditing(false); router.refresh(); }
+  }
+
+  async function saveMedical() {
+    const payload = { ...mf, student_id: student.id, school_id: student.school_id };
+    const { data } = await supabase.from("student_medical").upsert(payload).select().single();
+    if (data) setMedical(data);
+    setEditMedical(false);
   }
 
   async function saveParent(e: React.FormEvent) {
     e.preventDefault();
     setSavingParent(true);
-    const { data, error } = await supabase
-      .from("parents")
-      .insert({
-        school_id: student.school_id,
-        student_id: student.id,
-        full_name: parentForm.full_name.trim(),
-        phone: parentForm.phone.trim(),
-        relationship: parentForm.relationship,
-        email: parentForm.email.trim() || null,
-        occupation: parentForm.occupation.trim() || null,
-        address: parentForm.address.trim() || null,
-        is_primary: parents.length === 0,
-      })
-      .select()
-      .single();
+    const { data } = await supabase.from("parents").insert({
+      school_id: student.school_id,
+      student_id: student.id,
+      full_name: pf.full_name.trim(),
+      phone: pf.phone.trim(),
+      relationship: pf.relationship,
+      email: pf.email.trim() || null,
+      occupation: pf.occupation.trim() || null,
+      employer: pf.employer.trim() || null,
+      address: pf.address.trim() || null,
+      digital_address: pf.digital_address.trim() || null,
+      is_primary: parents.length === 0,
+    }).select().single();
     setSavingParent(false);
-    if (!error && data) {
-      setParents((p) => [...p, data]);
+    if (data) {
+      setParents(p=>[...p,data]);
       setAddingParent(false);
-      setParentForm({ full_name: "", phone: "", relationship: "Father", email: "", occupation: "", address: "" });
+      setPf({ full_name:"",phone:"",relationship:"Father",email:"",occupation:"",employer:"",address:"",digital_address:"" });
+      addTimelineEvent("parent", `${pf.full_name} added as ${pf.relationship}`, new Date().toISOString().slice(0,10));
     }
   }
 
   async function deleteParent(id: string) {
     await supabase.from("parents").delete().eq("id", id);
-    setParents((p) => p.filter((x) => x.id !== id));
+    setParents(p=>p.filter(x=>x.id!==id));
     setConfirmDelete(null);
   }
 
-  const fullName = `${student.first_name}${student.middle_name ? ` ${student.middle_name}` : ""} ${student.last_name}`;
+  async function saveDisc(e: React.FormEvent) {
+    e.preventDefault();
+    const { data } = await supabase.from("student_discipline").insert({
+      student_id: student.id,
+      school_id: student.school_id,
+      incident_date: df.incident_date,
+      incident_type: df.incident_type,
+      description: df.description || null,
+      action_taken: df.action_taken || null,
+      parent_notified: df.parent_notified,
+      recorded_by: viewerId,
+    }).select().single();
+    if (data) {
+      setDiscipline(d=>[data,...d]);
+      setAddingDisc(false);
+      setDf({ incident_date:"",incident_type:"",description:"",action_taken:"",parent_notified:false });
+      addTimelineEvent("discipline", `Discipline: ${df.incident_type}`, df.incident_date);
+    }
+  }
+
+  async function saveAward(e: React.FormEvent) {
+    e.preventDefault();
+    const { data } = await supabase.from("student_awards").insert({
+      student_id: student.id,
+      school_id: student.school_id,
+      award_type: awf.award_type,
+      title: awf.title,
+      description: awf.description || null,
+      awarded_date: awf.awarded_date || null,
+      awarded_by: awf.awarded_by || null,
+    }).select().single();
+    if (data) {
+      setAwards(a=>[data,...a]);
+      setAddingAward(false);
+      setAwf({ award_type:"Academic",title:"",description:"",awarded_date:"",awarded_by:"" });
+      if (awf.awarded_date) addTimelineEvent("award", `Award: ${awf.title}`, awf.awarded_date);
+    }
+  }
+
+  async function savePromotion(e: React.FormEvent) {
+    e.preventDefault();
+    const cls = classes.find(c=>c.id===prf.class_id);
+    const { data } = await supabase.from("student_promotions").insert({
+      student_id: student.id,
+      school_id: student.school_id,
+      academic_year: prf.academic_year,
+      class_name: cls?.name ?? "",
+      class_id: prf.class_id || null,
+      promoted_by: viewerId,
+      notes: prf.notes || null,
+    }).select().single();
+    if (data) {
+      setPromotions(p=>[...p,data]);
+      setAddingPromo(false);
+      setPrf({ academic_year:"",class_id:"",notes:"" });
+      addTimelineEvent("promotion", `Promoted to ${cls?.name ?? ""}`, new Date().toISOString().slice(0,10));
+    }
+  }
+
+  async function uploadDoc(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setUploadingDoc(true);
+    const ext = f.name.split(".").pop();
+    const path = `students/${student.id}/docs/${docType.replace(/\s+/g,"_").toLowerCase()}-${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("school-assets").upload(path, f);
+    if (!error) {
+      const { data: urlData } = supabase.storage.from("school-assets").getPublicUrl(path);
+      const { data } = await supabase.from("student_documents").insert({
+        student_id: student.id,
+        school_id: student.school_id,
+        document_type: docType,
+        file_name: f.name,
+        file_url: urlData.publicUrl,
+      }).select().single();
+      if (data) setDocs(d=>[data,...d]);
+    }
+    setUploadingDoc(false);
+    e.target.value = "";
+  }
+
+  async function deleteDoc(id: string) {
+    await supabase.from("student_documents").delete().eq("id", id);
+    setDocs(d=>d.filter(x=>x.id!==id));
+    setConfirmDelete(null);
+  }
+
+  async function addTimelineEvent(type: string, title: string, date: string) {
+    await supabase.from("student_timeline").insert({
+      student_id: student.id,
+      school_id: student.school_id,
+      event_type: type,
+      title,
+      event_date: date,
+    });
+    const { data } = await supabase.from("student_timeline").select("*").eq("student_id", student.id).order("event_date", { ascending: false });
+    if (data) setTimeline(data);
+  }
+
+  async function exportPDF() {
+    const { default: jsPDF } = await import("jspdf");
+    const doc = new jsPDF();
+    doc.setFillColor(38,34,98);
+    doc.rect(0,0,210,32,"F");
+    doc.setTextColor(255,255,255);
+    doc.setFontSize(18); doc.setFont("helvetica","bold");
+    doc.text("Student Profile", 14, 14);
+    doc.setFontSize(10); doc.setFont("helvetica","normal");
+    doc.text(`Generated ${new Date().toLocaleDateString("en-GH")}`, 14, 22);
+    let y = 44;
+    doc.setTextColor(0,0,0);
+    doc.setFontSize(15); doc.setFont("helvetica","bold");
+    doc.text(fullName, 14, y); y += 8;
+    doc.setFontSize(10); doc.setFont("helvetica","normal");
+    doc.setTextColor(100,100,100);
+    doc.text(`${student.admission_number} · ${student.classrooms?.name ?? "No class"} · ${student.status}`, 14, y); y += 10;
+    doc.setTextColor(0,0,0);
+    const fields: [string,string][] = [
+      ["Admission No.", student.admission_number],
+      ["Gender", student.gender],
+      ["Date of Birth", student.date_of_birth ? formatDate(student.date_of_birth) : "—"],
+      ["Class", student.classrooms?.name ?? "—"],
+      ["Status", student.status],
+      ["Admission Date", formatDate(student.admission_date)],
+      ["Nationality", (student as never as Record<string,string>).nationality ?? "—"],
+      ["Blood Group", (student as never as Record<string,string>).blood_group ?? "—"],
+    ];
+    fields.forEach(([l,v]) => {
+      doc.setFont("helvetica","bold"); doc.setTextColor(80,80,80);
+      doc.text(l+":", 14, y);
+      doc.setFont("helvetica","normal"); doc.setTextColor(30,30,30);
+      doc.text(v, 70, y); y += 7;
+    });
+    doc.save(`student_${student.admission_number}.pdf`);
+  }
+
+  const statusStyle = STATUS_COLORS[student.status] ?? { bg:"#f3f4f6", text:"#374151" };
 
   return (
-    <div className="max-w-4xl space-y-5">
-      {/* Header */}
-      <div className="flex items-start gap-4">
-        <Link href="/students">
-          <Button variant="ghost" size="sm"><ArrowLeft size={14} /> Students</Button>
-        </Link>
-      </div>
+    <div className="min-h-screen bg-gray-50">
+      {/* ── Header ─────────────────────────────────────────────── */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <button onClick={() => router.back()} className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-4 transition-colors">
+            <ArrowLeft className="w-4 h-4" /> Back to Students
+          </button>
 
-      {/* Student card */}
-      <div className="bg-white rounded-2xl border border-[var(--border)] shadow-[var(--shadow-sm)] p-5">
-        <div className="flex items-start gap-4">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-bold text-white shrink-0" style={{ background: "var(--gradient-brand)" }}>
-            {getInitials(fullName)}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-xl font-extrabold text-[var(--text-strong)]">{fullName}</h2>
-              <Badge variant={STATUS_VARIANT[student.status] ?? "default"}>{student.status}</Badge>
+          <div className="flex items-start gap-5">
+            {/* Photo */}
+            <div className="relative flex-shrink-0">
+              <div className="w-20 h-20 rounded-2xl overflow-hidden bg-[#262262] flex items-center justify-center text-white text-2xl font-bold">
+                {photoPreview
+                  ? <img src={photoPreview} alt={fullName} className="w-full h-full object-cover" />
+                  : <span>{getInitials(fullName)}</span>
+                }
+              </div>
+              {canEdit && (
+                <button onClick={() => photoRef.current?.click()}
+                  className="absolute -bottom-1 -right-1 bg-[#262262] text-white p-1.5 rounded-full hover:bg-[#1a1856] transition-colors">
+                  <Camera className="w-3 h-3" />
+                </button>
+              )}
+              <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
             </div>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-[var(--text-muted)]">
-              <span className="font-mono">{student.admission_number}</span>
-              <span>{student.classrooms?.name ?? "No class"}</span>
-              <span className="capitalize">{student.gender}</span>
-              {student.date_of_birth && <span>Born {formatDate(student.date_of_birth)}</span>}
-              <span>Admitted {formatDate(student.admission_date)}</span>
+
+            {/* Info */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="text-2xl font-extrabold text-gray-900">{fullName}</h1>
+                <span className="px-2.5 py-1 rounded-full text-xs font-semibold capitalize"
+                  style={{ background: statusStyle.bg, color: statusStyle.text }}>
+                  {student.status}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-sm text-gray-500">
+                <span className="font-mono font-semibold text-gray-700">{student.admission_number}</span>
+                <span>{student.classrooms?.name ?? "No class"}</span>
+                <span className="capitalize">{student.gender}</span>
+                {student.date_of_birth && <span>Born {formatDate(student.date_of_birth)}</span>}
+                <span>Admitted {formatDate(student.admission_date)}</span>
+              </div>
+
+              {/* Mini summary bar */}
+              <div className="flex flex-wrap gap-4 mt-3">
+                {attRate !== null && (
+                  <div className="text-center">
+                    <p className="text-xs text-gray-400">Attendance</p>
+                    <p className={`text-base font-bold ${attRate>=75?"text-green-600":"text-red-500"}`}>{attRate}%</p>
+                  </div>
+                )}
+                {canFinance && (
+                  <div className="text-center">
+                    <p className="text-xs text-gray-400">Balance</p>
+                    <p className={`text-base font-bold ${balance>0?"text-red-500":"text-green-600"}`}>{formatCurrency(balance)}</p>
+                  </div>
+                )}
+                <div className="text-center">
+                  <p className="text-xs text-gray-400">Awards</p>
+                  <p className="text-base font-bold text-[#262262]">{awards.length}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-gray-400">Subjects</p>
+                  <p className="text-base font-bold text-[#262262]">{[...new Set(scores.map(s=>s.subjects?.name))].filter(Boolean).length}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2 flex-shrink-0">
+              <button onClick={exportPDF}
+                className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                <FileDown className="w-4 h-4" /> Export PDF
+              </button>
+              {canEdit && !editing && (
+                <button onClick={() => setEditing(true)}
+                  className="flex items-center gap-2 px-3 py-2 bg-[#262262] text-white rounded-lg text-sm font-medium hover:bg-[#1a1856] transition-colors">
+                  <Edit3 className="w-4 h-4" /> Edit
+                </button>
+              )}
+              {editing && (
+                <>
+                  <button onClick={saveEdit} disabled={saving}
+                    className="flex items-center gap-2 px-3 py-2 bg-[#262262] text-white rounded-lg text-sm font-medium hover:bg-[#1a1856] disabled:opacity-50 transition-colors">
+                    <Save className="w-4 h-4" /> {saving?"Saving…":"Save"}
+                  </button>
+                  <button onClick={() => setEditing(false)}
+                    className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                    <X className="w-4 h-4" /> Cancel
+                  </button>
+                </>
+              )}
             </div>
           </div>
-          <div className="flex gap-2 shrink-0">
-            <Button size="sm" variant="secondary" onClick={exportStudentPDF}>
-              <FileDown size={13} /> Export PDF
-            </Button>
-            {canEdit && !editing && (
-              <Button size="sm" variant="secondary" onClick={() => setEditing(true)}>
-                <Edit3 size={13} /> Edit
-              </Button>
-            )}
-          </div>
-          {editing && (
-            <div className="flex gap-2 shrink-0">
-              <Button size="sm" loading={saving} onClick={saveEdit}><Save size={13} /> Save</Button>
-              <Button size="sm" variant="secondary" onClick={() => setEditing(false)}><X size={13} /></Button>
-            </div>
-          )}
         </div>
 
-        {/* Quick stats */}
-        {(canSeeFinance || attRate !== null) && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 pt-5 border-t border-[var(--border)]">
-            {attRate !== null && (
-              <>
-                <div className="text-center">
-                  <p className="text-xs text-[var(--text-muted)] mb-0.5">Attendance rate</p>
-                  <p className={`text-lg font-extrabold font-mono ${attRate >= 75 ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>{attRate}%</p>
+        {/* Tabs */}
+        <div className="max-w-7xl mx-auto px-6 overflow-x-auto">
+          <div className="flex gap-0 border-b-0 min-w-max">
+            {TABS.map(t => {
+              const Icon = t.icon;
+              return (
+                <button key={t.id} onClick={() => setTab(t.id)}
+                  className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
+                    tab===t.id
+                      ? "border-[#262262] text-[#262262]"
+                      : "border-transparent text-gray-500 hover:text-gray-700"
+                  }`}>
+                  <Icon className="w-3.5 h-3.5" />{t.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Content ────────────────────────────────────────────── */}
+      <div className="max-w-7xl mx-auto px-6 py-6">
+
+        {/* BIO DATA */}
+        {tab==="biodata" && (
+          <div className="bg-white rounded-2xl border border-gray-200 p-6">
+            {editing ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <EField label="First Name *" value={ef.first_name} onChange={v=>setEf(f=>({...f,first_name:v}))} required />
+                  <EField label="Middle Name" value={ef.middle_name} onChange={v=>setEf(f=>({...f,middle_name:v}))} />
+                  <EField label="Last Name *" value={ef.last_name} onChange={v=>setEf(f=>({...f,last_name:v}))} required />
                 </div>
-                <div className="text-center">
-                  <p className="text-xs text-[var(--text-muted)] mb-0.5">Days recorded</p>
-                  <p className="text-lg font-extrabold font-mono text-[var(--text-strong)]">{attendance.length}</p>
+                <div className="grid grid-cols-3 gap-4">
+                  <ESelect label="Gender" value={ef.gender} onChange={v=>setEf(f=>({...f,gender:v as "male"|"female"}))}
+                    options={[{v:"male",l:"Male"},{v:"female",l:"Female"}]} />
+                  <EField label="Date of Birth" value={ef.date_of_birth} onChange={v=>setEf(f=>({...f,date_of_birth:v}))} type="date" />
+                  <ESelect label="Blood Group" value={ef.blood_group} onChange={v=>setEf(f=>({...f,blood_group:v}))}
+                    options={BLOOD_GROUPS.map(b=>({v:b,l:b}))} placeholder="Select" />
                 </div>
-              </>
+                <div className="grid grid-cols-3 gap-4">
+                  <EField label="Nationality" value={ef.nationality} onChange={v=>setEf(f=>({...f,nationality:v}))} />
+                  <EField label="Place of Birth" value={ef.place_of_birth} onChange={v=>setEf(f=>({...f,place_of_birth:v}))} />
+                  <ESelect label="Religion" value={ef.religion} onChange={v=>setEf(f=>({...f,religion:v}))}
+                    options={RELIGIONS.map(r=>({v:r,l:r}))} placeholder="Select" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <EField label="Student ID (manual)" value={ef.student_id_manual} onChange={v=>setEf(f=>({...f,student_id_manual:v}))} placeholder="e.g. STU-001" />
+                  <ESelect label="Status" value={ef.status} onChange={v=>setEf(f=>({...f,status:v as Student["status"]}))}
+                    options={STATUSES.map(s=>({v:s,l:s.charAt(0).toUpperCase()+s.slice(1)}))} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                  <textarea value={ef.medical_notes} onChange={e=>setEf(f=>({...f,medical_notes:e.target.value}))}
+                    rows={3} className={INPUT_CLS} placeholder="Any notes about this student…" />
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-10 gap-y-5">
+                {[
+                  ["Admission Number", student.admission_number],
+                  ["Full Name", fullName],
+                  ["Student ID", (student as never as Record<string,string>).student_id_manual ?? "—"],
+                  ["Gender", student.gender],
+                  ["Date of Birth", student.date_of_birth ? formatDate(student.date_of_birth) : "—"],
+                  ["Blood Group", (student as never as Record<string,string>).blood_group ?? "—"],
+                  ["Nationality", (student as never as Record<string,string>).nationality ?? "—"],
+                  ["Place of Birth", (student as never as Record<string,string>).place_of_birth ?? "—"],
+                  ["Religion", (student as never as Record<string,string>).religion ?? "—"],
+                  ["Status", student.status],
+                  ["Class", student.classrooms?.name ?? "—"],
+                  ["Notes", student.medical_notes ?? "—"],
+                ].map(([l,v]) => (
+                  <div key={l}>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-0.5">{l}</p>
+                    <p className="text-sm text-gray-800 font-medium capitalize">{v as string}</p>
+                  </div>
+                ))}
+              </div>
             )}
-            {canSeeFinance && (
-              <>
-                <div className="text-center">
-                  <p className="text-xs text-[var(--text-muted)] mb-0.5">Fees paid</p>
-                  <p className="text-lg font-extrabold font-mono text-[var(--success)]">{formatCurrency(totalPaid)}</p>
+          </div>
+        )}
+
+        {/* ADMISSION */}
+        {tab==="admission" && (
+          <div className="bg-white rounded-2xl border border-gray-200 p-6">
+            {editing ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <ESelect label="Admission Type" value={ef.admission_type} onChange={v=>setEf(f=>({...f,admission_type:v}))}
+                    options={ADMISSION_TYPES.map(a=>({v:a,l:a}))} />
+                  <EField label="Admission Year" value={ef.admission_year} onChange={v=>setEf(f=>({...f,admission_year:v}))} placeholder="e.g. 2024" />
+                  <ESelect label="Class" value={ef.class_id} onChange={v=>setEf(f=>({...f,class_id:v}))}
+                    options={classes.map(c=>({v:c.id,l:c.name}))} placeholder="Select class" />
                 </div>
-                <div className="text-center">
-                  <p className="text-xs text-[var(--text-muted)] mb-0.5">Balance</p>
-                  <p className={`text-lg font-extrabold font-mono ${totalBalance > 0 ? "text-[var(--danger)]" : "text-[var(--success)]"}`}>{formatCurrency(totalBalance)}</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <EField label="Previous School" value={ef.previous_school} onChange={v=>setEf(f=>({...f,previous_school:v}))} />
+                  <EField label="Previous Class" value={ef.previous_class} onChange={v=>setEf(f=>({...f,previous_class:v}))} />
                 </div>
-              </>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-10 gap-y-5">
+                {[
+                  ["Admission Number", student.admission_number],
+                  ["Admission Date", formatDate(student.admission_date)],
+                  ["Admission Year", (student as never as Record<string,string>).admission_year ?? "—"],
+                  ["Admission Type", (student as never as Record<string,string>).admission_type ?? "—"],
+                  ["Current Class", student.classrooms?.name ?? "—"],
+                  ["Admission Status", (student as never as Record<string,string>).admission_status ?? "active"],
+                  ["Previous School", student.previous_school ?? "—"],
+                  ["Previous Class", (student as never as Record<string,string>).previous_class ?? "—"],
+                ].map(([l,v]) => (
+                  <div key={l}>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-0.5">{l}</p>
+                    <p className="text-sm text-gray-800 font-medium capitalize">{v as string}</p>
+                  </div>
+                ))}
+              </div>
             )}
+          </div>
+        )}
+
+        {/* PARENTS */}
+        {tab==="parents" && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <p className="text-sm font-semibold text-gray-500">{parents.length} parent / guardian{parents.length!==1?"s":""}</p>
+              {canEdit && (
+                <button onClick={() => setAddingParent(v=>!v)}
+                  className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                  <Plus className="w-3.5 h-3.5" /> Add Parent
+                </button>
+              )}
+            </div>
+
+            {addingParent && (
+              <div className="bg-white rounded-2xl border border-gray-200 p-5">
+                <p className="text-sm font-semibold text-gray-800 mb-4">Add Parent / Guardian</p>
+                <form onSubmit={saveParent} className="space-y-4">
+                  <div className="grid grid-cols-3 gap-4">
+                    <EField label="Full Name *" value={pf.full_name} onChange={v=>setPf(f=>({...f,full_name:v}))} required />
+                    <EField label="Phone *" value={pf.phone} onChange={v=>setPf(f=>({...f,phone:v}))} type="tel" required />
+                    <ESelect label="Relationship" value={pf.relationship} onChange={v=>setPf(f=>({...f,relationship:v}))}
+                      options={["Father","Mother","Guardian","Uncle","Aunt","Grandparent","Other"].map(r=>({v:r,l:r}))} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <EField label="Email" value={pf.email} onChange={v=>setPf(f=>({...f,email:v}))} type="email" />
+                    <EField label="Occupation" value={pf.occupation} onChange={v=>setPf(f=>({...f,occupation:v}))} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <EField label="Employer" value={pf.employer} onChange={v=>setPf(f=>({...f,employer:v}))} />
+                    <EField label="Digital Address" value={pf.digital_address} onChange={v=>setPf(f=>({...f,digital_address:v}))} placeholder="e.g. GA-123-4567" />
+                  </div>
+                  <EField label="Residential Address" value={pf.address} onChange={v=>setPf(f=>({...f,address:v}))} />
+                  <div className="flex gap-2">
+                    <BtnPrimary type="submit" loading={savingParent}>Save</BtnPrimary>
+                    <BtnSecondary type="button" onClick={() => setAddingParent(false)}>Cancel</BtnSecondary>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {parents.length===0 && !addingParent && (
+              <EmptyState icon={<Users className="w-8 h-8 text-gray-300" />} text="No parents or guardians added yet." />
+            )}
+
+            <div className="space-y-3">
+              {parents.map(p => (
+                <div key={p.id} className="bg-white rounded-2xl border border-gray-200 p-5">
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
+                      <User className="w-5 h-5 text-indigo-600" />
+                    </div>
+                    <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3">
+                      {[
+                        ["Name", p.full_name],
+                        ["Relationship", p.relationship],
+                        ["Phone", p.phone],
+                        ["Email", p.email ?? "—"],
+                        ["Occupation", p.occupation ?? "—"],
+                        ["Employer", (p as unknown as Record<string,string>).employer ?? "—"],
+                        ["Address", p.address ?? "—"],
+                        ["Digital Address", (p as unknown as Record<string,string>).digital_address ?? "—"],
+                      ].map(([l,v]) => (
+                        <div key={l}>
+                          <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{l}</p>
+                          <p className="text-sm text-gray-800">{v as string}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                      {p.is_primary && <Badge variant="brand">Primary</Badge>}
+                      {canEdit && (
+                        <button onClick={() => { setConfirmDelete(p.id); setConfirmDeleteType("parent"); }}
+                          className="text-gray-400 hover:text-red-500 transition-colors">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                      <a href={`tel:${p.phone}`} className="text-indigo-600 hover:text-indigo-800 transition-colors">
+                        <Phone className="w-4 h-4" />
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* MEDICAL */}
+        {tab==="medical" && (
+          <div className="bg-white rounded-2xl border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="font-semibold text-gray-800">Medical Information</h3>
+              {canEdit && !editMedical && (
+                <button onClick={() => { setEditMedical(true); setMf({
+                  blood_group: medical?.blood_group??"",
+                  allergies: medical?.allergies??"",
+                  medical_conditions: medical?.medical_conditions??"",
+                  special_needs: medical?.special_needs??"",
+                  hospital_name: medical?.hospital_name??"",
+                  doctor_name: medical?.doctor_name??"",
+                  insurance_provider: medical?.insurance_provider??"",
+                  insurance_number: medical?.insurance_number??"",
+                }); }}
+                  className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                  <Edit3 className="w-3.5 h-3.5" /> Edit
+                </button>
+              )}
+            </div>
+            {editMedical ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <ESelect label="Blood Group" value={mf.blood_group} onChange={v=>setMf(f=>({...f,blood_group:v}))}
+                    options={BLOOD_GROUPS.map(b=>({v:b,l:b}))} placeholder="Select" />
+                  <EField label="Doctor's Name" value={mf.doctor_name} onChange={v=>setMf(f=>({...f,doctor_name:v}))} />
+                </div>
+                <EField label="Hospital / Clinic" value={mf.hospital_name} onChange={v=>setMf(f=>({...f,hospital_name:v}))} />
+                <ETextarea label="Allergies" value={mf.allergies} onChange={v=>setMf(f=>({...f,allergies:v}))} />
+                <ETextarea label="Medical Conditions" value={mf.medical_conditions} onChange={v=>setMf(f=>({...f,medical_conditions:v}))} />
+                <ETextarea label="Special Needs" value={mf.special_needs} onChange={v=>setMf(f=>({...f,special_needs:v}))} />
+                <div className="grid grid-cols-2 gap-4">
+                  <EField label="Insurance Provider" value={mf.insurance_provider} onChange={v=>setMf(f=>({...f,insurance_provider:v}))} />
+                  <EField label="Insurance Number" value={mf.insurance_number} onChange={v=>setMf(f=>({...f,insurance_number:v}))} />
+                </div>
+                <div className="flex gap-2">
+                  <BtnPrimary onClick={saveMedical}>Save</BtnPrimary>
+                  <BtnSecondary onClick={() => setEditMedical(false)}>Cancel</BtnSecondary>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-10 gap-y-5">
+                {[
+                  ["Blood Group", medical?.blood_group ?? "—"],
+                  ["Doctor", medical?.doctor_name ?? "—"],
+                  ["Hospital", medical?.hospital_name ?? "—"],
+                  ["Insurance Provider", medical?.insurance_provider ?? "—"],
+                  ["Insurance Number", medical?.insurance_number ?? "—"],
+                  ["Allergies", medical?.allergies ?? "None recorded"],
+                  ["Medical Conditions", medical?.medical_conditions ?? "None recorded"],
+                  ["Special Needs", medical?.special_needs ?? "None recorded"],
+                ].map(([l,v]) => (
+                  <div key={l}>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-0.5">{l}</p>
+                    <p className="text-sm text-gray-800">{v as string}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ACADEMIC */}
+        {tab==="academic" && (
+          <div className="space-y-5">
+            {/* Academic trend chart */}
+            {academicTrend.length > 0 && (
+              <div className="bg-white rounded-2xl border border-gray-200 p-5">
+                <h3 className="font-semibold text-gray-800 mb-4">Average Score Per Term</h3>
+                <ResponsiveContainer width="100%" height={220}>
+                  <LineChart data={academicTrend}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="term" tick={{fontSize:12}} />
+                    <YAxis domain={[0,100]} tick={{fontSize:12}} />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="avg" stroke="#262262" strokeWidth={2} dot={{r:4}} name="Avg Score" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+
+            {/* Scores table */}
+            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+              <div className="p-4 border-b border-gray-100">
+                <h3 className="font-semibold text-gray-800">Examination Records</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      {["Subject","Term","Class Score","Exam Score","Total","Grade","Position","Remark"].map(h=>(
+                        <th key={h} className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-gray-400">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {scores.length===0 && (
+                      <tr><td colSpan={8} className="px-4 py-10 text-center text-sm text-gray-400">No exam records yet.</td></tr>
+                    )}
+                    {scores.map(s => (
+                      <tr key={s.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 font-medium text-gray-800">{s.subjects?.name ?? "—"}</td>
+                        <td className="px-4 py-3 text-gray-500">{s.terms?.name ?? "—"}</td>
+                        <td className="px-4 py-3 font-mono text-center">{s.class_score ?? "—"}</td>
+                        <td className="px-4 py-3 font-mono text-center">{s.exam_score ?? "—"}</td>
+                        <td className="px-4 py-3 font-mono font-bold text-center text-gray-800">{s.total ?? "—"}</td>
+                        <td className="px-4 py-3">
+                          {s.grade && <GradeBadge grade={s.grade} />}
+                        </td>
+                        <td className="px-4 py-3 font-mono text-center text-gray-500">{s.position ?? "—"}</td>
+                        <td className="px-4 py-3 text-gray-500">{s.remark ?? "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ATTENDANCE */}
+        {tab==="attendance" && (
+          <div className="space-y-5">
+            {/* Stats */}
+            <div className="grid grid-cols-4 gap-4">
+              {[
+                { label:"Attendance Rate", value: attRate!==null?`${attRate}%`:"—", color: attRate!==null&&attRate>=75?"#16a34a":"#dc2626" },
+                { label:"Days Present", value: present, color:"#16a34a" },
+                { label:"Days Absent", value: absent, color:"#dc2626" },
+                { label:"Days Late", value: late, color:"#d97706" },
+              ].map(s => (
+                <div key={s.label} className="bg-white rounded-2xl border border-gray-200 p-4 text-center">
+                  <p className="text-xs text-gray-400 mb-1">{s.label}</p>
+                  <p className="text-2xl font-bold" style={{ color: s.color }}>{s.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Monthly chart */}
+            {monthlyAtt.length > 0 && (
+              <div className="bg-white rounded-2xl border border-gray-200 p-5">
+                <h3 className="font-semibold text-gray-800 mb-4">Monthly Attendance</h3>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={monthlyAtt} barGap={2}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="month" tick={{fontSize:12}} />
+                    <YAxis tick={{fontSize:12}} />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="present" fill="#262262" name="Present" radius={[3,3,0,0]} />
+                    <Bar dataKey="absent"  fill="#dc2626" name="Absent"  radius={[3,3,0,0]} />
+                    <Bar dataKey="late"    fill="#d97706" name="Late"    radius={[3,3,0,0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+
+            {/* Records table */}
+            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+              <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+                <h3 className="font-semibold text-gray-800">Attendance Records</h3>
+                <span className="text-xs text-gray-400">{attendance.length} records</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead><tr className="bg-gray-50">
+                    {["Date","Status","Term"].map(h=>(
+                      <th key={h} className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-gray-400">{h}</th>
+                    ))}
+                  </tr></thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {attendance.length===0 && (
+                      <tr><td colSpan={3} className="px-4 py-10 text-center text-sm text-gray-400">No attendance records.</td></tr>
+                    )}
+                    {attendance.slice(0,50).map((a,i) => (
+                      <tr key={i} className="hover:bg-gray-50">
+                        <td className="px-4 py-2.5 text-gray-600">{formatDate(a.date)}</td>
+                        <td className="px-4 py-2.5">
+                          <span className={cn("flex items-center gap-1.5 text-xs font-semibold capitalize",
+                            a.status==="present"?"text-green-600":a.status==="absent"?"text-red-500":"text-amber-600")}>
+                            {a.status==="present" ? <CheckCircle2 className="w-3.5 h-3.5" />
+                              : a.status==="absent" ? <AlertCircle className="w-3.5 h-3.5" />
+                              : <Clock className="w-3.5 h-3.5" />}
+                            {a.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-gray-500">{Array.isArray(a.terms)?a.terms[0]?.name:a.terms?.name ?? "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* FINANCE */}
+        {tab==="finance" && !canFinance && (
+          <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+            <Shield className="w-10 h-10 mb-3" />
+            <p className="text-sm">Financial information is restricted to authorized staff.</p>
+          </div>
+        )}
+        {tab==="finance" && canFinance && (
+          <div className="space-y-5">
+            <div className="grid grid-cols-3 gap-4">
+              {[
+                { label:"Total Assigned", value:formatCurrency(totalDue), color:"text-gray-800" },
+                { label:"Total Paid", value:formatCurrency(totalPaid), color:"text-green-600" },
+                { label:"Outstanding Balance", value:formatCurrency(balance), color:balance>0?"text-red-500":"text-green-600" },
+              ].map(s => (
+                <div key={s.label} className="bg-white rounded-2xl border border-gray-200 p-4 text-center">
+                  <p className="text-xs text-gray-400 mb-1">{s.label}</p>
+                  <p className={`text-2xl font-bold font-mono ${s.color}`}>{s.value}</p>
+                </div>
+              ))}
+            </div>
+            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+              <div className="p-4 border-b border-gray-100">
+                <h3 className="font-semibold text-gray-800">Payment History</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead><tr className="bg-gray-50">
+                    {["Fee Type","Term","Amount Due","Amount Paid","Balance","Status"].map(h=>(
+                      <th key={h} className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-gray-400">{h}</th>
+                    ))}
+                  </tr></thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {fees.length===0 && <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-400">No fee records.</td></tr>}
+                    {fees.map(f => (
+                      <tr key={f.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 font-medium text-gray-800">{f.fee_types?.name ?? "—"}</td>
+                        <td className="px-4 py-3 text-gray-500">{f.terms?.name ?? "—"}</td>
+                        <td className="px-4 py-3 font-mono">{formatCurrency(f.amount_due)}</td>
+                        <td className="px-4 py-3 font-mono text-green-600">{formatCurrency(f.amount_paid)}</td>
+                        <td className="px-4 py-3 font-mono" style={{color:f.balance>0?"#dc2626":"#16a34a"}}>{formatCurrency(f.balance)}</td>
+                        <td className="px-4 py-3">
+                          <span className={cn("text-xs font-semibold px-2 py-0.5 rounded-full capitalize",
+                            f.payment_status==="paid"?"bg-green-50 text-green-700"
+                            :f.payment_status==="partial"?"bg-amber-50 text-amber-700"
+                            :"bg-red-50 text-red-700")}>
+                            {f.payment_status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* DISCIPLINE */}
+        {tab==="discipline" && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <p className="text-sm font-semibold text-gray-500">{discipline.length} incident{discipline.length!==1?"s":""} recorded</p>
+              {canEdit && (
+                <button onClick={() => setAddingDisc(v=>!v)}
+                  className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                  <Plus className="w-3.5 h-3.5" /> Add Incident
+                </button>
+              )}
+            </div>
+            {addingDisc && (
+              <div className="bg-white rounded-2xl border border-gray-200 p-5">
+                <form onSubmit={saveDisc} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <EField label="Incident Date *" value={df.incident_date} onChange={v=>setDf(f=>({...f,incident_date:v}))} type="date" required />
+                    <ESelect label="Incident Type *" value={df.incident_type} onChange={v=>setDf(f=>({...f,incident_type:v}))}
+                      options={INCIDENT_TYPES.map(t=>({v:t,l:t}))} placeholder="Select type" />
+                  </div>
+                  <ETextarea label="Description" value={df.description} onChange={v=>setDf(f=>({...f,description:v}))} />
+                  <ETextarea label="Action Taken" value={df.action_taken} onChange={v=>setDf(f=>({...f,action_taken:v}))} />
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="checkbox" checked={df.parent_notified} onChange={e=>setDf(f=>({...f,parent_notified:e.target.checked}))}
+                      className="rounded border-gray-300 text-[#262262]" />
+                    Parent / Guardian notified
+                  </label>
+                  <div className="flex gap-2">
+                    <BtnPrimary type="submit">Save</BtnPrimary>
+                    <BtnSecondary type="button" onClick={() => setAddingDisc(false)}>Cancel</BtnSecondary>
+                  </div>
+                </form>
+              </div>
+            )}
+            {discipline.length===0 && !addingDisc && (
+              <EmptyState icon={<Shield className="w-8 h-8 text-gray-300" />} text="No discipline incidents recorded." />
+            )}
+            <div className="space-y-3">
+              {discipline.map(d => (
+                <div key={d.id} className="bg-white rounded-2xl border border-gray-200 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-red-50 flex items-center justify-center flex-shrink-0">
+                        <AlertTriangle className="w-4 h-4 text-red-500" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-gray-800">{d.incident_type}</p>
+                          {d.parent_notified && <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">Parent Notified</span>}
+                        </div>
+                        <p className="text-xs text-gray-400 mt-0.5">{formatDate(d.incident_date)}</p>
+                        {d.description && <p className="text-sm text-gray-600 mt-1">{d.description}</p>}
+                        {d.action_taken && <p className="text-sm text-gray-500 mt-1"><span className="font-medium">Action:</span> {d.action_taken}</p>}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* AWARDS */}
+        {tab==="awards" && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <p className="text-sm font-semibold text-gray-500">{awards.length} award{awards.length!==1?"s":""}</p>
+              {canEdit && (
+                <button onClick={() => setAddingAward(v=>!v)}
+                  className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                  <Plus className="w-3.5 h-3.5" /> Add Award
+                </button>
+              )}
+            </div>
+            {addingAward && (
+              <div className="bg-white rounded-2xl border border-gray-200 p-5">
+                <form onSubmit={saveAward} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <ESelect label="Award Type" value={awf.award_type} onChange={v=>setAwf(f=>({...f,award_type:v}))}
+                      options={AWARD_TYPES.map(t=>({v:t,l:t}))} />
+                    <EField label="Title *" value={awf.title} onChange={v=>setAwf(f=>({...f,title:v}))} required />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <EField label="Date Awarded" value={awf.awarded_date} onChange={v=>setAwf(f=>({...f,awarded_date:v}))} type="date" />
+                    <EField label="Awarded By" value={awf.awarded_by} onChange={v=>setAwf(f=>({...f,awarded_by:v}))} />
+                  </div>
+                  <ETextarea label="Description" value={awf.description} onChange={v=>setAwf(f=>({...f,description:v}))} />
+                  <div className="flex gap-2">
+                    <BtnPrimary type="submit">Save</BtnPrimary>
+                    <BtnSecondary type="button" onClick={() => setAddingAward(false)}>Cancel</BtnSecondary>
+                  </div>
+                </form>
+              </div>
+            )}
+            {awards.length===0 && !addingAward && (
+              <EmptyState icon={<Trophy className="w-8 h-8 text-gray-300" />} text="No awards or achievements recorded." />
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              {awards.map(a => (
+                <div key={a.id} className="bg-white rounded-2xl border border-gray-200 p-4 flex gap-3">
+                  <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0",
+                    a.award_type==="Academic"?"bg-indigo-50":a.award_type==="Sports"?"bg-green-50":"bg-amber-50")}>
+                    {a.award_type==="Academic"
+                      ? <Star className="w-5 h-5 text-indigo-600" />
+                      : a.award_type==="Sports"
+                      ? <Award className="w-5 h-5 text-green-600" />
+                      : <Trophy className="w-5 h-5 text-amber-600" />}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">{a.title}</p>
+                    <p className="text-xs text-gray-400">{a.award_type}{a.awarded_date ? ` · ${formatDate(a.awarded_date)}` : ""}</p>
+                    {a.description && <p className="text-xs text-gray-500 mt-1">{a.description}</p>}
+                    {a.awarded_by && <p className="text-xs text-gray-400 mt-0.5">By {a.awarded_by}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* DOCUMENTS */}
+        {tab==="documents" && (
+          <div className="space-y-4">
+            <div className="flex items-end gap-3">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Document Type</label>
+                <select value={docType} onChange={e=>setDocType(e.target.value)}
+                  className={INPUT_CLS + " bg-white"}>
+                  {DOC_TYPES.map(t=><option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              {canEdit && (
+                <button onClick={() => docRef.current?.click()} disabled={uploadingDoc}
+                  className="flex items-center gap-2 px-4 py-2 bg-[#262262] text-white rounded-lg text-sm font-medium hover:bg-[#1a1856] disabled:opacity-50 transition-colors">
+                  <Upload className="w-4 h-4" /> {uploadingDoc ? "Uploading…" : "Upload File"}
+                </button>
+              )}
+              <input ref={docRef} type="file" className="hidden" onChange={uploadDoc} />
+            </div>
+            {docs.length===0 && (
+              <EmptyState icon={<FileText className="w-8 h-8 text-gray-300" />} text="No documents uploaded yet." />
+            )}
+            <div className="space-y-3">
+              {docs.map(d => (
+                <div key={d.id} className="bg-white rounded-2xl border border-gray-200 p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 bg-indigo-50 rounded-lg flex items-center justify-center">
+                      <FileText className="w-4 h-4 text-indigo-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">{d.document_type}</p>
+                      <p className="text-xs text-gray-400">{d.file_name ?? "Document"} · {new Date(d.uploaded_at).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <a href={d.file_url} target="_blank" rel="noopener noreferrer"
+                      className="text-xs text-indigo-600 font-medium hover:text-indigo-800 transition-colors">View</a>
+                    {canEdit && (
+                      <button onClick={() => { setConfirmDelete(d.id); setConfirmDeleteType("doc"); }}
+                        className="text-gray-400 hover:text-red-500 transition-colors">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* PROMOTION HISTORY */}
+        {tab==="promotions" && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <p className="text-sm font-semibold text-gray-500">Academic Progression</p>
+              {canEdit && (
+                <button onClick={() => setAddingPromo(v=>!v)}
+                  className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                  <Plus className="w-3.5 h-3.5" /> Add Promotion
+                </button>
+              )}
+            </div>
+            {addingPromo && (
+              <div className="bg-white rounded-2xl border border-gray-200 p-5">
+                <form onSubmit={savePromotion} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <EField label="Academic Year *" value={prf.academic_year} onChange={v=>setPrf(f=>({...f,academic_year:v}))} placeholder="e.g. 2025/2026" required />
+                    <ESelect label="Class *" value={prf.class_id} onChange={v=>setPrf(f=>({...f,class_id:v}))}
+                      options={classes.map(c=>({v:c.id,l:c.name}))} placeholder="Select class" />
+                  </div>
+                  <EField label="Notes" value={prf.notes} onChange={v=>setPrf(f=>({...f,notes:v}))} />
+                  <div className="flex gap-2">
+                    <BtnPrimary type="submit">Save</BtnPrimary>
+                    <BtnSecondary type="button" onClick={() => setAddingPromo(false)}>Cancel</BtnSecondary>
+                  </div>
+                </form>
+              </div>
+            )}
+            {promotions.length===0 && !addingPromo && (
+              <EmptyState icon={<TrendingUp className="w-8 h-8 text-gray-300" />} text="No promotion history recorded." />
+            )}
+            <div className="relative">
+              {/* Vertical line */}
+              {promotions.length > 1 && (
+                <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-gray-200" />
+              )}
+              <div className="space-y-3">
+                {promotions.map((p, i) => (
+                  <div key={p.id} className="relative flex items-start gap-4 pl-12">
+                    <div className={cn("absolute left-0 w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold",
+                      i===promotions.length-1 ? "bg-[#262262] text-white" : "bg-gray-100 text-gray-600")}>
+                      {p.academic_year?.slice(-2) ?? i+1}
+                    </div>
+                    <div className="bg-white rounded-xl border border-gray-200 p-4 flex-1">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-gray-800">{p.class_name}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{p.academic_year}</p>
+                        </div>
+                        {i===promotions.length-1 && (
+                          <span className="text-xs bg-[#262262] text-white px-2 py-0.5 rounded-full font-medium">Current</span>
+                        )}
+                      </div>
+                      {p.notes && <p className="text-xs text-gray-500 mt-2">{p.notes}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TIMELINE */}
+        {tab==="timeline" && (
+          <div className="space-y-4">
+            <p className="text-sm font-semibold text-gray-500">Student Journey · {timeline.length} events</p>
+
+            {/* Auto-seed from admission */}
+            {timeline.length===0 && (
+              <EmptyState icon={<Clock className="w-8 h-8 text-gray-300" />} text="No timeline events yet. They auto-record as you add data." />
+            )}
+
+            <div className="relative">
+              {timeline.length > 1 && <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-gray-100" />}
+              <div className="space-y-3">
+                {timeline.map((ev) => {
+                  const Icon = TIMELINE_ICON[ev.event_type] ?? Calendar;
+                  const color = TIMELINE_COLOR[ev.event_type] ?? "#262262";
+                  return (
+                    <div key={ev.id} className="relative flex items-start gap-4 pl-12">
+                      <div className="absolute left-0 w-10 h-10 rounded-full flex items-center justify-center"
+                        style={{ background: `${color}15` }}>
+                        <Icon className="w-4 h-4" style={{ color }} />
+                      </div>
+                      <div className="bg-white rounded-xl border border-gray-200 p-4 flex-1">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-semibold text-gray-800">{ev.title}</p>
+                          <p className="text-xs text-gray-400">{formatDate(ev.event_date)}</p>
+                        </div>
+                        {ev.description && <p className="text-xs text-gray-500 mt-1">{ev.description}</p>}
+                        <span className="text-[10px] font-semibold uppercase tracking-wide mt-1 inline-block"
+                          style={{ color }}>{ev.event_type}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         )}
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 flex-wrap">
-        {([
-          { id: "info", label: "Profile", icon: User },
-          { id: "parents", label: "Parents", icon: Users },
-          ...(canSeeFinance ? [{ id: "fees", label: "Fees", icon: CreditCard }] : []),
-          { id: "attendance", label: "Attendance", icon: ClipboardList },
-          { id: "results", label: "Results", icon: BarChart2 },
-        ] as { id: Tab; label: string; icon: React.ElementType }[]).map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            onClick={() => setTab(id)}
-            className={cn(
-              "flex items-center gap-1.5 px-4 py-2 rounded-[8px] text-[15px] font-medium transition-all",
-              tab === id
-                ? "bg-[var(--brand)] text-white"
-                : "text-[var(--text-muted)] hover:text-[var(--text-body)] hover:bg-[var(--neutral-100)]",
-            )}
-          >
-            <Icon size={14} />
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {/* Tab content */}
-      {tab === "info" && (
-        <Card>
-          {editing ? (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <Input label="First name" required value={editForm.first_name} onChange={(e) => setEditForm((f) => ({ ...f, first_name: e.target.value }))} />
-                <Input label="Middle name" value={editForm.middle_name} onChange={(e) => setEditForm((f) => ({ ...f, middle_name: e.target.value }))} />
-                <Input label="Last name" required value={editForm.last_name} onChange={(e) => setEditForm((f) => ({ ...f, last_name: e.target.value }))} />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <Input label="Date of birth" type="date" value={editForm.date_of_birth} onChange={(e) => setEditForm((f) => ({ ...f, date_of_birth: e.target.value }))} />
-                <Select label="Gender" value={editForm.gender} onChange={(e) => setEditForm((f) => ({ ...f, gender: e.target.value as "male" | "female" }))} options={[{ value: "male", label: "Male" }, { value: "female", label: "Female" }]} />
-                <Select label="Status" value={editForm.status} onChange={(e) => setEditForm((f) => ({ ...f, status: e.target.value as Student["status"] }))} options={["active","inactive","graduated","transferred","withdrawn"].map((v) => ({ value: v, label: v.charAt(0).toUpperCase() + v.slice(1) }))} />
-              </div>
-              <Select
-                label="Class"
-                value={editForm.class_id}
-                onChange={(e) => setEditForm((f) => ({ ...f, class_id: e.target.value }))}
-                options={classes.map((c) => ({ value: c.id, label: `${c.name} (${c.level})` }))}
-                placeholder="Select class"
-              />
-              <Input label="Previous school" value={editForm.previous_school} onChange={(e) => setEditForm((f) => ({ ...f, previous_school: e.target.value }))} />
-              <div>
-                <label className="text-sm font-semibold text-[var(--text-strong)] block mb-1.5">About / Notes</label>
-                <textarea className="w-full rounded-[10px] border border-[var(--border)] p-3 text-sm outline-none focus:border-[var(--ring)] resize-none" rows={3} value={editForm.medical_notes} onChange={(e) => setEditForm((f) => ({ ...f, medical_notes: e.target.value }))} placeholder="Any notes about this student…" />
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-4">
-              {[
-                ["Admission number", student.admission_number, true],
-                ["Full name", fullName],
-                ["Gender", student.gender.charAt(0).toUpperCase() + student.gender.slice(1)],
-                ["Date of birth", student.date_of_birth ? formatDate(student.date_of_birth) : "—"],
-                ["Class", student.classrooms?.name ?? "—"],
-                ["Status", student.status],
-                ["Admission date", formatDate(student.admission_date)],
-                ["Previous school", student.previous_school ?? "—"],
-                ["About / Notes", student.medical_notes ?? "—"],
-              ].map(([label, value, mono]) => (
-                <div key={label as string} className="flex flex-col gap-0.5">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">{label as string}</p>
-                  <p className={`text-sm text-[var(--text-strong)] ${mono ? "font-mono" : ""}`}>{value as string}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-      )}
-
-      {tab === "parents" && (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <p className="text-sm font-semibold text-[var(--text-muted)]">{parents.length} parent / guardian{parents.length !== 1 ? "s" : ""}</p>
-            {canEdit && (
-              <Button size="sm" variant="secondary" onClick={() => setAddingParent((v) => !v)}>
-                <Plus size={13} /> Add parent
-              </Button>
-            )}
-          </div>
-
-          {addingParent && (
-            <Card>
-              <p className="text-sm font-semibold text-[var(--text-strong)] mb-4">Add parent / guardian</p>
-              <form onSubmit={saveParent} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <Input label="Full name" required value={parentForm.full_name} onChange={(e) => setParentForm((f) => ({ ...f, full_name: e.target.value }))} />
-                  <Input label="Phone" type="tel" required value={parentForm.phone} onChange={(e) => setParentForm((f) => ({ ...f, phone: e.target.value }))} placeholder="024 000 0000" />
-                  <Select label="Relationship" value={parentForm.relationship} onChange={(e) => setParentForm((f) => ({ ...f, relationship: e.target.value }))} options={["Father","Mother","Guardian","Uncle","Aunt","Grandparent","Other"].map((r) => ({ value: r, label: r }))} />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <Input label="Email" type="email" value={parentForm.email} onChange={(e) => setParentForm((f) => ({ ...f, email: e.target.value }))} />
-                  <Input label="Occupation" value={parentForm.occupation} onChange={(e) => setParentForm((f) => ({ ...f, occupation: e.target.value }))} />
-                  <Input label="Address" value={parentForm.address} onChange={(e) => setParentForm((f) => ({ ...f, address: e.target.value }))} />
-                </div>
-                <div className="flex gap-2">
-                  <Button type="submit" size="sm" loading={savingParent}>Save</Button>
-                  <Button type="button" size="sm" variant="secondary" onClick={() => setAddingParent(false)}>Cancel</Button>
-                </div>
-              </form>
-            </Card>
-          )}
-
-          {parents.length === 0 && !addingParent && (
-            <Card><p className="text-sm text-[var(--text-muted)] text-center py-6">No parents or guardians added yet.</p></Card>
-          )}
-
-          <div className="space-y-3">
-            {parents.map((p) => (
-              <Card key={p.id}>
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-[var(--brand-subtle)] flex items-center justify-center shrink-0">
-                    <User size={16} className="text-[var(--brand)]" />
-                  </div>
-                  <div className="flex-1 min-w-0 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3">
-                    {[
-                      ["Name", p.full_name],
-                      ["Relationship", p.relationship],
-                      ["Phone", p.phone],
-                      ["Email", p.email ?? "—"],
-                      ["Occupation", p.occupation ?? "—"],
-                      ["Address", p.address ?? "—"],
-                    ].map(([label, val]) => (
-                      <div key={label}>
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">{label}</p>
-                        <p className="text-sm text-[var(--text-strong)]">{val}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex flex-col items-end gap-2 shrink-0">
-                    {p.is_primary && <Badge variant="brand">Primary</Badge>}
-                    {canEdit && (
-                      <button onClick={() => setConfirmDelete(p.id)} className="text-[var(--text-subtle)] hover:text-[var(--danger)] transition-colors">
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                    <a href={`tel:${p.phone}`} className="text-[var(--brand)] hover:underline">
-                      <Phone size={14} />
-                    </a>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {tab === "fees" && canSeeFinance && (
-        <div className="space-y-4">
-          {/* Summary */}
-          <div className="grid grid-cols-3 gap-4">
-            {[
-              { label: "Total due", value: formatCurrency(totalDue), color: "var(--text-strong)" },
-              { label: "Total paid", value: formatCurrency(totalPaid), color: "var(--success)" },
-              { label: "Balance", value: formatCurrency(totalBalance), color: totalBalance > 0 ? "var(--danger)" : "var(--success)" },
-            ].map((s) => (
-              <div key={s.label} className="bg-white rounded-2xl border border-[var(--border)] p-4 shadow-[var(--shadow-sm)]">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)] mb-1">{s.label}</p>
-                <p className="text-xl font-extrabold font-mono" style={{ color: s.color }}>{s.value}</p>
-              </div>
-            ))}
-          </div>
-
-          <Card padding="none">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-[var(--border)]">
-                    {["Fee type", "Term", "Due", "Paid", "Balance", "Status"].map((h) => (
-                      <th key={h} className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--border)]">
-                  {fees.length === 0 && (
-                    <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-[var(--text-muted)]">No fee records yet.</td></tr>
-                  )}
-                  {fees.map((f) => (
-                    <tr key={f.id} className="hover:bg-[var(--neutral-50)]">
-                      <td className="px-4 py-3 font-medium text-[var(--text-strong)]">{f.fee_types?.name ?? "—"}</td>
-                      <td className="px-4 py-3 text-[var(--text-muted)]">{f.terms?.name ?? "—"}</td>
-                      <td className="px-4 py-3 font-mono text-[var(--text-body)]">{formatCurrency(f.amount_due)}</td>
-                      <td className="px-4 py-3 font-mono text-[var(--success)]">{formatCurrency(f.amount_paid)}</td>
-                      <td className="px-4 py-3 font-mono" style={{ color: f.balance > 0 ? "var(--danger)" : "var(--success)" }}>{formatCurrency(f.balance)}</td>
-                      <td className="px-4 py-3">
-                        <Badge variant={f.payment_status === "paid" ? "success" : f.payment_status === "partial" ? "warning" : "danger"}>
-                          {f.payment_status}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {tab === "attendance" && (
-        <div className="space-y-4">
-          {attRate !== null && (
-            <div className="flex gap-4">
-              {[
-                { label: "Attendance rate", value: `${attRate}%`, color: attRate >= 75 ? "var(--success)" : "var(--danger)" },
-                { label: "Days present", value: presentCount, color: "var(--success)" },
-                { label: "Days absent", value: attendance.filter((a) => a.status === "absent").length, color: "var(--danger)" },
-                { label: "Total recorded", value: attendance.length, color: "var(--text-strong)" },
-              ].map((s) => (
-                <div key={s.label} className="bg-white rounded-2xl border border-[var(--border)] p-4 shadow-[var(--shadow-sm)] flex-1 text-center">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)] mb-1">{s.label}</p>
-                  <p className="text-xl font-extrabold font-mono" style={{ color: s.color }}>{s.value}</p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <Card padding="none">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-[var(--border)]">
-                    {["Date", "Status", "Term"].map((h) => (
-                      <th key={h} className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--border)]">
-                  {attendance.length === 0 && (
-                    <tr><td colSpan={3} className="px-4 py-10 text-center text-sm text-[var(--text-muted)]">No attendance records yet.</td></tr>
-                  )}
-                  {attendance.map((a, i) => (
-                    <tr key={i} className="hover:bg-[var(--neutral-50)]">
-                      <td className="px-4 py-3 text-[var(--text-muted)]">{formatDate(a.date)}</td>
-                      <td className="px-4 py-3">
-                        <span className="flex items-center gap-1.5 font-medium capitalize" style={{ color: ATT_COLOR[a.status] }}>
-                          {ATT_ICON[a.status]}{a.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-[var(--text-muted)]">{Array.isArray(a.terms) ? a.terms[0]?.name : a.terms?.name ?? "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {tab === "results" && (
-        <Card padding="none">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[var(--border)]">
-                  {["Subject", "Term", "Class score", "Exam score", "Total", "Grade", "Position", "Remark"].map((h) => (
-                    <th key={h} className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--border)]">
-                {scores.length === 0 && (
-                  <tr><td colSpan={8} className="px-4 py-10 text-center text-sm text-[var(--text-muted)]">No exam results yet.</td></tr>
-                )}
-                {scores.map((s) => (
-                  <tr key={s.id} className="hover:bg-[var(--neutral-50)]">
-                    <td className="px-4 py-3 font-medium text-[var(--text-strong)]">{s.subjects?.name ?? "—"}</td>
-                    <td className="px-4 py-3 text-[var(--text-muted)]">{s.terms?.name ?? "—"}</td>
-                    <td className="px-4 py-3 font-mono text-center">{s.class_score ?? "—"}</td>
-                    <td className="px-4 py-3 font-mono text-center">{s.exam_score ?? "—"}</td>
-                    <td className="px-4 py-3 font-mono font-bold text-center text-[var(--text-strong)]">{s.total ?? "—"}</td>
-                    <td className="px-4 py-3">
-                      {s.grade && (
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                          ["A1","A"].includes(s.grade ?? "") ? "bg-[var(--success-bg)] text-[var(--success)]" :
-                          ["B2","B3","B"].includes(s.grade ?? "") ? "bg-[var(--info-bg)] text-[var(--info)]" :
-                          ["C4","C5","C6","C"].includes(s.grade ?? "") ? "bg-[var(--amber-50)] text-[var(--amber-600)]" :
-                          "bg-[var(--danger-bg)] text-[var(--danger)]"
-                        }`}>{s.grade}</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-center font-mono text-[var(--text-muted)]">{s.position ?? "—"}</td>
-                    <td className="px-4 py-3 text-[var(--text-muted)]">{s.remark ?? "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      )}
-
       <ConfirmModal
         open={!!confirmDelete}
-        title="Remove parent / guardian"
-        message="Are you sure you want to remove this parent or guardian from the student record?"
-        confirmLabel="Remove"
+        title={confirmDeleteType==="parent" ? "Remove parent / guardian" : "Delete document"}
+        message={confirmDeleteType==="parent"
+          ? "Are you sure you want to remove this parent from the student record?"
+          : "Are you sure you want to permanently delete this document?"}
+        confirmLabel="Delete"
         danger
-        onConfirm={() => confirmDelete && deleteParent(confirmDelete)}
+        onConfirm={() => {
+          if (!confirmDelete) return;
+          if (confirmDeleteType==="parent") deleteParent(confirmDelete);
+          else if (confirmDeleteType==="doc") deleteDoc(confirmDelete);
+        }}
         onCancel={() => setConfirmDelete(null)}
       />
     </div>
   );
+}
+
+// ── Timeline icon/color map ────────────────────────────────────────
+const TIMELINE_ICON: Record<string, React.ElementType> = {
+  admission:  CheckCircle2,
+  parent:     Users,
+  discipline: AlertTriangle,
+  award:      Trophy,
+  promotion:  TrendingUp,
+  payment:    CreditCard,
+  attendance: ClipboardList,
+  exam:       BarChart2,
+  document:   FileText,
+};
+const TIMELINE_COLOR: Record<string, string> = {
+  admission:  "#262262",
+  parent:     "#7c3aed",
+  discipline: "#dc2626",
+  award:      "#d97706",
+  promotion:  "#059669",
+  payment:    "#0284c7",
+  attendance: "#64748b",
+  exam:       "#262262",
+  document:   "#6b7280",
+};
+
+// ── Mini components ────────────────────────────────────────────────
+const INPUT_CLS = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#262262]/30 focus:border-[#262262]";
+
+function EField({ label, value, onChange, type="text", required=false, placeholder="" }:
+  { label:string; value:string; onChange:(v:string)=>void; type?:string; required?:boolean; placeholder?:string }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <input type={type} value={value} onChange={e=>onChange(e.target.value)}
+        required={required} placeholder={placeholder} className={INPUT_CLS} />
+    </div>
+  );
+}
+function ESelect({ label, value, onChange, options, placeholder="" }:
+  { label:string; value:string; onChange:(v:string)=>void; options:{v:string;l:string}[]; placeholder?:string }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <select value={value} onChange={e=>onChange(e.target.value)} className={INPUT_CLS + " bg-white"}>
+        {placeholder && <option value="">{placeholder}</option>}
+        {options.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
+      </select>
+    </div>
+  );
+}
+function ETextarea({ label, value, onChange }:
+  { label:string; value:string; onChange:(v:string)=>void }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <textarea value={value} onChange={e=>onChange(e.target.value)}
+        rows={3} className={INPUT_CLS + " resize-none"} />
+    </div>
+  );
+}
+function BtnPrimary({ children, onClick, type="button", loading=false }:
+  { children:React.ReactNode; onClick?:()=>void; type?:"button"|"submit"; loading?:boolean }) {
+  return (
+    <button type={type} onClick={onClick} disabled={loading}
+      className="flex items-center gap-1.5 px-4 py-2 bg-[#262262] text-white rounded-lg text-sm font-medium hover:bg-[#1a1856] disabled:opacity-50 transition-colors">
+      {loading ? "Saving…" : children}
+    </button>
+  );
+}
+function BtnSecondary({ children, onClick, type="button" }:
+  { children:React.ReactNode; onClick?:()=>void; type?:"button"|"submit" }) {
+  return (
+    <button type={type} onClick={onClick}
+      className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+      {children}
+    </button>
+  );
+}
+function EmptyState({ icon, text }: { icon:React.ReactNode; text:string }) {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 flex flex-col items-center justify-center py-16 text-gray-400">
+      {icon}
+      <p className="text-sm mt-3">{text}</p>
+    </div>
+  );
+}
+function GradeBadge({ grade }: { grade:string }) {
+  const cls = ["A1","A"].includes(grade) ? "bg-green-50 text-green-700"
+    : ["B2","B3","B"].includes(grade) ? "bg-blue-50 text-blue-700"
+    : ["C4","C5","C6","C"].includes(grade) ? "bg-amber-50 text-amber-700"
+    : "bg-red-50 text-red-700";
+  return <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${cls}`}>{grade}</span>;
 }
