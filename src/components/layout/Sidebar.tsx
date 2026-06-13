@@ -24,7 +24,8 @@ const navItems = [
     children: [
       { href: "/academics", label: "Academics", icon: BookOpen },
       { href: "/timetable", label: "Timetable", icon: Calendar },
-      { href: "/exams", label: "Exams & Reports", icon: GraduationCap },
+      { href: "/exams", label: "Enter Scores", icon: GraduationCap },
+      { href: "/exams/report-card", label: "Report Cards", icon: GraduationCap },
     ],
   },
   { href: "/finance", label: "Finance", icon: CreditCard },

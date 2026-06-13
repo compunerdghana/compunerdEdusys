@@ -6,12 +6,12 @@ const reportLinks = [
   { href: "/reports/attendance", label: "Attendance report", desc: "Daily and monthly attendance summary by class", icon: Users },
   { href: "/reports/academic", label: "Academic performance", desc: "Subject averages, class positions, honour rolls", icon: BarChart3 },
   { href: "/reports/finance", label: "Financial statement", desc: "Fee collections, outstanding balances, receipts", icon: CreditCard },
-  { href: "/reports/report-cards", label: "Generate report cards", desc: "Print or download terminal report cards", icon: FileText },
+  { href: "/exams/report-card", label: "Generate report cards", desc: "Print or download terminal report cards", icon: FileText },
 ];
 
 export default function ReportsPage() {
   return (
-    <div className="space-y-5 max-w-3xl">
+    <div className="space-y-5">
       <div>
         <h2 className="text-xl font-bold text-[var(--text-strong)]">Reports</h2>
         <p className="text-sm text-[var(--text-muted)]">Generate and download school reports</p>

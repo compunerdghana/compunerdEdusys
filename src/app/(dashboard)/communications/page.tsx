@@ -3,7 +3,7 @@ import { MessageSquare } from "lucide-react";
 
 export default function CommunicationsPage() {
   return (
-    <div className="space-y-5 max-w-4xl">
+    <div className="space-y-5">
       <div>
         <h2 className="text-xl font-bold text-[var(--text-strong)]">Communications</h2>
         <p className="text-sm text-[var(--text-muted)]">SMS and WhatsApp messaging to parents</p>

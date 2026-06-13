@@ -12,7 +12,6 @@ import { UserPlus, Search, Phone, Mail, MessageSquare, X, Pencil, UserX, UserChe
 
 const ROLES = [
   { value: "teacher", label: "Teacher" },
-  { value: "class_teacher", label: "Class Teacher" },
   { value: "accountant", label: "Accountant" },
   { value: "secretary", label: "Secretary" },
   { value: "headmaster", label: "Headmaster" },

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { queueOperation } from "@/lib/offline/db";
@@ -9,7 +9,7 @@ import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
-import { UserPlus, ArrowRight, ArrowLeft } from "lucide-react";
+import { UserPlus, ArrowRight, ArrowLeft, Camera } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ClassRoom { id: string; name: string; level: string; }
@@ -30,6 +30,9 @@ export function AdmitStudentModal({ open, onClose, schoolId }: Props) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmClose, setConfirmClose] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
     // Step 1 — Personal
@@ -57,6 +60,13 @@ export function AdmitStudentModal({ open, onClose, schoolId }: Props) {
   }, [open, schoolId]);
 
   function set(k: string, v: string) { setForm((f) => ({ ...f, [k]: v })); setError(null); }
+
+  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  }
 
   function isDirty() {
     return form.first_name || form.last_name || form.parent_name || form.class_id;
@@ -137,6 +147,19 @@ export function AdmitStudentModal({ open, onClose, schoolId }: Props) {
     if (navigator.onLine) {
       const { data: student, error: sErr } = await supabase.from("students").insert(studentPayload).select().single();
       if (sErr) { setError(sErr.message); setSaving(false); return; }
+
+      // Upload passport photo if provided
+      if (photoFile && student) {
+        await fetch("/api/admin/setup-storage", { method: "POST" });
+        const ext = photoFile.name.split(".").pop();
+        const path = `students/${student.id}-passport.${ext}`;
+        const { data: upData } = await supabase.storage.from("school-assets").upload(path, photoFile, { upsert: true });
+        if (upData) {
+          const { data: { publicUrl } } = supabase.storage.from("school-assets").getPublicUrl(path);
+          await supabase.from("students").update({ photo_url: publicUrl }).eq("id", student.id);
+        }
+      }
+
       if (form.parent_name.trim()) {
         await supabase.from("parents").insert({
           school_id: schoolId, student_id: student.id,
@@ -157,6 +180,8 @@ export function AdmitStudentModal({ open, onClose, schoolId }: Props) {
 
   function resetForm() {
     setStep(1);
+    setPhotoFile(null);
+    setPhotoPreview(null);
     setForm({
       first_name: "", middle_name: "", last_name: "",
       date_of_birth: "", gender: "male",
@@ -194,6 +219,23 @@ export function AdmitStudentModal({ open, onClose, schoolId }: Props) {
         {/* Step 1 — Personal */}
         {step === 1 && (
           <div className="space-y-5">
+            {/* Passport photo */}
+            <div className="flex items-center gap-4">
+              <div className="w-20 h-24 rounded-xl border-2 border-dashed border-[var(--border)] flex items-center justify-center overflow-hidden bg-[var(--neutral-50)] shrink-0">
+                {photoPreview
+                  ? <img src={photoPreview} alt="Passport" className="w-full h-full object-cover" />
+                  : <Camera size={22} className="text-[var(--text-subtle)]" />}
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-[var(--text-strong)] mb-1">Passport photo</p>
+                <p className="text-xs text-[var(--text-muted)] mb-2">Upload a clear passport-size photo. Will appear on report cards.</p>
+                <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+                <button type="button" onClick={() => photoInputRef.current?.click()}
+                  className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-[var(--border)] hover:border-[var(--ring)] text-[var(--text-muted)] hover:text-[var(--brand)] transition-all">
+                  {photoPreview ? "Change photo" : "Upload photo"}
+                </button>
+              </div>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Input label="First name *" value={form.first_name} onChange={(e) => set("first_name", e.target.value)} placeholder="e.g. Ama" autoFocus />
               <Input label="Middle name" value={form.middle_name} onChange={(e) => set("middle_name", e.target.value)} placeholder="Optional" />
