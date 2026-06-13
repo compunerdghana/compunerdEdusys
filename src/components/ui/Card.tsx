@@ -10,11 +10,11 @@ export function Card({ children, className, padding = "md" }: CardProps) {
   return (
     <div
       className={cn(
-        "bg-white rounded-[14px] border border-[var(--border)] shadow-[var(--shadow-sm)]",
+        "bg-white rounded-2xl border border-[var(--border)] shadow-[var(--shadow-sm)]",
         {
-          "p-3": padding === "sm",
-          "p-5": padding === "md",
-          "p-6": padding === "lg",
+          "p-4": padding === "sm",
+          "p-6": padding === "md",
+          "p-7": padding === "lg",
           "p-0": padding === "none",
         },
         className,

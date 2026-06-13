@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { Select } from "@/components/ui/Select";
+import { Upload, School, CheckCircle2 } from "lucide-react";
+import Image from "next/image";
 
 const LEVELS = [
   { value: "daycare", label: "Day Care" },
@@ -16,7 +17,7 @@ const LEVELS = [
   { value: "jhs", label: "Junior High (JHS)" },
 ];
 
-interface School {
+interface SchoolData {
   id: string;
   name: string;
   motto?: string | null;
@@ -31,13 +32,14 @@ interface School {
 }
 
 interface Props {
-  school: School | null;
+  school: SchoolData | null;
   schoolId: string | null;
 }
 
 export function SchoolProfileForm({ school, schoolId }: Props) {
   const router = useRouter();
   const supabase = createClient();
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
     name: school?.name ?? "",
@@ -50,21 +52,38 @@ export function SchoolProfileForm({ school, schoolId }: Props) {
     ges_code: school?.ges_code ?? "",
     levels: school?.levels ?? [] as string[],
   });
+  const [logoUrl, setLogoUrl] = useState<string | null>(school?.logo_url ?? null);
+  const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  function set(field: string, value: string) {
-    setForm((f) => ({ ...f, [field]: value }));
+  function set(field: string, value: string) { setForm((f) => ({ ...f, [field]: value })); setSuccess(false); }
+  function toggleLevel(v: string) {
+    setForm((f) => ({ ...f, levels: f.levels.includes(v) ? f.levels.filter((l) => l !== v) : [...f.levels, v] }));
     setSuccess(false);
   }
 
-  function toggleLevel(v: string) {
-    setForm((f) => ({
-      ...f,
-      levels: f.levels.includes(v) ? f.levels.filter((l) => l !== v) : [...f.levels, v],
-    }));
-    setSuccess(false);
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { setError("Logo must be under 2 MB."); return; }
+    setUploading(true);
+    setError(null);
+
+    const ext = file.name.split(".").pop();
+    const path = `logos/${schoolId ?? "new"}-${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage.from("school-assets").upload(path, file, { upsert: true });
+    if (upErr) { setError("Upload failed: " + upErr.message); setUploading(false); return; }
+
+    const { data: { publicUrl } } = supabase.storage.from("school-assets").getPublicUrl(path);
+    setLogoUrl(publicUrl);
+
+    if (schoolId) {
+      await supabase.from("schools").update({ logo_url: publicUrl }).eq("id", schoolId);
+    }
+    setUploading(false);
+    setSuccess(true);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -82,6 +101,7 @@ export function SchoolProfileForm({ school, schoolId }: Props) {
       district: form.district.trim() || null,
       ges_code: form.ges_code.trim() || null,
       levels: form.levels,
+      logo_url: logoUrl,
     };
 
     let err;
@@ -104,15 +124,40 @@ export function SchoolProfileForm({ school, schoolId }: Props) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5 max-w-2xl">
+    <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl">
       <div>
-        <h3 className="text-base font-bold text-[var(--text-strong)]">School profile</h3>
-        <p className="text-sm text-[var(--text-muted)]">Basic information displayed across the system.</p>
+        <h3 className="text-lg font-bold text-[var(--text-strong)]">School profile</h3>
+        <p className="text-[15px] text-[var(--text-muted)]">Basic information displayed across the system and on report cards.</p>
       </div>
 
+      {/* Logo upload */}
       <Card>
+        <p className="text-[15px] font-semibold text-[var(--text-strong)] mb-4">School logo</p>
+        <div className="flex items-center gap-5">
+          <div className="w-20 h-20 rounded-2xl border-2 border-dashed border-[var(--border)] flex items-center justify-center overflow-hidden bg-[var(--neutral-50)] shrink-0">
+            {logoUrl
+              ? <Image src={logoUrl} alt="School logo" width={80} height={80} className="w-full h-full object-contain" />
+              : <School size={28} className="text-[var(--text-subtle)]" />
+            }
+          </div>
+          <div>
+            <p className="text-[15px] font-medium text-[var(--text-body)] mb-1">
+              {logoUrl ? "Logo uploaded" : "Upload your school logo"}
+            </p>
+            <p className="text-sm text-[var(--text-muted)] mb-3">PNG or JPG, max 2 MB. Shown on reports and the login page.</p>
+            <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleLogoUpload} />
+            <Button type="button" size="sm" variant="secondary" loading={uploading} onClick={() => fileRef.current?.click()}>
+              <Upload size={14} /> {logoUrl ? "Change logo" : "Upload logo"}
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      {/* Details */}
+      <Card>
+        <p className="text-[15px] font-semibold text-[var(--text-strong)] mb-5">School details</p>
         <div className="space-y-4">
-          <Input label="School name" value={form.name} onChange={(e) => set("name", e.target.value)} required placeholder="e.g. Adisco Basic School" />
+          <Input label="School name *" value={form.name} onChange={(e) => set("name", e.target.value)} required placeholder="e.g. Adisco Basic School" />
           <Input label="School motto" value={form.motto} onChange={(e) => set("motto", e.target.value)} placeholder="e.g. Excellence in Education" />
           <div className="grid grid-cols-2 gap-4">
             <Input label="Phone" type="tel" value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="024 000 0000" />
@@ -127,31 +172,33 @@ export function SchoolProfileForm({ school, schoolId }: Props) {
         </div>
       </Card>
 
+      {/* Levels */}
       <Card>
-        <p className="text-sm font-semibold text-[var(--text-strong)] mb-3">School levels offered</p>
-        <p className="text-xs text-[var(--text-muted)] mb-4">Select all levels your school runs.</p>
+        <p className="text-[15px] font-semibold text-[var(--text-strong)] mb-2">School levels offered</p>
+        <p className="text-sm text-[var(--text-muted)] mb-4">Select all levels your school runs.</p>
         <div className="flex flex-wrap gap-2">
           {LEVELS.map((l) => (
             <button
               key={l.value}
               type="button"
               onClick={() => toggleLevel(l.value)}
-              className={`px-3 py-1.5 rounded-[8px] text-sm font-medium border transition-all ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[15px] font-medium border-2 transition-all ${
                 form.levels.includes(l.value)
                   ? "bg-[var(--brand)] text-white border-[var(--brand)]"
                   : "bg-white text-[var(--text-muted)] border-[var(--border)] hover:border-[var(--ring)]"
               }`}
             >
+              {form.levels.includes(l.value) && <CheckCircle2 size={15} />}
               {l.label}
             </button>
           ))}
         </div>
       </Card>
 
-      {error && <p className="text-sm text-[var(--danger)] bg-[var(--danger-bg)] px-4 py-3 rounded-[10px]">{error}</p>}
-      {success && <p className="text-sm text-[var(--success)] bg-[var(--success-bg)] px-4 py-3 rounded-[10px]">School profile saved.</p>}
+      {error && <p className="text-[15px] text-[var(--danger)] bg-[var(--danger-bg)] px-5 py-4 rounded-xl">{error}</p>}
+      {success && <p className="text-[15px] text-[var(--success)] bg-[var(--success-bg)] px-5 py-4 rounded-xl">School profile saved successfully.</p>}
 
-      <Button type="submit" loading={saving}>Save school profile</Button>
+      <Button type="submit" size="lg" loading={saving}>Save school profile</Button>
     </form>
   );
 }
