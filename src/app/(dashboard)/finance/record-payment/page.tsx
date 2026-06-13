@@ -8,58 +8,19 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Card } from "@/components/ui/Card";
-import { ArrowLeft, CreditCard, Banknote, Smartphone, Building } from "lucide-react";
+import { ArrowLeft, Banknote, Smartphone, Building, Globe } from "lucide-react";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
-import { loadStripe } from "@stripe/stripe-js";
-import {
-  Elements,
-  PaymentElement,
-  useStripe,
-  useElements,
-} from "@stripe/react-stripe-js";
-
-const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
-  : null;
 
 interface Student { id: string; first_name: string; last_name: string; admission_number: string }
 interface FeeType { id: string; name: string; amount: number }
 
-function StripePaymentForm({ clientSecret, amount, onSuccess }: { clientSecret: string; amount: number; onSuccess: () => void }) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const [processing, setProcessing] = useState(false);
-  const [errMsg, setErrMsg] = useState<string | null>(null);
-
-  async function handleStripeSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!stripe || !elements) return;
-    setProcessing(true);
-    setErrMsg(null);
-    const { error } = await stripe.confirmPayment({
-      elements,
-      redirect: "if_required",
-    });
-    if (error) {
-      setErrMsg(error.message ?? "Payment failed.");
-      setProcessing(false);
-    } else {
-      onSuccess();
-    }
-  }
-
-  return (
-    <form onSubmit={handleStripeSubmit} className="space-y-4">
-      <div className="bg-[var(--neutral-50)] rounded-[10px] p-4">
-        <p className="text-sm text-[var(--text-muted)] mb-3">Total to charge: <span className="font-bold text-[var(--text-strong)]">{formatCurrency(amount)}</span></p>
-        <PaymentElement />
-      </div>
-      {errMsg && <p className="text-sm text-[var(--danger)]">{errMsg}</p>}
-      <Button type="submit" size="lg" loading={processing} className="w-full">Pay with Stripe</Button>
-    </form>
-  );
-}
+const PAYMENT_METHODS = [
+  { value: "cash",   label: "Cash",              icon: Banknote  },
+  { value: "momo",   label: "Mobile Money",      icon: Smartphone },
+  { value: "bank",   label: "Bank Transfer",     icon: Building  },
+  { value: "hubtel", label: "Pay via Hubtel",    icon: Globe     },
+];
 
 export default function RecordPaymentPage() {
   const router = useRouter();
@@ -73,8 +34,8 @@ export default function RecordPaymentPage() {
   });
   const [selectedFee, setSelectedFee] = useState<FeeType | null>(null);
   const [loading, setLoading] = useState(false);
-  const [stripeClientSecret, setStripeClientSecret] = useState<string | null>(null);
-  const [stripeLoading, setStripeLoading] = useState(false);
+  const [hubtelLoading, setHubtelLoading] = useState(false);
+  const [hubtelError, setHubtelError] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -98,38 +59,21 @@ export default function RecordPaymentPage() {
 
   function update(field: string, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
-    if (field === "fee_type_id") {
-      setSelectedFee(feeTypes.find((f) => f.id === value) ?? null);
-    }
-    if (field === "payment_method") {
-      setStripeClientSecret(null);
-    }
+    if (field === "fee_type_id") setSelectedFee(feeTypes.find((f) => f.id === value) ?? null);
+    if (field === "payment_method") { setHubtelError(null); }
   }
 
-  async function handleStripeInit() {
-    const amount = parseFloat(form.amount_paid) || selectedFee?.amount || 0;
-    if (!amount) return;
-    setStripeLoading(true);
-    const res = await fetch("/api/stripe/payment-intent", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount, currency: "usd", metadata: { student_id: form.student_id, fee_type_id: form.fee_type_id } }),
-    });
-    const data = await res.json();
-    setStripeClientSecret(data.clientSecret ?? null);
-    setStripeLoading(false);
-  }
-
-  async function savePaymentRecord(overrideMethod?: string) {
+  async function createPaymentRecord(method?: string): Promise<string | null> {
     const supabase = createClient();
     const amountPaid = parseFloat(form.amount_paid);
     const amountDue = selectedFee?.amount ?? amountPaid;
     const balance = Math.max(0, amountDue - amountPaid);
-    const paymentStatus = balance === 0 ? "paid" : amountPaid > 0 ? "partial" : "unpaid";
+    const paymentStatus = method === "hubtel" ? "pending" : (balance === 0 ? "paid" : amountPaid > 0 ? "partial" : "unpaid");
     const receiptNumber = `RCT/${new Date().getFullYear()}/${Date.now().toString().slice(-6)}`;
 
+    const id = crypto.randomUUID();
     const payload = {
-      id: crypto.randomUUID(),
+      id,
       school_id: schoolId,
       student_id: form.student_id,
       fee_type_id: form.fee_type_id,
@@ -138,44 +82,67 @@ export default function RecordPaymentPage() {
       amount_paid: amountPaid,
       balance,
       payment_status: paymentStatus,
-      paid_at: new Date().toISOString(),
+      paid_at: method !== "hubtel" ? new Date().toISOString() : null,
       receipt_number: receiptNumber,
-      payment_method: overrideMethod ?? form.payment_method,
+      payment_method: method ?? form.payment_method,
       notes: form.notes || null,
     };
 
     if (navigator.onLine) {
       const { error } = await supabase.from("fee_payments").insert(payload);
-      if (error) { alert("Could not save payment: " + error.message); return false; }
+      if (error) { alert("Could not save payment: " + error.message); return null; }
     } else {
       await queueOperation("fee_payments", "insert", payload);
     }
-    return true;
+    return id;
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (form.payment_method === "stripe") {
-      await handleStripeInit();
+
+    if (form.payment_method === "hubtel") {
+      setHubtelLoading(true);
+      setHubtelError(null);
+
+      // Pre-save record as "pending" to get an ID for the callback reference
+      const recordId = await createPaymentRecord("hubtel");
+      if (!recordId) { setHubtelLoading(false); return; }
+
+      const student = students.find((s) => s.id === form.student_id);
+      const amount = parseFloat(form.amount_paid) || selectedFee?.amount || 0;
+      const origin = window.location.origin;
+
+      const res = await fetch("/api/hubtel/initiate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount,
+          description: `${selectedFee?.name ?? "School fee"} — ${student?.first_name} ${student?.last_name}`,
+          clientReference: recordId,
+          returnUrl: `${origin}/finance?payment=success`,
+          cancelUrl: `${origin}/finance/record-payment?payment=cancelled`,
+        }),
+      });
+
+      const data = await res.json();
+      setHubtelLoading(false);
+
+      if (!res.ok || !data.checkoutUrl) {
+        setHubtelError(data.error ?? "Could not initiate Hubtel payment. Check Hubtel credentials.");
+        return;
+      }
+
+      window.location.href = data.checkoutUrl;
       return;
     }
+
     setLoading(true);
-    const ok = await savePaymentRecord();
+    const ok = await createPaymentRecord();
     setLoading(false);
     if (ok) router.push("/finance");
   }
 
-  async function handleStripeSuccess() {
-    await savePaymentRecord("stripe");
-    router.push("/finance");
-  }
-
-  const paymentMethods = [
-    { value: "cash", label: "Cash", icon: Banknote },
-    { value: "momo", label: "Mobile Money (MoMo)", icon: Smartphone },
-    { value: "bank", label: "Bank Transfer", icon: Building },
-    { value: "stripe", label: "Card (Stripe)", icon: CreditCard },
-  ];
+  const amountValue = parseFloat(form.amount_paid) || 0;
 
   return (
     <div className="max-w-xl space-y-5">
@@ -227,11 +194,11 @@ export default function RecordPaymentPage() {
             <div>
               <label className="text-sm font-semibold text-[var(--text-strong)] block mb-2">Payment method</label>
               <div className="grid grid-cols-2 gap-2">
-                {paymentMethods.map(({ value, label, icon: Icon }) => (
+                {PAYMENT_METHODS.map(({ value, label, icon: Icon }) => (
                   <button key={value} type="button" onClick={() => update("payment_method", value)}
                     className={`flex items-center gap-2 px-3 py-2.5 rounded-[10px] border text-sm font-medium transition-all ${
                       form.payment_method === value
-                        ? "border-[var(--brand)] bg-[var(--brand-subtle)] text-[var(--brand-ink)]"
+                        ? "border-[#262262] bg-[var(--brand-subtle)] text-[#262262]"
                         : "border-[var(--border)] bg-white text-[var(--text-muted)] hover:border-[var(--ring)]"
                     }`}>
                     <Icon size={14} />
@@ -239,6 +206,15 @@ export default function RecordPaymentPage() {
                   </button>
                 ))}
               </div>
+
+              {/* Hubtel info banner */}
+              {form.payment_method === "hubtel" && (
+                <div className="mt-3 rounded-[10px] px-4 py-3 text-sm border border-[#262262]/20 bg-[#ede9fe]">
+                  <p className="font-semibold text-[#262262] mb-0.5">Pay via Hubtel Checkout</p>
+                  <p className="text-[var(--text-muted)] text-xs">Supports MTN MoMo, Vodafone Cash, AirtelTigo Money, and card payments. You will be redirected to Hubtel to complete payment.</p>
+                  {amountValue > 0 && <p className="font-bold font-mono text-[#262262] mt-1">Amount: {formatCurrency(amountValue)}</p>}
+                </div>
+              )}
             </div>
 
             <div>
@@ -253,26 +229,18 @@ export default function RecordPaymentPage() {
           </div>
         </Card>
 
-        {/* Stripe payment UI */}
-        {form.payment_method === "stripe" && stripeClientSecret && stripePromise ? (
-          <Card>
-            <p className="text-sm font-semibold text-[var(--text-strong)] mb-4">Card payment</p>
-            <Elements stripe={stripePromise} options={{ clientSecret: stripeClientSecret }}>
-              <StripePaymentForm
-                clientSecret={stripeClientSecret}
-                amount={parseFloat(form.amount_paid) || selectedFee?.amount || 0}
-                onSuccess={handleStripeSuccess}
-              />
-            </Elements>
-          </Card>
-        ) : (
-          <div className="flex gap-3">
-            <Button type="submit" size="lg" loading={loading || stripeLoading}>
-              {form.payment_method === "stripe" ? "Proceed to card payment" : "Save payment"}
-            </Button>
-            <Link href="/finance"><Button type="button" variant="secondary" size="lg">Cancel</Button></Link>
+        {hubtelError && (
+          <div className="rounded-[10px] bg-[#fee2e2] border border-[#fca5a5] px-4 py-3 text-sm text-[#b91c1c]">
+            {hubtelError}
           </div>
         )}
+
+        <div className="flex gap-3">
+          <Button type="submit" size="lg" loading={loading || hubtelLoading}>
+            {form.payment_method === "hubtel" ? "Continue to Hubtel →" : "Save payment"}
+          </Button>
+          <Link href="/finance"><Button type="button" variant="secondary" size="lg">Cancel</Button></Link>
+        </div>
       </form>
     </div>
   );
