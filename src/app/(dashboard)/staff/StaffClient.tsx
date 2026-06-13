@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
@@ -40,6 +41,7 @@ const EMPTY = {
 type FormTab = "basic" | "personal" | "bank";
 
 export function StaffClient({ initialStaff, schoolId, isHeadmaster }: Props) {
+  const router = useRouter();
   const supabase = createClient();
   const [staff, setStaff] = useState(initialStaff);
   const [search, setSearch] = useState("");
@@ -249,11 +251,11 @@ export function StaffClient({ initialStaff, schoolId, isHeadmaster }: Props) {
             <SlidersHorizontal size={14} /> Filter
           </button>
           {isHeadmaster && (
-            <button onClick={() => { setShowAdd(true); setForm(EMPTY); setErr(null); setAddTab("basic"); }}
+            <Link href="/staff/new"
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[13px] font-semibold text-white hover:opacity-90 shadow-sm"
-              style={{ background: "linear-gradient(135deg, #262262, #92278F)" }}>
+              style={{ background: "#262262" }}>
               <UserPlus size={14} /> Add Staff
-            </button>
+            </Link>
           )}
         </div>
       </div>
@@ -286,7 +288,7 @@ export function StaffClient({ initialStaff, schoolId, isHeadmaster }: Props) {
                 const rs = ROLE_STYLE[member.role] ?? { bg: "#f3f4f6", text: "#374151" };
                 const isActive = selected?.id === member.id;
                 return (
-                  <div key={member.id} onClick={() => setSelected(isActive ? null : member)}
+                  <div key={member.id} onClick={() => router.push(`/staff/${member.id}`)}
                     className={`bg-white rounded-2xl border p-4 flex flex-col items-center gap-2 cursor-pointer hover:shadow-md transition-all ${isActive ? "border-[#262262] shadow-md" : "border-[var(--border)]"} ${!member.is_active ? "opacity-50" : ""}`}>
                     {member.photo_url ? (
                       <img src={member.photo_url} alt="" className="w-16 h-16 rounded-full object-cover" />
