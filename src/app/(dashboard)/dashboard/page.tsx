@@ -25,6 +25,7 @@ export default async function DashboardPage() {
     attendanceTodayRes,
     feeDataRes,
     academicYearRes,
+    enrollmentRes,
   ] = await Promise.all([
     supabase.from("schools").select("id, name, logo_url, address, phone").eq("id", profile.school_id).single(),
     supabase.from("students").select("id", { count: "exact", head: true }).eq("school_id", profile.school_id),
@@ -33,6 +34,7 @@ export default async function DashboardPage() {
     supabase.from("attendance_records").select("status").eq("school_id", profile.school_id).eq("date", new Date().toISOString().split("T")[0]),
     supabase.from("fee_payments").select("amount, status").eq("school_id", profile.school_id),
     supabase.from("academic_years").select("id, name, is_current, current_term").eq("school_id", profile.school_id).eq("is_current", true).single(),
+    supabase.from("students").select("classrooms(level)").eq("school_id", profile.school_id).eq("status", "active"),
   ]);
 
   const attendanceToday = attendanceTodayRes.data ?? [];
@@ -46,6 +48,19 @@ export default async function DashboardPage() {
   const totalCollected = feeData.filter((f) => f.status === "paid").reduce((s, f) => s + (f.amount ?? 0), 0);
   const totalOutstanding = feeData.filter((f) => f.status !== "paid").reduce((s, f) => s + (f.amount ?? 0), 0);
 
+  // Enrollment by level from real data
+  const levelOrder = ["daycare", "nursery", "kg", "primary", "jhs"];
+  const levelLabels: Record<string, string> = { daycare: "Day Care", nursery: "Nursery", kg: "KG", primary: "Primary", jhs: "JHS" };
+  const levelCounts: Record<string, number> = {};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (enrollmentRes.data ?? []).forEach((s: any) => {
+    const level = s.classrooms?.level;
+    if (level) levelCounts[level] = (levelCounts[level] ?? 0) + 1;
+  });
+  const enrollmentByLevel = levelOrder
+    .filter((l) => levelCounts[l] > 0)
+    .map((l) => ({ level: levelLabels[l] ?? l, count: levelCounts[l] }));
+
   const stats = {
     totalStudents: totalStudents ?? 0,
     activeStudents: activeStudents ?? 0,
@@ -57,6 +72,7 @@ export default async function DashboardPage() {
     totalOutstanding,
     academicYear: academicYear?.name ?? null,
     currentTerm: academicYear?.current_term ?? null,
+    enrollmentByLevel,
   };
 
   return <DashboardClient profile={profile} school={schoolRes.data} stats={stats} />;

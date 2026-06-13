@@ -8,12 +8,58 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Card } from "@/components/ui/Card";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, CreditCard, Banknote, Smartphone, Building } from "lucide-react";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
+import { loadStripe } from "@stripe/stripe-js";
+import {
+  Elements,
+  PaymentElement,
+  useStripe,
+  useElements,
+} from "@stripe/react-stripe-js";
+
+const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
+  : null;
 
 interface Student { id: string; first_name: string; last_name: string; admission_number: string }
 interface FeeType { id: string; name: string; amount: number }
+
+function StripePaymentForm({ clientSecret, amount, onSuccess }: { clientSecret: string; amount: number; onSuccess: () => void }) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [processing, setProcessing] = useState(false);
+  const [errMsg, setErrMsg] = useState<string | null>(null);
+
+  async function handleStripeSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+    setProcessing(true);
+    setErrMsg(null);
+    const { error } = await stripe.confirmPayment({
+      elements,
+      redirect: "if_required",
+    });
+    if (error) {
+      setErrMsg(error.message ?? "Payment failed.");
+      setProcessing(false);
+    } else {
+      onSuccess();
+    }
+  }
+
+  return (
+    <form onSubmit={handleStripeSubmit} className="space-y-4">
+      <div className="bg-[var(--neutral-50)] rounded-[10px] p-4">
+        <p className="text-sm text-[var(--text-muted)] mb-3">Total to charge: <span className="font-bold text-[var(--text-strong)]">{formatCurrency(amount)}</span></p>
+        <PaymentElement />
+      </div>
+      {errMsg && <p className="text-sm text-[var(--danger)]">{errMsg}</p>}
+      <Button type="submit" size="lg" loading={processing} className="w-full">Pay with Stripe</Button>
+    </form>
+  );
+}
 
 export default function RecordPaymentPage() {
   const router = useRouter();
@@ -27,6 +73,8 @@ export default function RecordPaymentPage() {
   });
   const [selectedFee, setSelectedFee] = useState<FeeType | null>(null);
   const [loading, setLoading] = useState(false);
+  const [stripeClientSecret, setStripeClientSecret] = useState<string | null>(null);
+  const [stripeLoading, setStripeLoading] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -53,12 +101,27 @@ export default function RecordPaymentPage() {
     if (field === "fee_type_id") {
       setSelectedFee(feeTypes.find((f) => f.id === value) ?? null);
     }
+    if (field === "payment_method") {
+      setStripeClientSecret(null);
+    }
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
+  async function handleStripeInit() {
+    const amount = parseFloat(form.amount_paid) || selectedFee?.amount || 0;
+    if (!amount) return;
+    setStripeLoading(true);
+    const res = await fetch("/api/stripe/payment-intent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amount, currency: "usd", metadata: { student_id: form.student_id, fee_type_id: form.fee_type_id } }),
+    });
+    const data = await res.json();
+    setStripeClientSecret(data.clientSecret ?? null);
+    setStripeLoading(false);
+  }
 
+  async function savePaymentRecord(overrideMethod?: string) {
+    const supabase = createClient();
     const amountPaid = parseFloat(form.amount_paid);
     const amountDue = selectedFee?.amount ?? amountPaid;
     const balance = Math.max(0, amountDue - amountPaid);
@@ -77,24 +140,42 @@ export default function RecordPaymentPage() {
       payment_status: paymentStatus,
       paid_at: new Date().toISOString(),
       receipt_number: receiptNumber,
-      payment_method: form.payment_method,
+      payment_method: overrideMethod ?? form.payment_method,
       notes: form.notes || null,
     };
 
     if (navigator.onLine) {
-      const supabase = createClient();
       const { error } = await supabase.from("fee_payments").insert(payload);
-      if (error) {
-        alert("Could not save payment: " + error.message);
-        setLoading(false);
-        return;
-      }
+      if (error) { alert("Could not save payment: " + error.message); return false; }
     } else {
       await queueOperation("fee_payments", "insert", payload);
     }
+    return true;
+  }
 
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (form.payment_method === "stripe") {
+      await handleStripeInit();
+      return;
+    }
+    setLoading(true);
+    const ok = await savePaymentRecord();
+    setLoading(false);
+    if (ok) router.push("/finance");
+  }
+
+  async function handleStripeSuccess() {
+    await savePaymentRecord("stripe");
     router.push("/finance");
   }
+
+  const paymentMethods = [
+    { value: "cash", label: "Cash", icon: Banknote },
+    { value: "momo", label: "Mobile Money (MoMo)", icon: Smartphone },
+    { value: "bank", label: "Bank Transfer", icon: Building },
+    { value: "stripe", label: "Card (Stripe)", icon: CreditCard },
+  ];
 
   return (
     <div className="max-w-xl space-y-5">
@@ -141,17 +222,25 @@ export default function RecordPaymentPage() {
               value={form.amount_paid}
               onChange={(e) => update("amount_paid", e.target.value)}
             />
-            <Select
-              label="Payment method"
-              value={form.payment_method}
-              onChange={(e) => update("payment_method", e.target.value)}
-              options={[
-                { value: "cash", label: "Cash" },
-                { value: "momo", label: "Mobile Money (MoMo)" },
-                { value: "bank", label: "Bank transfer" },
-                { value: "other", label: "Other" },
-              ]}
-            />
+
+            {/* Payment method pills */}
+            <div>
+              <label className="text-sm font-semibold text-[var(--text-strong)] block mb-2">Payment method</label>
+              <div className="grid grid-cols-2 gap-2">
+                {paymentMethods.map(({ value, label, icon: Icon }) => (
+                  <button key={value} type="button" onClick={() => update("payment_method", value)}
+                    className={`flex items-center gap-2 px-3 py-2.5 rounded-[10px] border text-sm font-medium transition-all ${
+                      form.payment_method === value
+                        ? "border-[var(--brand)] bg-[var(--brand-subtle)] text-[var(--brand-ink)]"
+                        : "border-[var(--border)] bg-white text-[var(--text-muted)] hover:border-[var(--ring)]"
+                    }`}>
+                    <Icon size={14} />
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div>
               <label className="text-sm font-semibold text-[var(--text-strong)] block mb-1.5">Notes (optional)</label>
               <textarea
@@ -164,10 +253,26 @@ export default function RecordPaymentPage() {
           </div>
         </Card>
 
-        <div className="flex gap-3">
-          <Button type="submit" size="lg" loading={loading}>Save payment</Button>
-          <Link href="/finance"><Button type="button" variant="secondary" size="lg">Cancel</Button></Link>
-        </div>
+        {/* Stripe payment UI */}
+        {form.payment_method === "stripe" && stripeClientSecret && stripePromise ? (
+          <Card>
+            <p className="text-sm font-semibold text-[var(--text-strong)] mb-4">Card payment</p>
+            <Elements stripe={stripePromise} options={{ clientSecret: stripeClientSecret }}>
+              <StripePaymentForm
+                clientSecret={stripeClientSecret}
+                amount={parseFloat(form.amount_paid) || selectedFee?.amount || 0}
+                onSuccess={handleStripeSuccess}
+              />
+            </Elements>
+          </Card>
+        ) : (
+          <div className="flex gap-3">
+            <Button type="submit" size="lg" loading={loading || stripeLoading}>
+              {form.payment_method === "stripe" ? "Proceed to card payment" : "Save payment"}
+            </Button>
+            <Link href="/finance"><Button type="button" variant="secondary" size="lg">Cancel</Button></Link>
+          </div>
+        )}
       </form>
     </div>
   );

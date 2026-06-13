@@ -9,10 +9,11 @@ interface Props {
   userName: string;
   userRole?: string;
   schoolName?: string;
+  schoolLogo?: string;
   children: React.ReactNode;
 }
 
-export function DashboardShell({ userName, userRole, schoolName, children }: Props) {
+export function DashboardShell({ userName, userRole, schoolName, schoolLogo, children }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
 
@@ -27,7 +28,7 @@ export function DashboardShell({ userName, userRole, schoolName, children }: Pro
 
       {/* Sidebar */}
       <div className={`fixed inset-y-0 left-0 z-30 transition-transform duration-300 md:relative md:translate-x-0 md:z-auto ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
-        <Sidebar userName={userName} userRole={userRole} />
+        <Sidebar userName={userName} userRole={userRole} schoolName={schoolName} schoolLogo={schoolLogo} />
       </div>
 
       {/* Main */}

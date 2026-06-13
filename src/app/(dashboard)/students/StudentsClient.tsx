@@ -113,7 +113,7 @@ export function StudentsClient({ students, classes, schoolId, filters, role }: P
     : [];
 
   return (
-    <div className="space-y-4 max-w-7xl">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>

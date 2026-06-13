@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
@@ -34,9 +35,11 @@ const navItems = [
 interface SidebarProps {
   userName?: string;
   userRole?: string;
+  schoolName?: string;
+  schoolLogo?: string;
 }
 
-export function Sidebar({ userName = "Admin", userRole = "admin" }: SidebarProps) {
+export function Sidebar({ userName = "Admin", userRole = "admin", schoolName, schoolLogo }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const academicsActive = ["/academics", "/timetable", "/exams"].some((p) => pathname.startsWith(p));
@@ -53,12 +56,15 @@ export function Sidebar({ userName = "Admin", userRole = "admin" }: SidebarProps
       {/* Logo */}
       <div className="px-5 py-5 border-b border-white/10">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 bg-white/20 backdrop-blur-sm">
-            <GraduationCap size={20} className="text-white" />
+          <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 bg-white/20 backdrop-blur-sm overflow-hidden">
+            {schoolLogo
+              ? <Image src={schoolLogo} alt="Logo" width={40} height={40} className="w-full h-full object-contain" />
+              : <GraduationCap size={20} className="text-white" />
+            }
           </div>
-          <div>
-            <p className="text-[15px] font-bold leading-none text-white">Compunerd</p>
-            <p className="text-[11px] text-white/60 font-medium mt-0.5">EduSys</p>
+          <div className="min-w-0">
+            <p className="text-[15px] font-bold leading-none text-white truncate">{schoolName ?? "Compunerd"}</p>
+            <p className="text-[11px] text-white/60 font-medium mt-0.5">{schoolName ? "School" : "EduSys"}</p>
           </div>
         </div>
       </div>

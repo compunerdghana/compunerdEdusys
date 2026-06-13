@@ -14,9 +14,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
     .single();
 
   let schoolName: string | undefined;
+  let schoolLogo: string | undefined;
   if (profile?.school_id) {
-    const { data: school } = await supabase.from("schools").select("name").eq("id", profile.school_id).single();
+    const { data: school } = await supabase.from("schools").select("name, logo_url").eq("id", profile.school_id).single();
     schoolName = school?.name;
+    schoolLogo = school?.logo_url ?? undefined;
   }
 
   return (
@@ -24,6 +26,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       userName={profile?.full_name ?? user.email ?? "User"}
       userRole={profile?.role}
       schoolName={schoolName}
+      schoolLogo={schoolLogo}
     >
       {children}
     </DashboardShell>
