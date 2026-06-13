@@ -189,7 +189,7 @@ export function ClassesManager({ schoolId, classes: initial, teachers }: Props) 
       )}
 
       {LEVELS.map((l) => {
-        const items = classes.filter((c) => c.level === l.value);
+        const items = classes.filter((c) => c.level === l.value).sort((a, b) => a.name.localeCompare(b.name));
         if (!items.length) return null;
         return (
           <div key={l.value}>

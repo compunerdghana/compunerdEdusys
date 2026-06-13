@@ -16,7 +16,7 @@ export default async function SettingsLayout({ children }: { children: React.Rea
   const isHeadmaster = profile?.role === "headmaster" || profile?.role === "owner";
 
   return (
-    <div className="max-w-5xl space-y-6">
+    <div className="max-w-3xl mx-auto space-y-6">
       <div>
         <h2 className="text-xl font-bold text-[var(--text-strong)]">Settings</h2>
         <p className="text-[15px] text-[var(--text-muted)]">Manage school configuration and your account.</p>

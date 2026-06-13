@@ -71,6 +71,9 @@ export function SchoolProfileForm({ school, schoolId }: Props) {
     setUploading(true);
     setError(null);
 
+    // Ensure bucket exists before uploading
+    await fetch("/api/admin/setup-storage", { method: "POST" });
+
     const ext = file.name.split(".").pop();
     const path = `logos/${schoolId ?? "new"}-${Date.now()}.${ext}`;
     const { error: upErr } = await supabase.storage.from("school-assets").upload(path, file, { upsert: true });

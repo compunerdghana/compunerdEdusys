@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AdmitStudentModal } from "@/components/students/AdmitStudentModal";
-import { UserPlus, Search, Phone, Mail, MessageSquare, X, MapPin, ChevronRight, SlidersHorizontal } from "lucide-react";
+import { UserPlus, Search, Phone, Mail, MessageSquare, X, MapPin, ChevronRight, SlidersHorizontal, Upload, Download } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 import { formatDate, getInitials } from "@/lib/utils";
 
 const LEVEL_COLORS: Record<string, { bg: string; text: string }> = {
@@ -40,10 +41,66 @@ function calcAge(dob: string | null) {
 
 export function StudentsClient({ students, classes, schoolId, filters, role }: Props) {
   const router = useRouter();
+  const supabase = createClient();
   const [admitOpen, setAdmitOpen] = useState(false);
   const [selected, setSelected] = useState<StudentRow | null>(null);
   const [search, setSearch] = useState(filters.q ?? "");
+  const [csvUploading, setCsvUploading] = useState(false);
   const canAdmit = ["headmaster", "owner", "teacher"].includes(role);
+
+  function exportCSV() {
+    const headers = ["Admission No", "First Name", "Middle Name", "Last Name", "Class", "Gender", "Date of Birth", "Status", "Admission Date"];
+    const rows = students.map((s) => [
+      s.admission_number, s.first_name, s.middle_name ?? "", s.last_name,
+      s.classrooms?.name ?? "", s.gender ?? "", s.date_of_birth ?? "", s.status, s.admission_date ?? "",
+    ]);
+    const csv = [headers, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = "students.csv"; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleCSVUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCsvUploading(true);
+    const text = await file.text();
+    const lines = text.trim().split("\n");
+    const headers = lines[0].split(",").map((h) => h.replace(/"/g, "").trim().toLowerCase());
+    const rows = lines.slice(1).map((line) => {
+      const vals = line.split(",").map((v) => v.replace(/"/g, "").trim());
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const obj: Record<string, any> = {};
+      headers.forEach((h, i) => { obj[h] = vals[i] ?? ""; });
+      return obj;
+    });
+
+    const classMap: Record<string, string> = {};
+    classes.forEach((c) => { classMap[c.name.toLowerCase()] = c.id; });
+
+    const insertRows = rows
+      .filter((r) => r["first name"] || r["first_name"])
+      .map((r) => ({
+        school_id: schoolId,
+        first_name: (r["first name"] || r["first_name"] || "").trim(),
+        middle_name: (r["middle name"] || r["middle_name"] || null) || null,
+        last_name: (r["last name"] || r["last_name"] || "").trim(),
+        admission_number: r["admission no"] || r["admission_number"] || r["admission number"] || `ADM-${Date.now()}-${Math.random().toString(36).slice(2,6).toUpperCase()}`,
+        gender: r["gender"] || null,
+        date_of_birth: r["date of birth"] || r["date_of_birth"] || null,
+        status: r["status"] || "active",
+        admission_date: r["admission date"] || r["admission_date"] || new Date().toISOString().split("T")[0],
+        class_id: classMap[(r["class"] || "").toLowerCase()] || null,
+      }));
+
+    if (insertRows.length) {
+      await supabase.from("students").insert(insertRows);
+    }
+    setCsvUploading(false);
+    e.target.value = "";
+    router.refresh();
+  }
 
   const filtered = students.filter((s) => {
     if (!search) return true;
@@ -67,12 +124,22 @@ export function StudentsClient({ students, classes, schoolId, filters, role }: P
           <button className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--border)] bg-white text-[13px] font-semibold text-[var(--text-muted)] hover:bg-[var(--neutral-50)]">
             <SlidersHorizontal size={14} /> Filter
           </button>
+          <button onClick={exportCSV}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--border)] bg-white text-[13px] font-semibold text-[var(--text-muted)] hover:bg-[var(--neutral-50)]">
+            <Download size={14} /> Export
+          </button>
           {canAdmit && (
-            <button onClick={() => setAdmitOpen(true)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[13px] font-semibold text-white hover:opacity-90 shadow-sm"
-              style={{ background: "linear-gradient(135deg, #262262, #92278F)" }}>
-              <UserPlus size={14} /> + Add
-            </button>
+            <>
+              <label className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--border)] bg-white text-[13px] font-semibold text-[var(--text-muted)] hover:bg-[var(--neutral-50)] cursor-pointer ${csvUploading ? "opacity-50 pointer-events-none" : ""}`}>
+                <Upload size={14} /> {csvUploading ? "Importing…" : "Bulk Upload"}
+                <input type="file" accept=".csv" className="hidden" onChange={handleCSVUpload} />
+              </label>
+              <button onClick={() => setAdmitOpen(true)}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[13px] font-semibold text-white hover:opacity-90 shadow-sm"
+                style={{ background: "linear-gradient(135deg, #262262, #92278F)" }}>
+                <UserPlus size={14} /> + Add
+              </button>
+            </>
           )}
         </div>
       </div>

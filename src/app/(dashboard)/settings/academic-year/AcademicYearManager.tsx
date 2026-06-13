@@ -6,8 +6,9 @@ import { createClient } from "@/lib/supabase/client";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { Plus, ChevronDown, ChevronUp, CheckCircle2, Circle } from "lucide-react";
+import { Plus, ChevronDown, ChevronUp, CheckCircle2, Circle, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Modal } from "@/components/ui/Modal";
 
 interface AcademicYear {
   id: string;
@@ -60,6 +61,11 @@ export function AcademicYearManager({ schoolId, years: initial, terms: initialTe
   const [savingTerm, setSavingTerm] = useState(false);
   const [termErr, setTermErr] = useState<string | null>(null);
 
+  // Edit term
+  const [editingTerm, setEditingTerm] = useState<Term | null>(null);
+  const [editTermForm, setEditTermForm] = useState({ name: "", start_date: "", end_date: "", reopening_date: "" });
+  const [savingEditTerm, setSavingEditTerm] = useState(false);
+
   async function saveYear(e: React.FormEvent) {
     e.preventDefault();
     setYearErr(null);
@@ -111,6 +117,28 @@ export function AcademicYearManager({ schoolId, years: initial, terms: initialTe
     router.refresh();
   }
 
+  function openEditTerm(t: Term) {
+    setEditingTerm(t);
+    setEditTermForm({ name: t.name, start_date: t.start_date, end_date: t.end_date, reopening_date: t.reopening_date ?? "" });
+  }
+
+  async function saveEditTerm(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingTerm) return;
+    setSavingEditTerm(true);
+    const { data, error } = await supabase.from("terms").update({
+      name: editTermForm.name,
+      start_date: editTermForm.start_date,
+      end_date: editTermForm.end_date,
+      reopening_date: editTermForm.reopening_date || null,
+    }).eq("id", editingTerm.id).select().single();
+    setSavingEditTerm(false);
+    if (error) return;
+    setTerms((t) => t.map((x) => x.id === editingTerm.id ? data : x));
+    setEditingTerm(null);
+    router.refresh();
+  }
+
   async function setCurrentTerm(id: string, yearId: string) {
     await supabase.from("terms").update({ is_current: false }).eq("academic_year_id", yearId);
     await supabase.from("terms").update({ is_current: true }).eq("id", id);
@@ -155,6 +183,24 @@ export function AcademicYearManager({ schoolId, years: initial, terms: initialTe
         </Card>
       )}
 
+      {/* Edit term modal */}
+      <Modal open={!!editingTerm} onClose={() => setEditingTerm(null)} title="Edit term">
+        {editingTerm && (
+          <form onSubmit={saveEditTerm} className="space-y-4">
+            <Input label="Term name" value={editTermForm.name} onChange={(e) => setEditTermForm((f) => ({ ...f, name: e.target.value }))} required />
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Start date" type="date" value={editTermForm.start_date} onChange={(e) => setEditTermForm((f) => ({ ...f, start_date: e.target.value }))} required />
+              <Input label="End date" type="date" value={editTermForm.end_date} onChange={(e) => setEditTermForm((f) => ({ ...f, end_date: e.target.value }))} required />
+            </div>
+            <Input label="Reopening date (optional)" type="date" value={editTermForm.reopening_date} onChange={(e) => setEditTermForm((f) => ({ ...f, reopening_date: e.target.value }))} />
+            <div className="flex gap-2 justify-end pt-1">
+              <Button type="button" variant="secondary" onClick={() => setEditingTerm(null)}>Cancel</Button>
+              <Button type="submit" loading={savingEditTerm}>Save changes</Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
       {/* Years list */}
       <div className="space-y-3">
         {years.map((year) => {
@@ -196,6 +242,9 @@ export function AcademicYearManager({ schoolId, years: initial, terms: initialTe
                         <p className="text-xs text-[var(--text-muted)]">{t.start_date} → {t.end_date}{t.reopening_date ? ` · Reopens ${t.reopening_date}` : ""}</p>
                       </div>
                       {t.is_current && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[var(--success-bg)] text-[var(--success)]">Current</span>}
+                      <button onClick={() => openEditTerm(t)} className="text-[var(--text-subtle)] hover:text-[var(--brand)] transition-colors">
+                        <Pencil size={13} />
+                      </button>
                       {!t.is_current && (
                         <Button size="sm" variant="secondary" onClick={() => setCurrentTerm(t.id, year.id)}>Set current</Button>
                       )}
