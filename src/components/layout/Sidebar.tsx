@@ -69,7 +69,7 @@ export function Sidebar() {
                 </button>
                 {academicsOpen && (
                   <div className="ml-4 mt-1 space-y-1 border-l border-white/10 pl-3">
-                    {item.children.map(({ href, label, icon: Icon }) => {
+                    {(item.children ?? []).map(({ href, label, icon: Icon }) => {
                       const active = pathname === href || pathname.startsWith(href);
                       return (
                         <Link

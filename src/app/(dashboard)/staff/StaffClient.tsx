@@ -140,7 +140,7 @@ export function StaffClient({ initialStaff, schoolId, isHeadmaster }: Props) {
       {staff.length === 0 && (
         <Card>
           <p className="text-[15px] text-[var(--text-muted)] text-center py-6">
-            No staff added yet.{isHeadmaster ? " Click "Add staff" to get started." : ""}
+            No staff added yet.{isHeadmaster ? ' Click "Add staff" to get started.' : ""}
           </p>
         </Card>
       )}
