@@ -4,26 +4,31 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { queueOperation } from "@/lib/offline/db";
 import { Button } from "@/components/ui/Button";
-import { Select } from "@/components/ui/Select";
 import { Card } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
 import { getInitials } from "@/lib/utils";
-import { CheckCircle2, XCircle, Clock, Save } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, MinusCircle, Save, CheckCircle } from "lucide-react";
 import type { AttendanceStatus } from "@/types/database";
 
-interface StudentRow { id: string; first_name: string; middle_name: string | null; last_name: string; admission_number: string }
-interface ClassRoom { id: string; name: string }
+interface StudentRow {
+  id: string;
+  first_name: string;
+  middle_name: string | null;
+  last_name: string;
+  admission_number: string;
+}
+interface ClassRoom { id: string; name: string; level: string }
 
-const STATUSES: AttendanceStatus[] = ["present", "absent", "late", "excused"];
+const STATUSES: { value: AttendanceStatus; label: string; color: string; bg: string; icon: React.ReactNode }[] = [
+  { value: "present", label: "Present", color: "var(--success)", bg: "var(--success-bg)", icon: <CheckCircle2 size={15} /> },
+  { value: "absent",  label: "Absent",  color: "var(--danger)",  bg: "var(--danger-bg)",  icon: <XCircle size={15} /> },
+  { value: "late",    label: "Late",    color: "var(--warning)", bg: "var(--warning-bg)", icon: <Clock size={15} /> },
+  { value: "excused", label: "Excused", color: "var(--text-muted)", bg: "var(--neutral-100)", icon: <MinusCircle size={15} /> },
+];
 
-const statusConfig: Record<AttendanceStatus, { label: string; variant: "success" | "danger" | "warning" | "default"; icon: React.ReactNode }> = {
-  present: { label: "Present", variant: "success", icon: <CheckCircle2 size={14} /> },
-  absent: { label: "Absent", variant: "danger", icon: <XCircle size={14} /> },
-  late: { label: "Late", variant: "warning", icon: <Clock size={14} /> },
-  excused: { label: "Excused", variant: "default", icon: <Clock size={14} /> },
-};
+const LEVEL_ORDER = ["daycare","nursery","kg","primary","jhs"];
 
 export default function AttendancePage() {
+  const supabase = createClient();
   const [classes, setClasses] = useState<ClassRoom[]>([]);
   const [classId, setClassId] = useState("");
   const [students, setStudents] = useState<StudentRow[]>([]);
@@ -31,177 +36,189 @@ export default function AttendancePage() {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [schoolId, setSchoolId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    async function loadClasses() {
-      const supabase = createClient();
+    async function init() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      setUserId(user.id);
       const { data: profile } = await supabase.from("profiles").select("school_id").eq("id", user.id).single();
       if (!profile?.school_id) return;
-      const { data } = await supabase.from("classrooms").select("id, name").eq("school_id", profile.school_id).order("name");
-      setClasses(data ?? []);
+      setSchoolId(profile.school_id);
+      const { data } = await supabase
+        .from("classrooms").select("id, name, level")
+        .eq("school_id", profile.school_id).order("name");
+      const sorted = (data ?? []).sort((a, b) =>
+        LEVEL_ORDER.indexOf(a.level) - LEVEL_ORDER.indexOf(b.level) || a.name.localeCompare(b.name)
+      );
+      setClasses(sorted);
     }
-    loadClasses();
+    init();
   }, []);
 
+  // Load students + existing attendance when class or date changes
   useEffect(() => {
     if (!classId) return;
-    async function loadStudents() {
-      const supabase = createClient();
-      const { data } = await supabase
-        .from("students")
-        .select("id, first_name, middle_name, last_name, admission_number")
-        .eq("class_id", classId)
-        .eq("status", "active")
-        .order("last_name");
-      setStudents(data ?? []);
-      // Default everyone to present
-      const defaults: Record<string, AttendanceStatus> = {};
-      (data ?? []).forEach((s: StudentRow) => { defaults[s.id] = "present"; });
-      setAttendance(defaults);
+    async function load() {
+      const [{ data: studs }, { data: existing }] = await Promise.all([
+        supabase.from("students")
+          .select("id, first_name, middle_name, last_name, admission_number")
+          .eq("class_id", classId).eq("status", "active").order("last_name"),
+        supabase.from("attendance_records")
+          .select("student_id, status")
+          .eq("class_id", classId).eq("date", date),
+      ]);
+      setStudents(studs ?? []);
+      const map: Record<string, AttendanceStatus> = {};
+      (studs ?? []).forEach((s: StudentRow) => { map[s.id] = "present"; });
+      (existing ?? []).forEach((r: { student_id: string; status: AttendanceStatus }) => { map[r.student_id] = r.status; });
+      setAttendance(map);
     }
-    loadStudents();
-  }, [classId]);
+    load();
+  }, [classId, date]);
+
+  function mark(studentId: string, status: AttendanceStatus) {
+    setAttendance((prev) => ({ ...prev, [studentId]: status }));
+  }
+
+  function markAll(status: AttendanceStatus) {
+    const all: Record<string, AttendanceStatus> = {};
+    students.forEach((s) => { all[s.id] = status; });
+    setAttendance(all);
+  }
 
   async function handleSave() {
+    if (!schoolId || !userId) return;
     setSaving(true);
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data: profile } = await supabase.from("profiles").select("school_id").eq("id", user.id).single();
-
     const records = students.map((s) => ({
       id: crypto.randomUUID(),
-      school_id: profile?.school_id,
+      school_id: schoolId,
       student_id: s.id,
       class_id: classId,
       date,
       status: attendance[s.id] ?? "present",
-      recorded_by: user.id,
-      offline_id: null,
+      recorded_by: userId,
     }));
-
     if (navigator.onLine) {
-      // Upsert by student + date + class
       await supabase.from("attendance_records").upsert(records, { onConflict: "student_id,date,class_id" });
     } else {
-      for (const r of records) {
-        await queueOperation("attendance_records", "insert", r);
-      }
+      for (const r of records) await queueOperation("attendance_records", "insert", r);
     }
-
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   }
 
-  const presentCount = Object.values(attendance).filter((s) => s === "present").length;
-  const absentCount = Object.values(attendance).filter((s) => s === "absent").length;
+  const counts = STATUSES.map((s) => ({
+    ...s,
+    count: Object.values(attendance).filter((v) => v === s.value).length,
+  }));
 
   return (
-    <div className="max-w-3xl space-y-5">
+    <div className="max-w-2xl space-y-5">
       <div>
         <h2 className="text-xl font-bold text-[var(--text-strong)]">Attendance</h2>
-        <p className="text-sm text-[var(--text-muted)]">Mark attendance for a class</p>
+        <p className="text-[15px] text-[var(--text-muted)]">Mark the daily register for a class</p>
       </div>
 
-      <div className="flex gap-3 flex-wrap">
-        <div className="w-48">
-          <Select
-            label="Class"
+      {/* Controls */}
+      <div className="flex flex-wrap gap-3 items-end">
+        <div className="flex-1 min-w-[160px]">
+          <label className="text-[15px] font-semibold text-[var(--text-strong)] block mb-1.5">Class</label>
+          <select
             value={classId}
             onChange={(e) => setClassId(e.target.value)}
-            placeholder="Select class"
-            options={classes.map((c) => ({ value: c.id, label: c.name }))}
-          />
+            className="h-11 w-full rounded-[10px] border border-[var(--border)] bg-white px-3.5 text-[15px] text-[var(--text-strong)] outline-none focus:border-[var(--ring)]"
+          >
+            <option value="">— Select class —</option>
+            {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
         </div>
         <div>
-          <label className="text-sm font-semibold text-[var(--text-strong)] block mb-1.5">Date</label>
+          <label className="text-[15px] font-semibold text-[var(--text-strong)] block mb-1.5">Date</label>
           <input
             type="date"
             value={date}
             max={new Date().toISOString().slice(0, 10)}
             onChange={(e) => setDate(e.target.value)}
-            className="h-10 rounded-[10px] border border-[var(--border)] bg-white px-3 text-sm outline-none focus:border-[var(--ring)]"
+            className="h-11 rounded-[10px] border border-[var(--border)] bg-white px-3.5 text-[15px] outline-none focus:border-[var(--ring)]"
           />
         </div>
       </div>
 
+      {classId && students.length === 0 && (
+        <Card><p className="text-[15px] text-[var(--text-muted)] text-center py-3">No active students in this class.</p></Card>
+      )}
+
       {students.length > 0 && (
         <>
-          {/* Summary */}
-          <div className="flex gap-3">
-            <Badge variant="success">{presentCount} present</Badge>
-            <Badge variant="danger">{absentCount} absent</Badge>
-            <Badge variant="default">{students.length - presentCount - absentCount} other</Badge>
-          </div>
-
-          {/* Mark all */}
-          <div className="flex gap-2">
-            {STATUSES.map((s) => (
-              <Button
-                key={s}
-                size="sm"
-                variant="secondary"
-                onClick={() => {
-                  const all: Record<string, AttendanceStatus> = {};
-                  students.forEach((st) => { all[st.id] = s; });
-                  setAttendance(all);
-                }}
-              >
-                Mark all {s}
-              </Button>
+          {/* Summary pills */}
+          <div className="flex flex-wrap gap-2">
+            {counts.map((s) => (
+              <div key={s.value} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-semibold"
+                style={{ background: s.bg, color: s.color }}>
+                {s.icon} {s.count} {s.label}
+              </div>
             ))}
           </div>
 
-          <Card padding="none">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[var(--border)]">
-                  <th className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">Student</th>
-                  {STATUSES.map((s) => (
-                    <th key={s} className="px-3 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)] text-center">{s}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--border)]">
-                {students.map((s) => (
-                  <tr key={s.id} className="hover:bg-[var(--neutral-50)] transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0" style={{ background: "var(--gradient-brand)" }}>
-                          {getInitials(`${s.first_name} ${s.last_name}`)}
-                        </div>
-                        <span className="font-medium text-[var(--text-strong)]">{s.first_name} {s.last_name}</span>
-                      </div>
-                    </td>
-                    {STATUSES.map((st) => (
-                      <td key={st} className="px-3 py-3 text-center">
-                        <input
-                          type="radio"
-                          name={`att-${s.id}`}
-                          checked={attendance[s.id] === st}
-                          onChange={() => setAttendance((prev) => ({ ...prev, [s.id]: st }))}
-                          className="w-4 h-4 accent-[var(--brand)]"
-                        />
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Card>
+          {/* Mark all */}
+          <div className="flex flex-wrap gap-2">
+            {STATUSES.map((s) => (
+              <button key={s.value} onClick={() => markAll(s.value)}
+                className="px-3 py-1.5 rounded-[8px] text-[13px] font-semibold border transition-all hover:opacity-90"
+                style={{ background: s.bg, color: s.color, borderColor: s.color + "33" }}>
+                All {s.label}
+              </button>
+            ))}
+          </div>
 
-          <Button size="lg" onClick={handleSave} loading={saving}>
-            <Save size={15} />
-            {saved ? "Saved" : "Save attendance"}
+          {/* Student list */}
+          <div className="space-y-2">
+            {students.map((s) => {
+              const current = attendance[s.id] ?? "present";
+              const cfg = STATUSES.find((x) => x.value === current)!;
+              return (
+                <div key={s.id} className="bg-white border border-[var(--border)] rounded-[12px] p-3 flex items-center gap-3 shadow-[var(--shadow-sm)]">
+                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0"
+                    style={{ background: "var(--gradient-brand)" }}>
+                    {getInitials(`${s.first_name} ${s.last_name}`)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[15px] font-semibold text-[var(--text-strong)] leading-tight truncate">
+                      {s.last_name}, {s.first_name}{s.middle_name ? ` ${s.middle_name[0]}.` : ""}
+                    </p>
+                    <p className="text-xs text-[var(--text-muted)]">{s.admission_number}</p>
+                  </div>
+                  {/* Status buttons */}
+                  <div className="flex gap-1.5 shrink-0">
+                    {STATUSES.map((st) => {
+                      const active = current === st.value;
+                      return (
+                        <button key={st.value} onClick={() => mark(s.id, st.value)}
+                          title={st.label}
+                          className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
+                          style={{
+                            background: active ? st.bg : "transparent",
+                            color: active ? st.color : "var(--text-subtle)",
+                            outline: active ? `2px solid ${st.color}` : "none",
+                          }}>
+                          {st.icon}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <Button size="lg" onClick={handleSave} loading={saving} className="w-full sm:w-auto">
+            {saved ? <><CheckCircle size={15} /> Saved!</> : <><Save size={15} /> Save attendance</>}
           </Button>
         </>
-      )}
-
-      {classId && students.length === 0 && (
-        <p className="text-sm text-[var(--text-muted)]">No active students in this class.</p>
       )}
     </div>
   );
