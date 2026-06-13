@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { getInitials } from "@/lib/utils";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
-import { Save, CheckCircle, ChevronLeft, ChevronRight, FileText, Upload, Download, X, AlertTriangle } from "lucide-react";
+import { Save, CheckCircle, ChevronLeft, ChevronRight, FileText, Upload, Download, X, AlertTriangle, FileDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
 
@@ -62,6 +62,9 @@ export default function ExamsPage() {
 
   const isDirty = dirtyStudents.size > 0;
   useUnsavedChanges(isDirty);
+
+  // Run DB setup check once on mount
+  useEffect(() => { fetch("/api/admin/setup-database", { method: "POST" }); }, []);
 
   useEffect(() => {
     async function load() {
@@ -164,6 +167,29 @@ export default function ExamsPage() {
     setTimeout(() => setSaved(false), 2000);
   }
 
+  // Export ALL students' current scores to Excel
+  function exportAllScores() {
+    if (!students.length || !subjects.length) return;
+    const rows = students.map((s) => {
+      const row: Record<string, string | number> = {
+        "Student Name": `${s.last_name} ${s.first_name}`,
+      };
+      subjects.forEach((sub) => {
+        const cs = parseFloat(scores[s.id]?.[sub.id]?.class_score || "0") || 0;
+        const es = parseFloat(scores[s.id]?.[sub.id]?.exam_score || "0") || 0;
+        row[`${sub.name} - Class Score`] = cs || "";
+        row[`${sub.name} - Exam Score`] = es || "";
+        row[`${sub.name} - Total`] = cs + es ? cs + es : "";
+        row[`${sub.name} - Grade`] = cs + es ? computeGrade(cs + es) : "";
+      });
+      return row;
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Scores");
+    XLSX.writeFile(wb, `class_scores_export.xlsx`);
+  }
+
   // Download blank template for this class
   function downloadTemplate() {
     if (!students.length || !subjects.length) return;
@@ -239,6 +265,10 @@ export default function ExamsPage() {
         {classId && students.length > 0 && (
           <div className="flex gap-2">
             <input ref={importRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleBulkImport} />
+            <button onClick={exportAllScores} title="Export all scores to Excel"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--border)] bg-white text-[13px] font-semibold text-[var(--text-muted)] hover:bg-[var(--neutral-50)]">
+              <FileDown size={14} /> Export Scores
+            </button>
             <button onClick={downloadTemplate} title="Download blank Excel template"
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--border)] bg-white text-[13px] font-semibold text-[var(--text-muted)] hover:bg-[var(--neutral-50)]">
               <Download size={14} /> Template
