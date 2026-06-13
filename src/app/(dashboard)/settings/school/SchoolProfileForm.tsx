@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Upload, School, CheckCircle2 } from "lucide-react";
 import Image from "next/image";
+import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 
 const LEVELS = [
   { value: "daycare", label: "Day Care" },
@@ -93,13 +94,15 @@ export function SchoolProfileForm({ school, schoolId }: Props) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  useUnsavedChanges(isDirty && !success);
 
   const availableDistricts = form.region ? (DISTRICTS_BY_REGION[form.region] ?? []) : [];
 
-  function set(field: string, value: string) { setForm((f) => ({ ...f, [field]: value })); setSuccess(false); }
+  function set(field: string, value: string) { setForm((f) => ({ ...f, [field]: value })); setSuccess(false); setIsDirty(true); }
   function toggleLevel(v: string) {
     setForm((f) => ({ ...f, levels: f.levels.includes(v) ? f.levels.filter((l) => l !== v) : [...f.levels, v] }));
-    setSuccess(false);
+    setSuccess(false); setIsDirty(true);
   }
 
   async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -176,6 +179,7 @@ export function SchoolProfileForm({ school, schoolId }: Props) {
     setSaving(false);
     if (saveErr) { setError(saveErr.message); return; }
     setSuccess(true);
+    setIsDirty(false);
     router.refresh();
   }
 
