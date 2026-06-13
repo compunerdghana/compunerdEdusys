@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import {
   ArrowLeft, User, Users, CreditCard, ClipboardList, BarChart2,
-  Phone, Edit3, Save, X, Plus, Trash2, CheckCircle2, AlertCircle, Clock,
+  Phone, Edit3, Save, X, Plus, Trash2, CheckCircle2, AlertCircle, Clock, FileDown,
 } from "lucide-react";
 import { formatDate, formatCurrency, getInitials, cn } from "@/lib/utils";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
@@ -74,6 +74,89 @@ export function StudentProfile({ student: initial, parents: initialParents, fees
 
   const presentCount = attendance.filter((a) => a.status === "present").length;
   const attRate = attendance.length > 0 ? Math.round((presentCount / attendance.length) * 100) : null;
+
+  async function exportStudentPDF() {
+    const { default: jsPDF } = await import("jspdf");
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const margin = 20;
+    let y = margin;
+
+    doc.setFillColor(38, 34, 98);
+    doc.rect(0, 0, 210, 32, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.text("Student Profile", margin, 14);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Generated ${new Date().toLocaleDateString("en-GH")}`, margin, 22);
+    y = 44;
+
+    doc.setTextColor(38, 34, 98);
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text(fullName, margin, y); y += 7;
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 100, 100);
+    doc.text(`${student.admission_number}  ·  ${student.classrooms?.name ?? "No class"}  ·  ${student.status}`, margin, y); y += 12;
+
+    doc.setDrawColor(200, 200, 200);
+    doc.line(margin, y, 190, y); y += 8;
+
+    const fields: [string, string][] = [
+      ["Full name", fullName],
+      ["Admission No.", student.admission_number],
+      ["Gender", student.gender.charAt(0).toUpperCase() + student.gender.slice(1)],
+      ["Date of birth", student.date_of_birth ? formatDate(student.date_of_birth) : "—"],
+      ["Class", student.classrooms?.name ?? "—"],
+      ["Status", student.status.charAt(0).toUpperCase() + student.status.slice(1)],
+      ["Admission date", formatDate(student.admission_date)],
+      ["Previous school", student.previous_school ?? "—"],
+    ];
+
+    doc.setFontSize(10);
+    fields.forEach(([label, value]) => {
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(80, 80, 80);
+      doc.text(label + ":", margin, y);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(30, 30, 30);
+      doc.text(value, margin + 38, y);
+      y += 7;
+    });
+
+    if (student.medical_notes) {
+      y += 4;
+      doc.line(margin, y, 190, y); y += 8;
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(80, 80, 80);
+      doc.text("Notes:", margin, y); y += 6;
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(30, 30, 30);
+      const lines = doc.splitTextToSize(student.medical_notes, 160);
+      doc.text(lines, margin, y); y += lines.length * 5 + 8;
+    }
+
+    if (parents.length > 0) {
+      doc.line(margin, y, 190, y); y += 8;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(38, 34, 98);
+      doc.text("Parents / Guardians", margin, y); y += 7;
+      parents.forEach((p) => {
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(30, 30, 30);
+        doc.text(`${p.full_name} (${p.relationship})`, margin, y); y += 5;
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Phone: ${p.phone}${p.email ? `  ·  Email: ${p.email}` : ""}`, margin + 4, y); y += 7;
+      });
+    }
+
+    doc.save(`student_${student.admission_number}.pdf`);
+  }
 
   async function saveEdit() {
     setSaving(true);
@@ -159,13 +242,18 @@ export function StudentProfile({ student: initial, parents: initialParents, fees
               <span>Admitted {formatDate(student.admission_date)}</span>
             </div>
           </div>
-          {canEdit && !editing && (
-            <Button size="sm" variant="secondary" onClick={() => setEditing(true)}>
-              <Edit3 size={13} /> Edit
+          <div className="flex gap-2 shrink-0">
+            <Button size="sm" variant="secondary" onClick={exportStudentPDF}>
+              <FileDown size={13} /> Export PDF
             </Button>
-          )}
+            {canEdit && !editing && (
+              <Button size="sm" variant="secondary" onClick={() => setEditing(true)}>
+                <Edit3 size={13} /> Edit
+              </Button>
+            )}
+          </div>
           {editing && (
-            <div className="flex gap-2">
+            <div className="flex gap-2 shrink-0">
               <Button size="sm" loading={saving} onClick={saveEdit}><Save size={13} /> Save</Button>
               <Button size="sm" variant="secondary" onClick={() => setEditing(false)}><X size={13} /></Button>
             </div>
@@ -252,8 +340,8 @@ export function StudentProfile({ student: initial, parents: initialParents, fees
               />
               <Input label="Previous school" value={editForm.previous_school} onChange={(e) => setEditForm((f) => ({ ...f, previous_school: e.target.value }))} />
               <div>
-                <label className="text-sm font-semibold text-[var(--text-strong)] block mb-1.5">Medical notes</label>
-                <textarea className="w-full rounded-[10px] border border-[var(--border)] p-3 text-sm outline-none focus:border-[var(--ring)] resize-none" rows={3} value={editForm.medical_notes} onChange={(e) => setEditForm((f) => ({ ...f, medical_notes: e.target.value }))} />
+                <label className="text-sm font-semibold text-[var(--text-strong)] block mb-1.5">About / Notes</label>
+                <textarea className="w-full rounded-[10px] border border-[var(--border)] p-3 text-sm outline-none focus:border-[var(--ring)] resize-none" rows={3} value={editForm.medical_notes} onChange={(e) => setEditForm((f) => ({ ...f, medical_notes: e.target.value }))} placeholder="Any notes about this student…" />
               </div>
             </div>
           ) : (
@@ -267,7 +355,7 @@ export function StudentProfile({ student: initial, parents: initialParents, fees
                 ["Status", student.status],
                 ["Admission date", formatDate(student.admission_date)],
                 ["Previous school", student.previous_school ?? "—"],
-                ["Medical notes", student.medical_notes ?? "—"],
+                ["About / Notes", student.medical_notes ?? "—"],
               ].map(([label, value, mono]) => (
                 <div key={label as string} className="flex flex-col gap-0.5">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">{label as string}</p>

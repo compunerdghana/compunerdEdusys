@@ -8,7 +8,7 @@ import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { getInitials, formatDate } from "@/lib/utils";
-import { UserPlus, Search, Phone, Mail, MessageSquare, X, Pencil, UserX, UserCheck, Eye, EyeOff, ShieldCheck, MapPin, Landmark, CreditCard, ChevronRight, SlidersHorizontal, Camera } from "lucide-react";
+import { UserPlus, Search, Phone, Mail, MessageSquare, X, Pencil, UserX, UserCheck, Eye, EyeOff, ShieldCheck, MapPin, Landmark, CreditCard, ChevronRight, SlidersHorizontal, Camera, FileDown, Check } from "lucide-react";
 
 const ROLES = [
   { value: "teacher", label: "Teacher" },
@@ -27,7 +27,7 @@ const ROLE_STYLE: Record<string, { bg: string; text: string }> = {
 
 interface StaffMember {
   id: string; full_name: string; username: string; role: string;
-  phone: string | null; is_active: boolean; created_at: string; photo_url?: string | null;
+  phone: string | null; is_active: boolean; created_at: string; photo_url?: string | null; bio?: string | null;
 }
 
 interface Props { initialStaff: StaffMember[]; schoolId: string; isHeadmaster: boolean; }
@@ -55,6 +55,9 @@ export function StaffClient({ initialStaff, schoolId, isHeadmaster }: Props) {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [editingBio, setEditingBio] = useState(false);
+  const [bioText, setBioText] = useState("");
+  const [savingBio, setSavingBio] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const profilePhotoInputRef = useRef<HTMLInputElement>(null);
 
@@ -141,6 +144,84 @@ export function StaffClient({ initialStaff, schoolId, isHeadmaster }: Props) {
     setStaff((s) => s.map((x) => x.id === editingStaff.id ? updated : x).sort((a, b) => a.full_name.localeCompare(b.full_name)));
     if (selected?.id === editingStaff.id) setSelected(updated);
     setEditingStaff(null);
+  }
+
+  async function saveBio() {
+    if (!selected) return;
+    setSavingBio(true);
+    await supabase.from("profiles").update({ bio: bioText } as never).eq("id", selected.id);
+    const updated = { ...selected, bio: bioText };
+    setStaff((s) => s.map((x) => x.id === selected.id ? updated : x));
+    setSelected(updated);
+    setSavingBio(false);
+    setEditingBio(false);
+  }
+
+  async function exportStaffPDF(member: StaffMember) {
+    const { default: jsPDF } = await import("jspdf");
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const margin = 20;
+    let y = margin;
+
+    // Header bar
+    doc.setFillColor(38, 34, 98);
+    doc.rect(0, 0, 210, 32, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.text("Staff Profile", margin, 14);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Generated ${new Date().toLocaleDateString("en-GH")}`, margin, 22);
+    y = 44;
+
+    // Name & role
+    doc.setTextColor(38, 34, 98);
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text(member.full_name, margin, y); y += 7;
+    doc.setFontSize(11);
+    doc.setTextColor(100, 100, 100);
+    doc.setFont("helvetica", "normal");
+    const roleLabel = ROLES.find((r) => r.value === member.role)?.label ?? member.role;
+    doc.text(`${roleLabel}  ·  @${member.username}`, margin, y); y += 12;
+
+    // Divider
+    doc.setDrawColor(200, 200, 200);
+    doc.line(margin, y, 190, y); y += 8;
+
+    // Details
+    const fields: [string, string][] = [
+      ["Role", roleLabel],
+      ["Username", `@${member.username}`],
+      ["Phone", member.phone ?? "—"],
+      ["Status", member.is_active ? "Active" : "Inactive"],
+      ["Joined", new Date(member.created_at).toLocaleDateString("en-GH")],
+    ];
+    doc.setFontSize(10);
+    fields.forEach(([label, value]) => {
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(80, 80, 80);
+      doc.text(label + ":", margin, y);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(30, 30, 30);
+      doc.text(value, margin + 32, y);
+      y += 7;
+    });
+
+    if (member.bio) {
+      y += 4;
+      doc.line(margin, y, 190, y); y += 8;
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(80, 80, 80);
+      doc.text("About:", margin, y); y += 6;
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(30, 30, 30);
+      const lines = doc.splitTextToSize(member.bio, 160);
+      doc.text(lines, margin, y);
+    }
+
+    doc.save(`staff_${member.username}.pdf`);
   }
 
   async function toggleActive(member: StaffMember) {
@@ -289,11 +370,35 @@ export function StaffClient({ initialStaff, schoolId, isHeadmaster }: Props) {
 
             {/* About */}
             <div className="border-t border-[var(--border)] px-4 py-3">
-              <p className="text-[12px] font-bold text-[var(--text-strong)] mb-1.5">About</p>
-              <p className="text-[12px] text-[var(--text-muted)] leading-relaxed">
-                {selected.full_name} is a {ROLES.find((r) => r.value === selected.role)?.label ?? selected.role} at this school.
-                {selected.phone ? ` Reachable at ${selected.phone}.` : ""}
-              </p>
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-[12px] font-bold text-[var(--text-strong)]">About</p>
+                {isHeadmaster && !editingBio && (
+                  <button onClick={() => { setEditingBio(true); setBioText(selected.bio ?? ""); }}
+                    className="w-5 h-5 flex items-center justify-center rounded hover:bg-[var(--neutral-100)] text-[var(--text-muted)]">
+                    <Pencil size={10} />
+                  </button>
+                )}
+              </div>
+              {editingBio ? (
+                <div className="space-y-2">
+                  <textarea value={bioText} onChange={(e) => setBioText(e.target.value)} rows={3}
+                    className="w-full text-[12px] rounded-lg border border-[var(--border)] p-2 outline-none focus:border-[var(--ring)] resize-none"
+                    placeholder="Write a short bio or notes about this staff member…" />
+                  <div className="flex gap-1.5">
+                    <button onClick={saveBio} disabled={savingBio}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-white"
+                      style={{ background: "linear-gradient(135deg,#262262,#92278F)" }}>
+                      {savingBio ? "Saving…" : <><Check size={10} /> Save</>}
+                    </button>
+                    <button onClick={() => setEditingBio(false)}
+                      className="px-2.5 py-1 rounded-lg text-[11px] font-semibold border border-[var(--border)] text-[var(--text-muted)]">Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-[12px] text-[var(--text-muted)] leading-relaxed">
+                  {selected.bio || `${selected.full_name} is a ${ROLES.find((r) => r.value === selected.role)?.label ?? selected.role} at this school.${selected.phone ? ` Reachable at ${selected.phone}.` : ""}`}
+                </p>
+              )}
             </div>
 
             {/* Details */}
@@ -305,6 +410,10 @@ export function StaffClient({ initialStaff, schoolId, isHeadmaster }: Props) {
                 <div><p className="text-[var(--text-muted)]">Joined</p><p className="font-bold text-[var(--text-strong)]">{formatDate(selected.created_at)}</p></div>
                 {selected.phone && <div><p className="text-[var(--text-muted)]">Phone</p><p className="font-bold text-[var(--text-strong)]">{selected.phone}</p></div>}
               </div>
+              <button onClick={() => exportStaffPDF(selected)}
+                className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-[12px] font-semibold border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--neutral-50)] transition-colors">
+                <FileDown size={13} /> Export PDF
+              </button>
             </div>
           </div>
         )}

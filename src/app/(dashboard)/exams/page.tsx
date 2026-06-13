@@ -52,6 +52,7 @@ export default function ExamsPage() {
   const [scores, setScores] = useState<Record<string, ScoreMap>>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveErr, setSaveErr] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -115,6 +116,8 @@ export default function ExamsPage() {
     if (!classId || selectedStudentIdx === null) return;
     const student = students[selectedStudentIdx];
     if (!student) return;
+    if (!termId) { setSaveErr("No current term found. Please set a current term in Settings → Academic Year."); return; }
+    setSaveErr(null);
     setSaving(true);
     const subjectScores = scores[student.id] ?? {};
     const records = subjects.map((sub) => {
@@ -123,7 +126,6 @@ export default function ExamsPage() {
       const total = cs + es;
       const grade = computeGrade(total);
       return {
-        id: crypto.randomUUID(),
         school_id: schoolId,
         student_id: student.id,
         subject_id: sub.id,
@@ -138,7 +140,16 @@ export default function ExamsPage() {
     }).filter((r) => r.class_score !== null || r.exam_score !== null);
 
     if (navigator.onLine) {
-      await supabase.from("exam_scores").upsert(records, { onConflict: "student_id,subject_id,term_id" });
+      // Delete existing scores for this student+class+term, then insert fresh
+      await supabase.from("exam_scores")
+        .delete()
+        .eq("student_id", student.id)
+        .eq("class_id", classId)
+        .eq("term_id", termId);
+      if (records.length > 0) {
+        const { error } = await supabase.from("exam_scores").insert(records);
+        if (error) { setSaveErr(error.message); setSaving(false); return; }
+      }
     } else {
       for (const r of records) await queueOperation("exam_scores", "insert", r);
     }
@@ -281,10 +292,11 @@ export default function ExamsPage() {
                 </Card>
               )}
 
-              <div className="mt-4 flex items-center gap-3">
+              <div className="mt-4 flex items-center gap-3 flex-wrap">
                 <Button size="lg" onClick={handleSave} loading={saving}>
                   {saved ? <><CheckCircle size={15} /> Saved!</> : <><Save size={15} /> Save scores</>}
                 </Button>
+                {saveErr && <p className="text-sm text-red-600">{saveErr}</p>}
                 {selectedStudentIdx !== null && selectedStudentIdx < students.length - 1 && (
                   <Button size="lg" variant="secondary" onClick={() => { handleSave(); setSelectedStudentIdx((i) => (i ?? 0) + 1); }}>
                     Save & Next student <ChevronRight size={14} />
