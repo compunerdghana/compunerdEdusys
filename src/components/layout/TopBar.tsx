@@ -2,21 +2,30 @@
 
 import { SyncBadge } from "@/components/sync/SyncBadge";
 import { getInitials } from "@/lib/utils";
-import { Bell } from "lucide-react";
+import { Bell, Menu } from "lucide-react";
 
 interface TopBarProps {
   userName?: string;
   schoolName?: string;
   title?: string;
+  onMenuClick?: () => void;
 }
 
-export function TopBar({ userName = "Admin", schoolName, title }: TopBarProps) {
+export function TopBar({ userName = "Admin", schoolName, title, onMenuClick }: TopBarProps) {
   const hour = new Date().getHours();
   const greeting =
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   return (
-    <header className="h-14 bg-white border-b border-[var(--border)] flex items-center px-6 gap-4 shrink-0">
+    <header className="h-14 bg-white border-b border-[var(--border)] flex items-center px-4 md:px-6 gap-3 shrink-0">
+      {/* Hamburger — mobile only */}
+      <button
+        onClick={onMenuClick}
+        className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--neutral-100)] transition-colors shrink-0"
+      >
+        <Menu size={20} />
+      </button>
+
       <div className="flex-1 min-w-0">
         {title ? (
           <h1 className="text-[15px] font-bold text-[var(--text-strong)] truncate">{title}</h1>
