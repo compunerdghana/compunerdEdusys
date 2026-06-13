@@ -119,6 +119,7 @@ export function ClassesManager({ schoolId, classes: initial, teachers }: Props) 
   })).filter((l) => l.items.length > 0 || showForm);
 
   return (
+    <>
     <div className="space-y-5 max-w-2xl">
       <div className="flex items-center justify-between">
         <div>
@@ -275,5 +276,6 @@ export function ClassesManager({ schoolId, classes: initial, teachers }: Props) 
         onCancel={() => setConfirmDelete(null)}
       />
     </div>
+    </>
   );
 }
