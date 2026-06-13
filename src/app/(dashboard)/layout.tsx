@@ -5,7 +5,6 @@ import { DashboardShell } from "@/components/layout/DashboardShell";
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-
   if (!user) redirect("/login");
 
   const { data: profile } = await supabase
@@ -16,17 +15,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   let schoolName: string | undefined;
   if (profile?.school_id) {
-    const { data: school } = await supabase
-      .from("schools")
-      .select("name")
-      .eq("id", profile.school_id)
-      .single();
+    const { data: school } = await supabase.from("schools").select("name").eq("id", profile.school_id).single();
     schoolName = school?.name;
   }
 
   return (
     <DashboardShell
       userName={profile?.full_name ?? user.email ?? "User"}
+      userRole={profile?.role}
       schoolName={schoolName}
     >
       {children}

@@ -2,6 +2,7 @@
 
 import { type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { TrendingUp, TrendingDown } from "lucide-react";
 
 interface StatCardProps {
   label: string;
@@ -13,38 +14,43 @@ interface StatCardProps {
 }
 
 const colors = {
-  brand:   { bg: "var(--brand-subtle)",   icon: "var(--brand)",   text: "var(--brand)" },
-  success: { bg: "var(--success-bg)",     icon: "var(--success)", text: "var(--success)" },
-  warning: { bg: "var(--warning-bg)",     icon: "var(--warning)", text: "var(--warning)" },
-  danger:  { bg: "var(--danger-bg)",      icon: "var(--danger)",  text: "var(--danger)" },
-  info:    { bg: "var(--info-bg)",        icon: "var(--info)",    text: "var(--info)" },
-  accent:  { bg: "var(--accent-subtle)",  icon: "var(--accent)",  text: "var(--accent)" },
+  brand:   { from: "#262262", to: "#3d1f6e", bg: "#eeedf8" },
+  success: { from: "#1BD084", to: "#0ea96a", bg: "#e8faf3" },
+  warning: { from: "#F4901F", to: "#e07b0a", bg: "#fef3e6" },
+  danger:  { from: "#FF394B", to: "#e01f31", bg: "#ffebee" },
+  info:    { from: "#1BD0B4", to: "#0ea99a", bg: "#e8faf8" },
+  accent:  { from: "#92278F", to: "#6d1a6b", bg: "#f5e8f5" },
 };
 
 export function StatCard({ label, value, sub, icon: Icon, color = "brand", trend }: StatCardProps) {
   const c = colors[color];
   return (
-    <div className="bg-[var(--surface)] rounded-2xl p-4 shadow-[var(--shadow-sm)] border border-[var(--border)] flex flex-col gap-3 hover:shadow-[var(--shadow-md)] transition-shadow">
-      <div className="flex items-start justify-between">
-        <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-          style={{ background: c.bg }}
-        >
-          <Icon size={18} style={{ color: c.icon }} />
+    <div className="bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.07)] border border-[var(--border)] overflow-hidden hover:shadow-[0_4px_20px_rgba(0,0,0,0.10)] transition-shadow">
+      <div className="flex items-stretch">
+        {/* Left — text */}
+        <div className="flex-1 p-4 flex flex-col justify-between min-w-0">
+          <p className="text-[13px] font-semibold text-[var(--text-muted)] leading-tight">{label}</p>
+          <div className="mt-2">
+            <p className="text-[28px] font-extrabold text-[var(--text-strong)] leading-none tracking-tight">{value}</p>
+            {sub && <p className="text-[12px] text-[var(--text-muted)] mt-1">{sub}</p>}
+            {trend && (
+              <div className={cn(
+                "flex items-center gap-1 mt-1.5 text-[12px] font-semibold",
+                trend.value >= 0 ? "text-[var(--success)]" : "text-[var(--danger)]",
+              )}>
+                {trend.value >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                {trend.value >= 0 ? "+" : ""}{trend.value}% {trend.label}
+              </div>
+            )}
+          </div>
         </div>
-        {trend && (
-          <span className={cn(
-            "text-[11px] font-semibold px-2 py-0.5 rounded-full",
-            trend.value >= 0 ? "bg-[var(--success-bg)] text-[var(--success-text)]" : "bg-[var(--danger-bg)] text-[var(--danger-text)]"
-          )}>
-            {trend.value >= 0 ? "+" : ""}{trend.value}% {trend.label}
-          </span>
-        )}
-      </div>
-      <div>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)] mb-0.5">{label}</p>
-        <p className="text-2xl font-extrabold text-[var(--text-strong)] font-mono leading-none">{value}</p>
-        {sub && <p className="text-xs text-[var(--text-muted)] mt-1">{sub}</p>}
+        {/* Right — colored icon area */}
+        <div className="w-16 flex items-center justify-center shrink-0 rounded-r-2xl"
+          style={{ background: `linear-gradient(135deg, ${c.from}, ${c.to})` }}>
+          <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
+            <Icon size={18} className="text-white" />
+          </div>
+        </div>
       </div>
     </div>
   );
