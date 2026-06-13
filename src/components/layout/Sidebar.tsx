@@ -6,13 +6,14 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, Users, BookOpen, ClipboardList,
   CreditCard, Calendar, MessageSquare, Settings,
-  GraduationCap, BarChart3, ChevronDown,
+  GraduationCap, BarChart3, ChevronDown, UserCog,
 } from "lucide-react";
 import { useState } from "react";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/students", label: "Students", icon: Users },
+  { href: "/staff", label: "Staff", icon: UserCog },
   { href: "/attendance", label: "Attendance", icon: ClipboardList },
   {
     label: "Academics",
