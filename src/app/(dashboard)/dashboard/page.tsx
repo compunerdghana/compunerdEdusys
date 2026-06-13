@@ -26,6 +26,7 @@ export default async function DashboardPage() {
     feeDataRes,
     academicYearRes,
     enrollmentRes,
+    termsRes,
   ] = await Promise.all([
     supabase.from("schools").select("id, name, logo_url, address, phone").eq("id", profile.school_id).single(),
     supabase.from("students").select("id", { count: "exact", head: true }).eq("school_id", profile.school_id),
@@ -35,6 +36,7 @@ export default async function DashboardPage() {
     supabase.from("fee_payments").select("amount, status").eq("school_id", profile.school_id),
     supabase.from("academic_years").select("id, name, is_current, current_term").eq("school_id", profile.school_id).eq("is_current", true).single(),
     supabase.from("students").select("classrooms(level)").eq("school_id", profile.school_id).eq("status", "active"),
+    supabase.from("terms").select("id, name, start_date, end_date, reopening_date").eq("school_id", profile.school_id).order("start_date"),
   ]);
 
   const attendanceToday = attendanceTodayRes.data ?? [];
@@ -73,6 +75,7 @@ export default async function DashboardPage() {
     academicYear: academicYear?.name ?? null,
     currentTerm: academicYear?.current_term ?? null,
     enrollmentByLevel,
+    terms: termsRes.data ?? [],
   };
 
   return <DashboardClient profile={profile} school={schoolRes.data} stats={stats} />;
