@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Modal } from "@/components/ui/Modal";
@@ -8,7 +8,7 @@ import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { getInitials, formatDate } from "@/lib/utils";
-import { UserPlus, Search, Phone, Mail, MessageSquare, X, Pencil, UserX, UserCheck, Eye, EyeOff, ShieldCheck, MapPin, Landmark, CreditCard, ChevronRight, SlidersHorizontal } from "lucide-react";
+import { UserPlus, Search, Phone, Mail, MessageSquare, X, Pencil, UserX, UserCheck, Eye, EyeOff, ShieldCheck, MapPin, Landmark, CreditCard, ChevronRight, SlidersHorizontal, Camera } from "lucide-react";
 
 const ROLES = [
   { value: "teacher", label: "Teacher" },
@@ -52,8 +52,46 @@ export function StaffClient({ initialStaff, schoolId, isHeadmaster }: Props) {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [showPwd, setShowPwd] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const profilePhotoInputRef = useRef<HTMLInputElement>(null);
 
   function f(k: string, v: string) { setForm((p) => ({ ...p, [k]: v })); }
+
+  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  }
+
+  async function uploadPhoto(staffId: string, file: File): Promise<string | null> {
+    const supabase = createClient();
+    const ext = file.name.split(".").pop() ?? "jpg";
+    const path = `staff/${staffId}-photo.${ext}`;
+    await fetch("/api/admin/setup-storage", { method: "POST" });
+    const { error } = await supabase.storage.from("school-assets").upload(path, file, { upsert: true });
+    if (error) return null;
+    const { data } = supabase.storage.from("school-assets").getPublicUrl(path);
+    return data.publicUrl;
+  }
+
+  async function handleProfilePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!selected) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPhoto(true);
+    const url = await uploadPhoto(selected.id, file);
+    if (url) {
+      await supabase.from("profiles").update({ photo_url: url }).eq("id", selected.id);
+      const updated = { ...selected, photo_url: url };
+      setStaff((s) => s.map((x) => x.id === selected.id ? updated : x));
+      setSelected(updated);
+    }
+    setUploadingPhoto(false);
+  }
 
   const filtered = staff.filter((s) => {
     if (!search) return true;
@@ -76,8 +114,18 @@ export function StaffClient({ initialStaff, schoolId, isHeadmaster }: Props) {
     const { data: np } = await supabase.from("profiles")
       .select("id, full_name, username, role, phone, is_active, created_at")
       .eq("id", json.id).single();
-    if (np) setStaff((s) => [...s, np].sort((a, b) => a.full_name.localeCompare(b.full_name)));
-    setShowAdd(false); setForm(EMPTY);
+    if (np) {
+      let staffEntry = { ...np, photo_url: null as string | null };
+      if (photoFile) {
+        const url = await uploadPhoto(json.id, photoFile);
+        if (url) {
+          await supabase.from("profiles").update({ photo_url: url }).eq("id", json.id);
+          staffEntry = { ...staffEntry, photo_url: url };
+        }
+      }
+      setStaff((s) => [...s, staffEntry].sort((a, b) => a.full_name.localeCompare(b.full_name)));
+    }
+    setShowAdd(false); setForm(EMPTY); setPhotoFile(null); setPhotoPreview(null);
   }
 
   async function saveEdit(e: React.FormEvent) {
@@ -204,14 +252,24 @@ export function StaffClient({ initialStaff, schoolId, isHeadmaster }: Props) {
 
             {/* Photo + name */}
             <div className="flex flex-col items-center px-4 pb-4 pt-2">
-              {selected.photo_url ? (
-                <img src={selected.photo_url} alt="" className="w-20 h-20 rounded-full object-cover shadow-md" />
-              ) : (
-                <div className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold text-white shadow-md"
-                  style={{ background: selected.is_active ? "linear-gradient(135deg, #262262, #92278F)" : "#9ca3af" }}>
-                  {getInitials(selected.full_name)}
+              <input ref={profilePhotoInputRef} type="file" accept="image/*" className="hidden" onChange={handleProfilePhotoChange} />
+              <button type="button" onClick={() => profilePhotoInputRef.current?.click()}
+                className="relative w-20 h-20 rounded-full overflow-hidden group" disabled={uploadingPhoto}>
+                {selected.photo_url ? (
+                  <img src={selected.photo_url} alt="" className="w-full h-full object-cover shadow-md" />
+                ) : (
+                  <div className="w-full h-full rounded-full flex items-center justify-center text-2xl font-bold text-white shadow-md"
+                    style={{ background: selected.is_active ? "linear-gradient(135deg, #262262, #92278F)" : "#9ca3af" }}>
+                    {getInitials(selected.full_name)}
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
+                  {uploadingPhoto
+                    ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    : <Camera size={16} className="text-white" />
+                  }
                 </div>
-              )}
+              </button>
               <h3 className="text-[15px] font-bold text-[var(--text-strong)] mt-3 text-center">{selected.full_name}</h3>
               <p className="text-[12px] text-[var(--text-muted)]">@{selected.username}</p>
               {(() => { const rs = ROLE_STYLE[selected.role] ?? { bg: "#f3f4f6", text: "#374151" }; return (
@@ -253,7 +311,7 @@ export function StaffClient({ initialStaff, schoolId, isHeadmaster }: Props) {
       </div>
 
       {/* Add Staff Modal */}
-      <Modal open={showAdd} onClose={() => setShowAdd(false)} title="Add staff member">
+      <Modal open={showAdd} onClose={() => { setShowAdd(false); setPhotoFile(null); setPhotoPreview(null); }} title="Add staff member">
         <div className="flex gap-1 bg-[var(--neutral-100)] rounded-xl p-1 mb-5">
           {TABS.map((t) => (
             <button key={t.key} onClick={() => setAddTab(t.key)}
@@ -287,6 +345,22 @@ export function StaffClient({ initialStaff, schoolId, isHeadmaster }: Props) {
           )}
           {addTab === "personal" && (
             <>
+              {/* Photo upload */}
+              <div className="flex flex-col items-center gap-2 mb-2">
+                <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+                <button type="button" onClick={() => photoInputRef.current?.click()}
+                  className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-dashed border-[var(--border)] hover:border-[#262262] transition-colors flex items-center justify-center group"
+                  style={photoPreview ? {} : { background: "var(--neutral-100)" }}>
+                  {photoPreview
+                    ? <img src={photoPreview} alt="" className="w-full h-full object-cover" />
+                    : <Camera size={22} className="text-[var(--text-muted)] group-hover:text-[#262262]" />
+                  }
+                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
+                    <Camera size={16} className="text-white" />
+                  </div>
+                </button>
+                <p className="text-[11px] text-[var(--text-muted)]">Staff photo (optional)</p>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[15px] font-semibold text-[var(--text-strong)]">Gender</label>
