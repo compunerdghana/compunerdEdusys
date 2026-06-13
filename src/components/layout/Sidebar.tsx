@@ -22,7 +22,6 @@ const navItems = [
 ];
 
 const bottomItems = [
-  { href: "/school-settings", label: "School settings", icon: Building2 },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

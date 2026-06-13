@@ -1,112 +1,63 @@
 import { createClient } from "@/lib/supabase/server";
-import { StatCard } from "@/components/ui/Card";
-import { Users, UserCheck, CreditCard, ClipboardList, AlertCircle } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { redirect } from "next/navigation";
+import { DashboardClient } from "./DashboardClient";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("school_id, full_name")
-    .eq("id", user!.id)
+    .select("id, full_name, role, school_id, username")
+    .eq("id", user.id)
     .single();
 
-  const schoolId = profile?.school_id;
+  if (!profile?.school_id) {
+    return <DashboardClient profile={profile} school={null} stats={null} />;
+  }
 
-  // Parallel data fetch
-  const [studentsRes, presentTodayRes, feesRes] = await Promise.all([
-    schoolId
-      ? supabase.from("students").select("id", { count: "exact" }).eq("school_id", schoolId).eq("status", "active")
-      : Promise.resolve({ count: 0 }),
-    schoolId
-      ? supabase.from("attendance_records").select("id", { count: "exact" })
-          .eq("school_id", schoolId)
-          .eq("date", new Date().toISOString().slice(0, 10))
-          .eq("status", "present")
-      : Promise.resolve({ count: 0 }),
-    schoolId
-      ? supabase.from("fee_payments").select("balance").eq("school_id", schoolId).eq("payment_status", "unpaid")
-      : Promise.resolve({ data: [] }),
+  const [
+    schoolRes,
+    { count: totalStudents },
+    { count: activeStudents },
+    { count: totalStaff },
+    attendanceTodayRes,
+    feeDataRes,
+    academicYearRes,
+  ] = await Promise.all([
+    supabase.from("schools").select("id, name, logo_url, address, phone").eq("id", profile.school_id).single(),
+    supabase.from("students").select("id", { count: "exact", head: true }).eq("school_id", profile.school_id),
+    supabase.from("students").select("id", { count: "exact", head: true }).eq("school_id", profile.school_id).eq("status", "active"),
+    supabase.from("profiles").select("id", { count: "exact", head: true }).eq("school_id", profile.school_id).neq("role", "parent"),
+    supabase.from("attendance_records").select("status").eq("school_id", profile.school_id).eq("date", new Date().toISOString().split("T")[0]),
+    supabase.from("fee_payments").select("amount, status").eq("school_id", profile.school_id),
+    supabase.from("academic_years").select("id, name, is_current, current_term").eq("school_id", profile.school_id).eq("is_current", true).single(),
   ]);
 
-  const totalStudents = studentsRes.count ?? 0;
-  const presentToday = presentTodayRes.count ?? 0;
-  const outstandingFees = (feesRes.data ?? []).reduce(
-    (sum: number, p: { balance: number }) => sum + (p.balance ?? 0),
-    0,
-  );
+  const attendanceToday = attendanceTodayRes.data ?? [];
+  const feeData = feeDataRes.data ?? [];
+  const academicYear = academicYearRes.data;
 
-  return (
-    <div className="space-y-6 max-w-6xl">
-      <div>
-        <h2 className="text-xl font-bold text-[var(--text-strong)] mb-1">Overview</h2>
-        <p className="text-sm text-[var(--text-muted)]">
-          {new Intl.DateTimeFormat("en-GH", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(new Date())}
-        </p>
-      </div>
+  const presentToday = attendanceToday.filter((r) => r.status === "present").length;
+  const absentToday = attendanceToday.filter((r) => r.status === "absent").length;
+  const totalToday = attendanceToday.length || 1;
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="Total students"
-          value={totalStudents.toLocaleString()}
-          icon={<Users size={18} />}
-          accent
-        />
-        <StatCard
-          label="Present today"
-          value={presentToday.toLocaleString()}
-          icon={<UserCheck size={18} />}
-        />
-        <StatCard
-          label="Outstanding fees"
-          value={formatCurrency(outstandingFees)}
-          icon={<CreditCard size={18} />}
-        />
-        <StatCard
-          label="Pending sync"
-          value="—"
-          icon={<ClipboardList size={18} />}
-        />
-      </div>
+  const totalCollected = feeData.filter((f) => f.status === "paid").reduce((s, f) => s + (f.amount ?? 0), 0);
+  const totalOutstanding = feeData.filter((f) => f.status !== "paid").reduce((s, f) => s + (f.amount ?? 0), 0);
 
-      {/* Quick actions */}
-      <div>
-        <h3 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-[0.08em] mb-3">Quick actions</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            { href: "/students/new", label: "Admit student", icon: Users },
-            { href: "/attendance", label: "Take attendance", icon: ClipboardList },
-            { href: "/finance/record-payment", label: "Record payment", icon: CreditCard },
-            { href: "/exams", label: "Enter scores", icon: AlertCircle },
-          ].map(({ href, label, icon: Icon }) => (
-            <a
-              key={href}
-              href={href}
-              className="flex flex-col items-start gap-3 p-4 bg-white rounded-[14px] border border-[var(--border)] shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5 transition-all"
-            >
-              <div className="w-9 h-9 rounded-xl bg-[var(--brand-subtle)] flex items-center justify-center">
-                <Icon size={16} className="text-[var(--brand)]" />
-              </div>
-              <span className="text-sm font-semibold text-[var(--text-strong)]">{label}</span>
-            </a>
-          ))}
-        </div>
-      </div>
+  const stats = {
+    totalStudents: totalStudents ?? 0,
+    activeStudents: activeStudents ?? 0,
+    totalStaff: totalStaff ?? 0,
+    presentToday,
+    absentToday,
+    attendanceRate: Math.round((presentToday / totalToday) * 100),
+    totalCollected,
+    totalOutstanding,
+    academicYear: academicYear?.name ?? null,
+    currentTerm: academicYear?.current_term ?? null,
+  };
 
-      {!schoolId && (
-        <div className="bg-[var(--warning-bg)] border border-[var(--amber-100)] rounded-[14px] p-5 flex gap-3">
-          <AlertCircle size={18} className="text-[var(--warning)] shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-semibold text-[var(--amber-600)]">School setup required</p>
-            <p className="text-sm text-[var(--text-body)] mt-0.5">
-              Your account isn&apos;t linked to a school yet. Ask the super administrator to complete setup.
-            </p>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+  return <DashboardClient profile={profile} school={schoolRes.data} stats={stats} />;
 }
