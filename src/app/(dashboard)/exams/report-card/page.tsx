@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -34,8 +35,9 @@ function computeRemark(grade: string): string {
   if (grade === "D7") return "Pass"; return "Fail";
 }
 
-export default function ReportCardPage() {
+function ReportCardInner() {
   const supabase = createClient();
+  const searchParams = useSearchParams();
   const reportRef = useRef<HTMLDivElement>(null);
   const xlsxRef = useRef<HTMLInputElement>(null);
 
@@ -45,9 +47,9 @@ export default function ReportCardPage() {
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [terms, setTerms] = useState<Term[]>([]);
   const [academicYear, setAcademicYear] = useState<AcademicYear | null>(null);
-  const [classId, setClassId] = useState("");
-  const [studentId, setStudentId] = useState("");
-  const [termId, setTermId] = useState("");
+  const [classId, setClassId] = useState(searchParams.get("classId") ?? "");
+  const [studentId, setStudentId] = useState(searchParams.get("studentId") ?? "");
+  const [termId, setTermId] = useState(searchParams.get("termId") ?? "");
   const [scores, setScores] = useState<Record<string, ScoreRow>>({});
   const [teacherRemark, setTeacherRemark] = useState("");
   const [nextTermResumes, setNextTermResumes] = useState("");
@@ -79,12 +81,14 @@ export default function ReportCardPage() {
       setTerms(termRes.data ?? []);
       setAcademicYear(yearRes.data ?? null);
 
-      // Auto-select current term
-      const currentTerm = (termRes.data ?? []).find((t: Term) => {
-        const now = new Date();
-        return new Date(t.start_date) <= now && new Date(t.end_date) >= now;
-      });
-      if (currentTerm) setTermId(currentTerm.id);
+      // Auto-select current term only if not set from URL params
+      if (!searchParams.get("termId")) {
+        const currentTerm = (termRes.data ?? []).find((t: Term) => {
+          const now = new Date();
+          return new Date(t.start_date) <= now && new Date(t.end_date) >= now;
+        });
+        if (currentTerm) setTermId(currentTerm.id);
+      }
 
       // Pre-fill headmaster name
       if (profile.role === "headmaster" || profile.role === "owner") {
@@ -94,11 +98,17 @@ export default function ReportCardPage() {
     load();
   }, []);
 
+  const initStudentId = searchParams.get("studentId") ?? "";
   useEffect(() => {
     if (!classId) return;
     supabase.from("students").select("id, first_name, middle_name, last_name, date_of_birth, gender, photo_url, admission_number")
       .eq("class_id", classId).eq("status", "active").order("last_name")
-      .then(({ data }) => { setStudents(data ?? []); setStudentId(""); setScores({}); });
+      .then(({ data }) => {
+        setStudents(data ?? []);
+        // Keep URL-param student if switching into class for the first time
+        if (!studentId && initStudentId) setStudentId(initStudentId);
+        else if (!initStudentId) { setStudentId(""); setScores({}); }
+      });
   }, [classId]);
 
   useEffect(() => {
@@ -443,5 +453,13 @@ export default function ReportCardPage() {
         )}
       </div>
     </>
+  );
+}
+
+export default function ReportCardPage() {
+  return (
+    <Suspense>
+      <ReportCardInner />
+    </Suspense>
   );
 }

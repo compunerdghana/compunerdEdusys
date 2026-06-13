@@ -17,6 +17,38 @@ const LEVELS = [
   { value: "jhs", label: "Junior High (JHS)" },
 ];
 
+const GHANA_REGIONS = [
+  "Greater Accra", "Ashanti", "Western", "Eastern", "Central", "Volta",
+  "Northern", "Upper East", "Upper West", "Brong-Ahafo", "Western North",
+  "Ahafo", "Bono East", "Oti", "Savannah", "North East",
+];
+
+const CURRENCIES = [
+  { value: "GHS", label: "GHS — Ghana Cedi (₵)" },
+  { value: "USD", label: "USD — US Dollar ($)" },
+  { value: "EUR", label: "EUR — Euro (€)" },
+  { value: "GBP", label: "GBP — British Pound (£)" },
+];
+
+const DISTRICTS_BY_REGION: Record<string, string[]> = {
+  "Greater Accra": ["Accra Metro", "Tema Metro", "Ga East", "Ga West", "Ga Central", "Ga South", "Adentan", "Ayawaso East", "Ayawaso North", "Ayawaso West Wuogon", "Kpone Katamanso", "Krowor", "La Dade-Kotopon", "La Nkwantanang-Madina", "Ledzokuku", "Ningo-Prampram", "Okaikwei North", "Shai Osudoku", "Weija-Gbawe"],
+  "Ashanti": ["Kumasi Metro", "Obuasi Metro", "Afigya Kwabre South", "Afigya Kwabre North", "Ahafo Ano North", "Ahafo Ano South East", "Ahafo Ano South West", "Akrofuom", "Amansie Central", "Amansie South", "Amansie West", "Asante Akim Central", "Asante Akim North", "Asante Akim South", "Asokore Mampong", "Asokwa", "Atwima Kwanwoma", "Atwima Mponua", "Atwima Nwabiagya North", "Atwima Nwabiagya", "Bekwai", "Bosome Freho", "Bosomtwe", "Ejisu", "Ejura Sekyedumase", "Juaben", "Kwabre East", "Kwadaso", "Mampong", "Nhyiaeso", "Obuasi East", "Offinso North", "Offinso South", "Oforikrom", "Old Tafo", "Sekyere Afram Plains", "Sekyere Kumawu", "Sekyere Central", "Sekyere East", "Sekyere South", "Suame"],
+  "Western": ["Sekondi-Takoradi Metro", "Ahanta West", "Amenfi Central", "Amenfi East", "Amenfi West", "Effia-Kwesimintsim", "Ellembelle", "Jomoro", "Mpohor", "Nzema East", "Prestea Huni Valley", "Shama", "Tarkwa Nsuaem", "Wassa Amenfi", "Wassa East"],
+  "Eastern": ["Koforidua", "Abetifi", "Abuakwa North", "Abuakwa South", "Achiase", "Akuapim North", "Akuapim South", "Atiwa East", "Atiwa West", "Ayensuano", "Birim Central", "Birim North", "Birim South", "Denkyembuor", "East Akim", "Fanteakwa North", "Fanteakwa South", "Kwaebibirem", "Kwahu Afram Plains North", "Kwahu Afram Plains South", "Kwahu East", "Kwahu South", "Kwahu West", "Lower Manya Krobo", "New Juaben North", "New Juaben South", "Nsawam Adoagyiri", "Okere", "Suhum", "Upper Manya Krobo", "Upper West Akim", "West Akim", "Yilo Krobo"],
+  "Central": ["Cape Coast Metro", "Abura Asebu Kwamankese", "Agona East", "Agona West", "Ajumako Enyan Essiam", "Asikuma Odoben Brakwa", "Assin Foso", "Assin North", "Assin South", "Awutu Senya East", "Awutu Senya", "Ekumfi", "Gomoa Central", "Gomoa East", "Gomoa West", "Hemang Lower Denkyira", "Komenda Edina Eguafo Abrem", "Mfantsiman", "Twifo Ati Morkwa", "Twifo Hemang Lower Denkyira", "Upper Denkyira East", "Upper Denkyira West"],
+  "Volta": ["Ho", "Adaklu", "Afadjato South", "Agotime Ziope", "Akatsi North", "Akatsi South", "Anloga", "Central Tongu", "Ho West", "Hohoe", "Keta", "Ketu North", "Ketu South", "Kpando", "North Dayi", "North Tongu", "Nkwanta North", "Nkwanta South", "Oti", "South Dayi", "South Tongu"],
+  "Northern": ["Tamale Metro", "Gushegu", "Karaga", "Kumbungu", "Mion", "Nanton", "Nanumba North", "Nanumba South", "Saboba", "Sagnarigu", "Savelugu", "Tatale Sanguli", "Tolon", "Yendi", "Zabzugu"],
+  "Upper East": ["Bolgatanga", "Bawku Municipal", "Bawku West", "Binduri", "Bolgatanga East", "Bongo", "Builsa North", "Builsa South", "Garu", "Kassena Nankana East", "Kassena Nankana West", "Nabdam", "Pusiga", "Talensi", "Tempane"],
+  "Upper West": ["Wa", "Daffiama Bussie Issa", "Jirapa", "Lambussie Karni", "Lawra", "Nadowli Kaleo", "Nandom", "Sissala East", "Sissala West", "Wa East", "Wa West"],
+  "Brong-Ahafo": ["Sunyani", "Berekum East", "Berekum West", "Dormaa Central", "Dormaa East", "Dormaa West", "Jaman North", "Jaman South", "Sunyani West", "Tain", "Wenchi"],
+  "Western North": ["Aowin", "Bia East", "Bia West", "Bodi", "Juaboso", "Sefwi Akontombra", "Sefwi Wiawso", "Suaman"],
+  "Ahafo": ["Asunafo North", "Asunafo South", "Asutifi North", "Asutifi South", "Tano North", "Tano South"],
+  "Bono East": ["Atebubu Amantin", "Kintampo North", "Kintampo South", "Nkoranza North", "Nkoranza South", "Pru East", "Pru West", "Sene East", "Sene West", "Techiman North", "Techiman"],
+  "Oti": ["Biakoye", "Guan", "Jasikan", "Kadjebi", "Krachi East", "Krachi Nchumuru", "Krachi West", "Nkwanta North", "Nkwanta South"],
+  "Savannah": ["Bole", "Central Gonja", "East Gonja", "North Gonja", "North East Gonja", "Sawla Tuna Kalba", "West Gonja"],
+  "North East": ["Chereponi", "East Mamprusi", "Mamprugu Moagduri", "Nalerigu", "West Mamprusi"],
+};
+
 interface SchoolData {
   id: string;
   name: string;
@@ -26,6 +58,8 @@ interface SchoolData {
   email?: string | null;
   region?: string | null;
   district?: string | null;
+  gps_address?: string | null;
+  currency?: string | null;
   levels?: string[] | null;
   ges_code?: string | null;
   logo_url?: string | null;
@@ -49,6 +83,8 @@ export function SchoolProfileForm({ school, schoolId }: Props) {
     email: school?.email ?? "",
     region: school?.region ?? "",
     district: school?.district ?? "",
+    gps_address: school?.gps_address ?? "",
+    currency: school?.currency ?? "GHS",
     ges_code: school?.ges_code ?? "",
     levels: school?.levels ?? [] as string[],
   });
@@ -57,6 +93,8 @@ export function SchoolProfileForm({ school, schoolId }: Props) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  const availableDistricts = form.region ? (DISTRICTS_BY_REGION[form.region] ?? []) : [];
 
   function set(field: string, value: string) { setForm((f) => ({ ...f, [field]: value })); setSuccess(false); }
   function toggleLevel(v: string) {
@@ -71,7 +109,6 @@ export function SchoolProfileForm({ school, schoolId }: Props) {
     setUploading(true);
     setError(null);
 
-    // Ensure bucket exists before uploading
     await fetch("/api/admin/setup-storage", { method: "POST" });
 
     const ext = file.name.split(".").pop();
@@ -94,34 +131,50 @@ export function SchoolProfileForm({ school, schoolId }: Props) {
     setError(null);
     setSaving(true);
 
-    const payload = {
+    // Base columns (always exist)
+    const basePayload = {
       name: form.name.trim(),
       motto: form.motto.trim() || null,
       address: form.address.trim() || null,
       phone: form.phone.trim() || null,
       email: form.email.trim() || null,
-      region: form.region.trim() || null,
-      district: form.district.trim() || null,
       ges_code: form.ges_code.trim() || null,
       levels: form.levels,
       logo_url: logoUrl,
     };
 
-    let err;
+    // Extended columns (require SQL migration — see note below)
+    const extPayload = {
+      region: form.region || null,
+      district: form.district || null,
+      gps_address: form.gps_address.trim() || null,
+      currency: form.currency || "GHS",
+    };
+
+    let saveErr = null;
+
     if (schoolId) {
-      const res = await supabase.from("schools").update(payload).eq("id", schoolId);
-      err = res.error;
+      const res = await supabase.from("schools").update(basePayload).eq("id", schoolId);
+      if (res.error) { saveErr = res.error; }
+      else {
+        // Try extended columns — silently ignore if columns not added yet
+        await supabase.from("schools").update(extPayload).eq("id", schoolId);
+      }
     } else {
       const { data: { user } } = await supabase.auth.getUser();
-      const res = await supabase.from("schools").insert({ ...payload, created_by: user!.id }).select("id").single();
-      err = res.error;
-      if (!err && res.data) {
+      const res = await supabase.from("schools")
+        .insert({ ...basePayload, created_by: user!.id })
+        .select("id").single();
+      saveErr = res.error;
+      if (!saveErr && res.data) {
         await supabase.from("profiles").update({ school_id: res.data.id }).eq("id", user!.id);
+        // Try extended on newly created school
+        await supabase.from("schools").update(extPayload).eq("id", res.data.id);
       }
     }
 
     setSaving(false);
-    if (err) { setError(err.message); return; }
+    if (saveErr) { setError(saveErr.message); return; }
     setSuccess(true);
     router.refresh();
   }
@@ -147,7 +200,7 @@ export function SchoolProfileForm({ school, schoolId }: Props) {
             <p className="text-[15px] font-medium text-[var(--text-body)] mb-1">
               {logoUrl ? "Logo uploaded" : "Upload your school logo"}
             </p>
-            <p className="text-sm text-[var(--text-muted)] mb-3">PNG or JPG, max 2 MB. Shown on reports and the login page.</p>
+            <p className="text-sm text-[var(--text-muted)] mb-3">PNG or JPG, max 2 MB. Shown on reports and the sidebar.</p>
             <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleLogoUpload} />
             <Button type="button" size="sm" variant="secondary" loading={uploading} onClick={() => fileRef.current?.click()}>
               <Upload size={14} /> {logoUrl ? "Change logo" : "Upload logo"}
@@ -168,8 +221,37 @@ export function SchoolProfileForm({ school, schoolId }: Props) {
           </div>
           <Input label="Address" value={form.address} onChange={(e) => set("address", e.target.value)} placeholder="P.O. Box …, Kumasi" />
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Region" value={form.region} onChange={(e) => set("region", e.target.value)} placeholder="Ashanti Region" />
-            <Input label="District" value={form.district} onChange={(e) => set("district", e.target.value)} placeholder="Kumasi Metro" />
+            {/* Region dropdown */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[15px] font-semibold text-[var(--text-strong)]">Region</label>
+              <select value={form.region}
+                onChange={(e) => { set("region", e.target.value); set("district", ""); }}
+                className="h-11 rounded-[10px] border border-[var(--border)] bg-white px-3 text-[15px] text-[var(--text-strong)] outline-none focus:border-[var(--ring)]">
+                <option value="">— Select region —</option>
+                {GHANA_REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+            {/* District dropdown */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[15px] font-semibold text-[var(--text-strong)]">District / Municipality</label>
+              <select value={form.district} onChange={(e) => set("district", e.target.value)}
+                className="h-11 rounded-[10px] border border-[var(--border)] bg-white px-3 text-[15px] text-[var(--text-strong)] outline-none focus:border-[var(--ring)]"
+                disabled={!form.region}>
+                <option value="">{form.region ? "— Select district —" : "Select region first"}</option>
+                {availableDistricts.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Input label="GPS Address (Ghana Post)" value={form.gps_address} onChange={(e) => set("gps_address", e.target.value)} placeholder="e.g. AK-039-5028" />
+            {/* Currency dropdown */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[15px] font-semibold text-[var(--text-strong)]">Currency</label>
+              <select value={form.currency} onChange={(e) => set("currency", e.target.value)}
+                className="h-11 rounded-[10px] border border-[var(--border)] bg-white px-3 text-[15px] text-[var(--text-strong)] outline-none focus:border-[var(--ring)]">
+                {CURRENCIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+              </select>
+            </div>
           </div>
           <Input label="GES school code" value={form.ges_code} onChange={(e) => set("ges_code", e.target.value)} placeholder="Optional" />
         </div>

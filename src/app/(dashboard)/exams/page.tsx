@@ -6,7 +6,8 @@ import { queueOperation } from "@/lib/offline/db";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { getInitials } from "@/lib/utils";
-import { Save, CheckCircle, ChevronLeft, ChevronRight, User } from "lucide-react";
+import { Save, CheckCircle, ChevronLeft, ChevronRight, User, FileText } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface ClassRoom { id: string; name: string }
 interface Subject { id: string; name: string }
@@ -41,6 +42,7 @@ type ScoreMap = Record<string, { class_score: string; exam_score: string }>;
 
 export default function ExamsPage() {
   const supabase = createClient();
+  const router = useRouter();
   const [classes, setClasses] = useState<ClassRoom[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [students, setStudents] = useState<StudentRow[]>([]);
@@ -133,7 +135,6 @@ export default function ExamsPage() {
         term_id: termId,
         class_score: cs || null,
         exam_score: es || null,
-        total: total || null,
         grade,
         remark: computeRemark(grade),
       };
@@ -295,6 +296,14 @@ export default function ExamsPage() {
               <div className="mt-4 flex items-center gap-3 flex-wrap">
                 <Button size="lg" onClick={handleSave} loading={saving}>
                   {saved ? <><CheckCircle size={15} /> Saved!</> : <><Save size={15} /> Save scores</>}
+                </Button>
+                <Button size="lg" variant="secondary" type="button"
+                  onClick={() => {
+                    if (!selectedStudent) return;
+                    const params = new URLSearchParams({ classId, studentId: selectedStudent.id, ...(termId ? { termId } : {}) });
+                    router.push(`/exams/report-card?${params.toString()}`);
+                  }}>
+                  <FileText size={15} /> Print Report
                 </Button>
                 {saveErr && <p className="text-sm text-red-600">{saveErr}</p>}
                 {selectedStudentIdx !== null && selectedStudentIdx < students.length - 1 && (
