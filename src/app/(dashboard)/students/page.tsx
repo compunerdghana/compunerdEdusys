@@ -7,6 +7,11 @@ import { UserPlus, Search } from "lucide-react";
 import { formatDate, getInitials } from "@/lib/utils";
 import type { Student } from "@/types/database";
 
+const STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "default" | "brand"> = {
+  active: "success", inactive: "default", graduated: "brand",
+  transferred: "warning", withdrawn: "danger",
+};
+
 export default async function StudentsPage({
   searchParams,
 }: {
@@ -19,6 +24,13 @@ export default async function StudentsPage({
   const { data: profile } = await supabase.from("profiles").select("school_id").eq("id", user!.id).single();
   const schoolId = profile?.school_id;
 
+  const [classesRes] = await Promise.all([
+    schoolId
+      ? supabase.from("classrooms").select("id, name, level").eq("school_id", schoolId).order("level").order("name")
+      : Promise.resolve({ data: [] }),
+  ]);
+  const classes = classesRes.data ?? [];
+
   let query = supabase
     .from("students")
     .select("*, classrooms(name)")
@@ -26,61 +38,70 @@ export default async function StudentsPage({
     .order("last_name");
 
   if (params.q) {
-    query = query.or(
-      `first_name.ilike.%${params.q}%,last_name.ilike.%${params.q}%,admission_number.ilike.%${params.q}%`,
-    );
+    query = query.or(`first_name.ilike.%${params.q}%,last_name.ilike.%${params.q}%,admission_number.ilike.%${params.q}%`);
   }
   if (params.status) query = query.eq("status", params.status);
   if (params.class) query = query.eq("class_id", params.class);
 
   const { data: students } = await query;
-
-  const statusVariant: Record<string, "success" | "warning" | "danger" | "default"> = {
-    active: "success",
-    inactive: "default",
-    graduated: "brand" as never,
-    transferred: "warning",
-    withdrawn: "danger",
-  };
+  const total = students?.length ?? 0;
 
   return (
     <div className="space-y-5 max-w-6xl">
+      {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-[var(--text-strong)]">Students</h2>
-          <p className="text-sm text-[var(--text-muted)]">{students?.length ?? 0} students</p>
+          <p className="text-sm text-[var(--text-muted)]">{total} student{total !== 1 ? "s" : ""}</p>
         </div>
         <Link href="/students/new">
-          <Button>
-            <UserPlus size={15} />
-            Admit student
-          </Button>
+          <Button><UserPlus size={15} /> Admit student</Button>
         </Link>
       </div>
 
-      {/* Search */}
-      <form method="GET" className="flex gap-2">
-        <div className="relative flex-1 max-w-sm">
+      {/* Filters */}
+      <form method="GET" className="flex flex-wrap gap-2">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-subtle)]" />
           <input
             name="q"
             defaultValue={params.q}
-            placeholder="Search by name or admission number…"
+            placeholder="Search name or admission number…"
             className="w-full h-10 pl-9 pr-3 rounded-[10px] border border-[var(--border)] bg-white text-sm outline-none focus:border-[var(--ring)] focus:shadow-[var(--shadow-focus)]"
           />
         </div>
-        <Button type="submit" variant="secondary" size="md">Search</Button>
+        <select
+          name="status"
+          defaultValue={params.status ?? ""}
+          className="h-10 rounded-[10px] border border-[var(--border)] bg-white px-3 text-sm text-[var(--text-body)] outline-none focus:border-[var(--ring)]"
+        >
+          <option value="">All statuses</option>
+          {["active","inactive","graduated","transferred","withdrawn"].map((s) => (
+            <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+          ))}
+        </select>
+        <select
+          name="class"
+          defaultValue={params.class ?? ""}
+          className="h-10 rounded-[10px] border border-[var(--border)] bg-white px-3 text-sm text-[var(--text-body)] outline-none focus:border-[var(--ring)]"
+        >
+          <option value="">All classes</option>
+          {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <Button type="submit" variant="secondary">Filter</Button>
+        {(params.q || params.status || params.class) && (
+          <Link href="/students"><Button type="button" variant="ghost">Clear</Button></Link>
+        )}
       </form>
 
+      {/* Table */}
       <Card padding="none">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--border)]">
                 {["Student", "Admission no.", "Class", "Gender", "Admitted", "Status"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">
-                    {h}
-                  </th>
+                  <th key={h} className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -93,7 +114,7 @@ export default async function StudentsPage({
                         {getInitials(`${s.first_name} ${s.last_name}`)}
                       </div>
                       <span className="font-semibold text-[var(--text-strong)]">
-                        {s.first_name} {s.middle_name ? `${s.middle_name[0]}. ` : ""}{s.last_name}
+                        {s.first_name}{s.middle_name ? ` ${s.middle_name[0]}.` : ""} {s.last_name}
                       </span>
                     </Link>
                   </td>
@@ -102,14 +123,17 @@ export default async function StudentsPage({
                   <td className="px-4 py-3 text-[var(--text-body)] capitalize">{s.gender}</td>
                   <td className="px-4 py-3 text-[var(--text-muted)]">{formatDate(s.admission_date)}</td>
                   <td className="px-4 py-3">
-                    <Badge variant={statusVariant[s.status] ?? "default"}>{s.status}</Badge>
+                    <Badge variant={STATUS_VARIANT[s.status] ?? "default"}>{s.status}</Badge>
                   </td>
                 </tr>
               ))}
               {(!students || students.length === 0) && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-sm text-[var(--text-muted)]">
-                    No students found. <Link href="/students/new" className="text-[var(--brand)] font-semibold">Admit the first student</Link>
+                  <td colSpan={6} className="px-4 py-14 text-center">
+                    <p className="text-sm text-[var(--text-muted)] mb-3">No students found.</p>
+                    <Link href="/students/new">
+                      <Button size="sm"><UserPlus size={13} /> Admit first student</Button>
+                    </Link>
                   </td>
                 </tr>
               )}
