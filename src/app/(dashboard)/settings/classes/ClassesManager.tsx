@@ -6,7 +6,9 @@ import { createClient } from "@/lib/supabase/client";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { Plus, Trash2, Users } from "lucide-react";
+import { Plus, Trash2, Users, Pencil } from "lucide-react";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { Modal } from "@/components/ui/Modal";
 
 const LEVELS = [
   { value: "daycare", label: "Day Care" },
@@ -47,6 +49,10 @@ export function ClassesManager({ schoolId, classes: initial, teachers }: Props) 
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [editingClass, setEditingClass] = useState<Classroom | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", level: "primary", arm: "", class_teacher_id: "", capacity: "" });
+  const [savingEdit, setSavingEdit] = useState(false);
 
   function setField(k: string, v: string) { setForm((f) => ({ ...f, [k]: v })); }
 
@@ -79,6 +85,32 @@ export function ClassesManager({ schoolId, classes: initial, teachers }: Props) 
     await supabase.from("classrooms").delete().eq("id", id);
     setClasses((c) => c.filter((cl) => cl.id !== id));
     setDeleting(null);
+    setConfirmDelete(null);
+  }
+
+  function openEdit(cls: Classroom) {
+    setEditingClass(cls);
+    setEditForm({
+      name: cls.name, level: cls.level, arm: cls.arm ?? "",
+      class_teacher_id: cls.class_teacher_id ?? "", capacity: cls.capacity?.toString() ?? "",
+    });
+  }
+
+  async function saveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingClass) return;
+    setSavingEdit(true);
+    const { data, error } = await supabase.from("classrooms").update({
+      name: editForm.name.trim(), level: editForm.level,
+      arm: editForm.arm.trim() || null,
+      class_teacher_id: editForm.class_teacher_id || null,
+      capacity: editForm.capacity ? parseInt(editForm.capacity) : null,
+    }).eq("id", editingClass.id).select().single();
+    setSavingEdit(false);
+    if (error) return;
+    setClasses((c) => c.map((x) => x.id === editingClass.id ? data : x));
+    setEditingClass(null);
+    router.refresh();
   }
 
   const byLevel = LEVELS.map((l) => ({
@@ -177,13 +209,10 @@ export function ClassesManager({ schoolId, classes: initial, teachers }: Props) 
                         {cls.capacity ? ` · Capacity: ${cls.capacity}` : ""}
                       </p>
                     </div>
-                    <button
-                      onClick={() => deleteClass(cls.id)}
-                      disabled={deleting === cls.id}
-                      className="text-[var(--text-subtle)] hover:text-[var(--danger)] transition-colors"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    <div className="flex gap-2">
+                      <button onClick={() => openEdit(cls)} className="text-[var(--text-subtle)] hover:text-[var(--brand)] transition-colors"><Pencil size={14} /></button>
+                      <button onClick={() => setConfirmDelete(cls.id)} className="text-[var(--text-subtle)] hover:text-[var(--danger)] transition-colors"><Trash2 size={14} /></button>
+                    </div>
                   </div>
                 );
               })}
@@ -191,6 +220,60 @@ export function ClassesManager({ schoolId, classes: initial, teachers }: Props) 
           </div>
         );
       })}
+    </div>
+
+      {/* Edit class modal */}
+      <Modal open={!!editingClass} onClose={() => setEditingClass(null)} title="Edit class">
+        {editingClass && (
+          <form onSubmit={saveEdit} className="space-y-4">
+            <div>
+              <p className="text-sm font-semibold text-[var(--text-strong)] mb-2">Level</p>
+              <div className="flex flex-wrap gap-2">
+                {LEVELS.map((l) => (
+                  <button key={l.value} type="button"
+                    onClick={() => setEditForm((f) => ({ ...f, level: l.value }))}
+                    className={`px-3 py-1.5 rounded-[8px] text-sm font-medium border transition-all ${
+                      editForm.level === l.value ? "text-white border-transparent" : "bg-white text-[var(--text-muted)] border-[var(--border)] hover:border-[var(--ring)]"
+                    }`}
+                    style={editForm.level === l.value ? { background: LEVEL_COLORS[l.value] } : {}}
+                  >{l.label}</button>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Input label="Class name" value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} required />
+              <Input label="Arm / stream" placeholder="e.g. A, Gold" value={editForm.arm} onChange={(e) => setEditForm((f) => ({ ...f, arm: e.target.value }))} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-semibold text-[var(--text-strong)]">Class teacher</label>
+                <select value={editForm.class_teacher_id} onChange={(e) => setEditForm((f) => ({ ...f, class_teacher_id: e.target.value }))}
+                  className="h-10 rounded-[10px] border border-[var(--border)] bg-white px-3 text-sm text-[var(--text-strong)] outline-none focus:border-[var(--ring)] focus:shadow-[var(--shadow-focus)]">
+                  <option value="">— None —</option>
+                  {teachers.map((t) => <option key={t.id} value={t.id}>{t.full_name}</option>)}
+                </select>
+              </div>
+              <Input label="Capacity" type="number" min="1" placeholder="e.g. 40" value={editForm.capacity} onChange={(e) => setEditForm((f) => ({ ...f, capacity: e.target.value }))} />
+            </div>
+            <div className="flex gap-2 justify-end pt-1">
+              <Button type="button" variant="secondary" onClick={() => setEditingClass(null)}>Cancel</Button>
+              <Button type="submit" loading={savingEdit}>Save changes</Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      {/* Confirm delete */}
+      <ConfirmModal
+        open={!!confirmDelete}
+        title="Delete class?"
+        message="This will permanently delete the class. Students enrolled in it will not be deleted."
+        confirmLabel="Delete"
+        danger
+        loading={!!deleting}
+        onConfirm={() => confirmDelete && deleteClass(confirmDelete)}
+        onCancel={() => setConfirmDelete(null)}
+      />
     </div>
   );
 }

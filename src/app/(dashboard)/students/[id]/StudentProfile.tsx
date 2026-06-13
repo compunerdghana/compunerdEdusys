@@ -14,6 +14,7 @@ import {
   Phone, Edit3, Save, X, Plus, Trash2, CheckCircle2, AlertCircle, Clock,
 } from "lucide-react";
 import { formatDate, formatCurrency, getInitials, cn } from "@/lib/utils";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import type { Student, Parent, FeePayment, AttendanceRecord, ExamScore } from "@/types/database";
 
 type Tab = "info" | "parents" | "fees" | "attendance" | "results";
@@ -60,6 +61,7 @@ export function StudentProfile({ student: initial, parents: initialParents, fees
   const [saving, setSaving] = useState(false);
   const [parents, setParents] = useState(initialParents);
   const [addingParent, setAddingParent] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [parentForm, setParentForm] = useState({ full_name: "", phone: "", relationship: "Father", email: "", occupation: "", address: "" });
   const [savingParent, setSavingParent] = useState(false);
 
@@ -124,6 +126,7 @@ export function StudentProfile({ student: initial, parents: initialParents, fees
   async function deleteParent(id: string) {
     await supabase.from("parents").delete().eq("id", id);
     setParents((p) => p.filter((x) => x.id !== id));
+    setConfirmDelete(null);
   }
 
   const fullName = `${student.first_name}${student.middle_name ? ` ${student.middle_name}` : ""} ${student.last_name}`;
@@ -201,7 +204,7 @@ export function StudentProfile({ student: initial, parents: initialParents, fees
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-[var(--border)]">
+      <div className="flex gap-1 flex-wrap">
         {([
           { id: "info", label: "Profile", icon: User },
           { id: "parents", label: "Parents", icon: Users },
@@ -213,10 +216,10 @@ export function StudentProfile({ student: initial, parents: initialParents, fees
             key={id}
             onClick={() => setTab(id)}
             className={cn(
-              "flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-all -mb-px",
+              "flex items-center gap-1.5 px-4 py-2 rounded-[8px] text-[15px] font-medium transition-all",
               tab === id
-                ? "border-[var(--brand)] text-[var(--brand)]"
-                : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-body)]",
+                ? "bg-[var(--brand)] text-white"
+                : "text-[var(--text-muted)] hover:text-[var(--text-body)] hover:bg-[var(--neutral-100)]",
             )}
           >
             <Icon size={14} />
@@ -338,7 +341,7 @@ export function StudentProfile({ student: initial, parents: initialParents, fees
                   <div className="flex flex-col items-end gap-2 shrink-0">
                     {p.is_primary && <Badge variant="brand">Primary</Badge>}
                     {canEdit && (
-                      <button onClick={() => deleteParent(p.id)} className="text-[var(--text-subtle)] hover:text-[var(--danger)] transition-colors">
+                      <button onClick={() => setConfirmDelete(p.id)} className="text-[var(--text-subtle)] hover:text-[var(--danger)] transition-colors">
                         <Trash2 size={14} />
                       </button>
                     )}
@@ -495,6 +498,16 @@ export function StudentProfile({ student: initial, parents: initialParents, fees
           </div>
         </Card>
       )}
+
+      <ConfirmModal
+        open={!!confirmDelete}
+        title="Remove parent / guardian"
+        message="Are you sure you want to remove this parent or guardian from the student record?"
+        confirmLabel="Remove"
+        danger
+        onConfirm={() => confirmDelete && deleteParent(confirmDelete)}
+        onCancel={() => setConfirmDelete(null)}
+      />
     </div>
   );
 }

@@ -6,7 +6,9 @@ import { createClient } from "@/lib/supabase/client";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { Plus, Trash2, DollarSign, CheckCircle2, Circle } from "lucide-react";
+import { Plus, Trash2, DollarSign, CheckCircle2, Circle, Pencil } from "lucide-react";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { Modal } from "@/components/ui/Modal";
 import { formatCurrency } from "@/lib/utils";
 
 const LEVELS = [
@@ -51,6 +53,10 @@ export function FeeStructureManager({ schoolId, feeTypes: initial, terms }: Prop
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [editingFee, setEditingFee] = useState<FeeType | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", amount: "", term_id: "", level: [] as string[], is_mandatory: true });
+  const [savingEdit, setSavingEdit] = useState(false);
 
   function toggleLevel(v: string) {
     setForm((f) => ({
@@ -88,6 +94,32 @@ export function FeeStructureManager({ schoolId, feeTypes: initial, terms }: Prop
     await supabase.from("fee_types").delete().eq("id", id);
     setFees((f) => f.filter((x) => x.id !== id));
     setDeleting(null);
+    setConfirmDelete(null);
+  }
+
+  function openEdit(fee: FeeType) {
+    setEditingFee(fee);
+    setEditForm({ name: fee.name, amount: fee.amount.toString(), term_id: fee.term_id ?? "", level: fee.level ?? [], is_mandatory: fee.is_mandatory });
+  }
+
+  function toggleEditLevel(v: string) {
+    setEditForm((f) => ({ ...f, level: f.level.includes(v) ? f.level.filter((l) => l !== v) : [...f.level, v] }));
+  }
+
+  async function saveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingFee) return;
+    setSavingEdit(true);
+    const { data, error } = await supabase.from("fee_types").update({
+      name: editForm.name.trim(), amount: parseFloat(editForm.amount),
+      term_id: editForm.term_id || null, level: editForm.level.length ? editForm.level : null,
+      is_mandatory: editForm.is_mandatory,
+    }).eq("id", editingFee.id).select("*, term:terms(name)").single();
+    setSavingEdit(false);
+    if (error) return;
+    setFees((f) => f.map((x) => x.id === editingFee.id ? data : x));
+    setEditingFee(null);
+    router.refresh();
   }
 
   const total = fees.reduce((s, f) => s + f.amount, 0);
@@ -214,13 +246,69 @@ export function FeeStructureManager({ schoolId, feeTypes: initial, terms }: Prop
                 </p>
               </div>
               <p className="text-sm font-extrabold font-mono text-[var(--success)] shrink-0">{formatCurrency(fee.amount)}</p>
-              <button onClick={() => deleteFee(fee.id)} disabled={deleting === fee.id} className="text-[var(--text-subtle)] hover:text-[var(--danger)] transition-colors ml-1">
-                <Trash2 size={14} />
-              </button>
+              <button onClick={() => openEdit(fee)} className="text-[var(--text-subtle)] hover:text-[var(--brand)] transition-colors ml-1"><Pencil size={14} /></button>
+              <button onClick={() => setConfirmDelete(fee.id)} className="text-[var(--text-subtle)] hover:text-[var(--danger)] transition-colors ml-1"><Trash2 size={14} /></button>
             </div>
           ))}
         </div>
       )}
+
+      {/* Edit fee modal */}
+      <Modal open={!!editingFee} onClose={() => setEditingFee(null)} title="Edit fee type">
+        {editingFee && (
+          <form onSubmit={saveEdit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <Input label="Fee name" value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} required />
+              <Input label="Amount (GH₵)" type="number" min="0" step="0.01" value={editForm.amount} onChange={(e) => setEditForm((f) => ({ ...f, amount: e.target.value }))} required />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-[var(--text-strong)] mb-2">Term</p>
+              <select value={editForm.term_id} onChange={(e) => setEditForm((f) => ({ ...f, term_id: e.target.value }))}
+                className="h-10 w-full rounded-[10px] border border-[var(--border)] bg-white px-3 text-sm text-[var(--text-strong)] outline-none focus:border-[var(--ring)]">
+                <option value="">All terms</option>
+                {terms.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {Array.isArray(t.academic_years) ? t.academic_years[0]?.name : t.academic_years?.name} — {t.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-[var(--text-strong)] mb-2">Applies to levels</p>
+              <div className="flex flex-wrap gap-2">
+                {LEVELS.map((l) => (
+                  <button key={l.value} type="button" onClick={() => toggleEditLevel(l.value)}
+                    className={`px-3 py-1.5 rounded-[8px] text-sm font-medium border transition-all ${editForm.level.includes(l.value) ? "bg-[var(--brand)] text-white border-[var(--brand)]" : "bg-white text-[var(--text-muted)] border-[var(--border)] hover:border-[var(--ring)]"}`}>
+                    {l.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <button type="button" onClick={() => setEditForm((f) => ({ ...f, is_mandatory: !f.is_mandatory }))}
+                className="flex items-center gap-2 text-sm font-medium text-[var(--text-body)]">
+                {editForm.is_mandatory ? <CheckCircle2 size={18} className="text-[var(--success)]" /> : <Circle size={18} className="text-[var(--neutral-300)]" />}
+                Mandatory fee
+              </button>
+            </div>
+            <div className="flex gap-2 justify-end pt-1">
+              <Button type="button" variant="secondary" onClick={() => setEditingFee(null)}>Cancel</Button>
+              <Button type="submit" loading={savingEdit}>Save changes</Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      <ConfirmModal
+        open={!!confirmDelete}
+        title="Delete fee type?"
+        message="This fee type will be permanently removed. Existing payment records will not be affected."
+        confirmLabel="Delete"
+        danger
+        loading={!!deleting}
+        onConfirm={() => confirmDelete && deleteFee(confirmDelete)}
+        onCancel={() => setConfirmDelete(null)}
+      />
     </div>
   );
 }
