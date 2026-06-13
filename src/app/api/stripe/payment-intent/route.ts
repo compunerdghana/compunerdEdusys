@@ -1,12 +1,12 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2026-05-27.dahlia",
-});
-
 export async function POST(request: Request) {
-  const { amount, currency = "ghc", metadata } = await request.json();
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) return NextResponse.json({ error: "Stripe not configured" }, { status: 503 });
+
+  const stripe = new Stripe(key, { apiVersion: "2026-05-27.dahlia" });
+  const { amount, currency = "usd", metadata } = await request.json();
 
   if (!amount || amount <= 0) {
     return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
