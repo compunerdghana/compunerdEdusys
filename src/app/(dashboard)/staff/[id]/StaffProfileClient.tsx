@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import {
   ChevronLeft, User, Phone, Mail, MapPin, Briefcase, BookOpen,
   GraduationCap, CreditCard, FileText, Camera, Pencil, FileDown,
-  Check, X, Building2, Calendar, Shield,
+  Check, X, Building2, Calendar, Shield, Upload, Trash2,
 } from "lucide-react";
 import jsPDF from "jspdf";
 
@@ -25,6 +25,11 @@ const SECTION_TABS = [
   { id:"payroll",   label:"Payroll",          icon:CreditCard },
   { id:"academic",  label:"Academic",         icon:BookOpen },
   { id:"documents", label:"Documents",        icon:FileText },
+];
+
+const STAFF_DOC_TYPES = [
+  "Appointment Letter","Academic Certificate","Professional Certificate","NTC License",
+  "Ghana Card","Passport","SSNIT Card","Birth Certificate","Contract","Other",
 ];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -59,6 +64,12 @@ export function StaffProfileClient({
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
 
+  // Document upload state
+  const [staffDocs, setStaffDocs] = useState(docs);
+  const [staffDocType, setStaffDocType] = useState(STAFF_DOC_TYPES[0]);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  const docRef = useRef<HTMLInputElement>(null);
+
   const canEdit = isHeadmaster || isSelf;
   const roleStyle = ROLE_STYLE[profile.role] ?? { bg:"#f3f4f6", text:"#374151" };
 
@@ -77,6 +88,37 @@ export function StaffProfileClient({
       setPhotoPreview(data.publicUrl);
     }
     setUploadingPhoto(false);
+  }
+
+  async function uploadStaffDoc(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    setUploadingDoc(true);
+    const newDocs: DocRow[] = [];
+    for (const f of files) {
+      const ext = f.name.split(".").pop();
+      const path = `staff/${profile.id}/docs/${staffDocType.replace(/\s+/g,"_").toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error } = await supabase.storage.from("school-assets").upload(path, f);
+      if (!error) {
+        const { data: urlData } = supabase.storage.from("school-assets").getPublicUrl(path);
+        const { data } = await supabase.from("staff_documents").insert({
+          profile_id: profile.id,
+          school_id: profile.school_id,
+          document_type: staffDocType,
+          file_name: f.name,
+          file_url: urlData.publicUrl,
+        }).select().single();
+        if (data) newDocs.push(data as DocRow);
+      }
+    }
+    if (newDocs.length) setStaffDocs(d => [...newDocs, ...d]);
+    setUploadingDoc(false);
+    e.target.value = "";
+  }
+
+  async function deleteStaffDoc(id: string) {
+    await supabase.from("staff_documents").delete().eq("id", id);
+    setStaffDocs(d => d.filter(x => x.id !== id));
   }
 
   async function saveBio() {
@@ -447,30 +489,59 @@ export function StaffProfileClient({
 
             {/* Documents */}
             {tab === "documents" && (
-              <div className="space-y-3">
-                {docs.length > 0 ? docs.map(doc => (
-                  <a
-                    key={doc.id}
-                    href={doc.file_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-indigo-50 rounded-lg flex items-center justify-center">
-                        <FileText className="w-4 h-4 text-indigo-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-800">{doc.document_type}</p>
-                        <p className="text-xs text-gray-500">{doc.file_name ?? "Document"} • {new Date(doc.uploaded_at).toLocaleDateString()}</p>
-                      </div>
+              <div className="space-y-4">
+                {/* Upload controls */}
+                {canEdit && (
+                  <div className="flex items-end gap-3 flex-wrap">
+                    <div className="flex-1 min-w-[160px]">
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Document Type</label>
+                      <select value={staffDocType} onChange={e => setStaffDocType(e.target.value)}
+                        className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-800 outline-none focus:border-[#262262]">
+                        {STAFF_DOC_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
                     </div>
-                    <span className="text-xs text-indigo-600 font-medium">View</span>
-                  </a>
-                )) : (
+                    <button onClick={() => docRef.current?.click()} disabled={uploadingDoc}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-[#262262] text-white rounded-xl text-sm font-semibold hover:bg-[#1a1856] disabled:opacity-50 transition-colors">
+                      <Upload className="w-4 h-4" />
+                      {uploadingDoc ? "Uploading…" : "Upload Files"}
+                    </button>
+                    <input ref={docRef} type="file" multiple className="hidden" onChange={uploadStaffDoc} />
+                  </div>
+                )}
+                {canEdit && (
+                  <p className="text-[11px] text-gray-400">Select multiple files at once — each will be saved under the chosen document type.</p>
+                )}
+                {staffDocs.length > 0 ? (
+                  <div className="space-y-2">
+                    {staffDocs.map(doc => (
+                      <div key={doc.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors group">
+                        <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="w-9 h-9 bg-indigo-50 rounded-lg flex items-center justify-center shrink-0">
+                            <FileText className="w-4 h-4 text-indigo-600" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-gray-800 truncate">{doc.document_type}</p>
+                            <p className="text-xs text-gray-400 truncate">{doc.file_name ?? "Document"} · {new Date(doc.uploaded_at).toLocaleDateString()}</p>
+                          </div>
+                        </a>
+                        <div className="flex items-center gap-3 shrink-0 ml-3">
+                          <a href={doc.file_url} target="_blank" rel="noopener noreferrer"
+                            className="text-xs text-indigo-600 font-semibold hover:text-indigo-800">View</a>
+                          {canEdit && (
+                            <button onClick={() => deleteStaffDoc(doc.id)}
+                              className="text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
                   <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-                    <FileText className="w-10 h-10 mb-3" />
+                    <FileText className="w-10 h-10 mb-3 opacity-30" />
                     <p className="text-sm">No documents uploaded yet.</p>
+                    {canEdit && <p className="text-xs mt-1">Use the upload button above to add files.</p>}
                   </div>
                 )}
               </div>

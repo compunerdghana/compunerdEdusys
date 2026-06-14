@@ -5,13 +5,13 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Calendar, BookOpen, LayoutGrid, DollarSign, School, User, LucideIcon } from "lucide-react";
 
-const nav: { label: string; href: string; icon: LucideIcon }[] = [
-  { label: "School profile", href: "/settings/school", icon: School },
-  { label: "Academic year", href: "/settings/academic-year", icon: Calendar },
-  { label: "Classes", href: "/settings/classes", icon: LayoutGrid },
-  { label: "Subjects", href: "/settings/subjects", icon: BookOpen },
-  { label: "Fee structure", href: "/settings/fees", icon: DollarSign },
-  { label: "My account", href: "/settings", icon: User },
+const nav: { label: string; href: string; icon: LucideIcon; desc: string }[] = [
+  { label: "School Profile",   href: "/settings/school",         icon: School,      desc: "Name, logo, contact" },
+  { label: "Academic Year",    href: "/settings/academic-year",  icon: Calendar,    desc: "Years, terms & dates" },
+  { label: "Classes",          href: "/settings/classes",        icon: LayoutGrid,  desc: "Manage class groups" },
+  { label: "Subjects",         href: "/settings/subjects",       icon: BookOpen,    desc: "Curriculum subjects" },
+  { label: "Fee Structure",    href: "/settings/fees",           icon: DollarSign,  desc: "Fees & auto-billing" },
+  { label: "My Account",       href: "/settings",                icon: User,        desc: "Profile & password" },
 ];
 
 export function SettingsNav({ isHeadmaster }: { isHeadmaster: boolean }) {
@@ -21,19 +21,27 @@ export function SettingsNav({ isHeadmaster }: { isHeadmaster: boolean }) {
   if (visibleNav.length <= 1) return null;
 
   return (
-    <div className="flex flex-wrap gap-2 border-b border-[var(--border)] pb-4">
-      {visibleNav.map(({ label, href, icon: Icon }) => {
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+      {visibleNav.map(({ label, href, icon: Icon, desc }) => {
         const active = href === "/settings" ? pathname === "/settings" : pathname.startsWith(href);
         return (
           <Link key={href} href={href}>
             <div className={cn(
-              "flex items-center gap-1.5 px-3 py-2 rounded-[8px] text-[15px] font-medium transition-all",
+              "flex items-center gap-3 px-4 py-3.5 rounded-2xl border transition-all group",
               active
-                ? "bg-[var(--brand)] text-white"
-                : "text-[var(--text-muted)] hover:bg-[var(--brand-subtle)] hover:text-[var(--brand)]",
+                ? "bg-[#262262] border-[#262262] shadow-sm"
+                : "bg-white border-[var(--border)] hover:border-[#262262]/30 hover:shadow-sm",
             )}>
-              <Icon size={14} />
-              {label}
+              <div className={cn(
+                "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors",
+                active ? "bg-white/20" : "bg-[#26226210] group-hover:bg-[#26226218]",
+              )}>
+                <Icon size={16} className={active ? "text-white" : "text-[#262262]"} />
+              </div>
+              <div className="min-w-0">
+                <p className={cn("text-[13px] font-semibold leading-tight truncate", active ? "text-white" : "text-[var(--text-strong)]")}>{label}</p>
+                <p className={cn("text-[11px] leading-tight truncate", active ? "text-white/70" : "text-[var(--text-muted)]")}>{desc}</p>
+              </div>
             </div>
           </Link>
         );

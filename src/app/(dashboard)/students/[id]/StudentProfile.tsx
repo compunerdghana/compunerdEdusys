@@ -32,6 +32,11 @@ type Promotion  = Record<string, any>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Timeline   = Record<string, any>;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type WalletRow   = Record<string, any> | null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type InvoiceRow  = Record<string, any>;
+
 interface Props {
   student: Student & { classrooms: ClassRoom | null };
   parents: Parent[];
@@ -45,6 +50,8 @@ interface Props {
   awards: Award[];
   promotions: Promotion[];
   timeline: Timeline[];
+  wallet: WalletRow;
+  invoices: InvoiceRow[];
   viewerRole: string;
   viewerId: string;
 }
@@ -92,6 +99,7 @@ export function StudentProfile({
   student: initial, parents: initialParents, fees, attendance, scores, classes,
   medical: initialMedical, documents: initialDocs, discipline: initialDisc,
   awards: initialAwards, promotions: initialPromotions, timeline: initialTimeline,
+  wallet: initialWallet, invoices: initialInvoices,
   viewerRole, viewerId,
 }: Props) {
   const router = useRouter();
@@ -109,6 +117,8 @@ export function StudentProfile({
   const [awards, setAwards]         = useState(initialAwards);
   const [promotions, setPromotions] = useState(initialPromotions);
   const [timeline, setTimeline]     = useState(initialTimeline);
+  const [wallet]                    = useState(initialWallet);
+  const [invoices]                  = useState(initialInvoices);
 
   const [photoPreview, setPhotoPreview] = useState<string>(initial.photo_url ?? "");
   const photoRef = useRef<HTMLInputElement>(null);
@@ -377,23 +387,27 @@ export function StudentProfile({
   }
 
   async function uploadDoc(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (!f) return;
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
     setUploadingDoc(true);
-    const ext = f.name.split(".").pop();
-    const path = `students/${student.id}/docs/${docType.replace(/\s+/g,"_").toLowerCase()}-${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("school-assets").upload(path, f);
-    if (!error) {
-      const { data: urlData } = supabase.storage.from("school-assets").getPublicUrl(path);
-      const { data } = await supabase.from("student_documents").insert({
-        student_id: student.id,
-        school_id: student.school_id,
-        document_type: docType,
-        file_name: f.name,
-        file_url: urlData.publicUrl,
-      }).select().single();
-      if (data) setDocs(d=>[data,...d]);
+    const newDocs: DocRow[] = [];
+    for (const f of files) {
+      const ext = f.name.split(".").pop();
+      const path = `students/${student.id}/docs/${docType.replace(/\s+/g,"_").toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error } = await supabase.storage.from("school-assets").upload(path, f);
+      if (!error) {
+        const { data: urlData } = supabase.storage.from("school-assets").getPublicUrl(path);
+        const { data } = await supabase.from("student_documents").insert({
+          student_id: student.id,
+          school_id: student.school_id,
+          document_type: docType,
+          file_name: f.name,
+          file_url: urlData.publicUrl,
+        }).select().single();
+        if (data) newDocs.push(data);
+      }
     }
+    if (newDocs.length) setDocs(d=>[...newDocs,...d]);
     setUploadingDoc(false);
     e.target.value = "";
   }
@@ -965,56 +979,162 @@ export function StudentProfile({
             <p className="text-sm">Financial information is restricted to authorized staff.</p>
           </div>
         )}
-        {tab==="finance" && canFinance && (
-          <div className="space-y-5">
-            <div className="grid grid-cols-3 gap-4">
-              {[
-                { label:"Total Assigned", value:formatCurrency(totalDue), color:"text-gray-800" },
-                { label:"Total Paid", value:formatCurrency(totalPaid), color:"text-green-600" },
-                { label:"Outstanding Balance", value:formatCurrency(balance), color:balance>0?"text-red-500":"text-green-600" },
-              ].map(s => (
-                <div key={s.label} className="bg-white rounded-2xl border border-gray-200 p-4 text-center">
-                  <p className="text-xs text-gray-400 mb-1">{s.label}</p>
-                  <p className={`text-2xl font-bold font-mono ${s.color}`}>{s.value}</p>
+        {tab==="finance" && canFinance && (() => {
+          const walletBilled      = Number(wallet?.total_billed ?? 0);
+          const walletPaid        = Number(wallet?.total_paid ?? 0);
+          const walletWaived      = Number(wallet?.total_waived ?? 0);
+          const walletOutstanding = Math.max(0, walletBilled - walletPaid - walletWaived);
+          const hasWallet         = !!wallet;
+          const collectionRate    = walletBilled > 0 ? Math.round((walletPaid / walletBilled) * 100) : 0;
+          return (
+            <div className="space-y-5">
+              {/* Wallet balance banner */}
+              {hasWallet ? (
+                <div className="rounded-2xl p-5" style={{background:"#262262"}}>
+                  <div className="flex items-center justify-between flex-wrap gap-3">
+                    <div>
+                      <p className="text-white/70 text-[11px] font-semibold uppercase tracking-wider mb-1">
+                        Wallet · {wallet.wallet_number}
+                      </p>
+                      <p className={`text-[32px] font-extrabold leading-none ${walletOutstanding > 0 ? "text-red-300" : "text-green-300"}`}>
+                        {walletOutstanding > 0 ? `−${formatCurrency(walletOutstanding)}` : "Cleared"}
+                      </p>
+                      <p className="text-white/60 text-[12px] mt-1">
+                        {walletOutstanding > 0 ? "Outstanding balance" : "No outstanding balance"}
+                      </p>
+                    </div>
+                    <div className="flex gap-6">
+                      <div className="text-right">
+                        <p className="text-white/60 text-[10px] uppercase font-semibold">Total Billed</p>
+                        <p className="text-white font-bold text-[15px]">{formatCurrency(walletBilled)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-white/60 text-[10px] uppercase font-semibold">Paid</p>
+                        <p className="text-green-300 font-bold text-[15px]">{formatCurrency(walletPaid)}</p>
+                      </div>
+                      {walletWaived > 0 && (
+                        <div className="text-right">
+                          <p className="text-white/60 text-[10px] uppercase font-semibold">Waived</p>
+                          <p className="text-purple-300 font-bold text-[15px]">{formatCurrency(walletWaived)}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {/* Collection progress */}
+                  {walletBilled > 0 && (
+                    <div className="mt-4">
+                      <div className="flex justify-between text-[11px] text-white/60 mb-1">
+                        <span>Collection progress</span>
+                        <span>{collectionRate}%</span>
+                      </div>
+                      <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full transition-all" style={{width:`${collectionRate}%`,background:"#4ade80"}} />
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ))}
+              ) : (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex gap-3">
+                  <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-amber-800">No wallet found</p>
+                    <p className="text-xs text-amber-600 mt-0.5">Billing hasn&apos;t been set up for this student yet. Visit Settings → Fees to create a fee structure, then re-admit or run term billing.</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Invoices */}
+              {invoices.length > 0 && (
+                <div className="space-y-3">
+                  <p className="text-[13px] font-semibold text-gray-500">{invoices.length} Invoice{invoices.length!==1?"s":""}</p>
+                  {invoices.map((inv: InvoiceRow) => {
+                    const isPaid = inv.status === "paid";
+                    const isPartial = inv.status === "partial";
+                    return (
+                      <div key={inv.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                        <div className="p-4 flex items-center justify-between gap-3 border-b border-gray-100">
+                          <div>
+                            <p className="text-sm font-bold text-gray-800">{inv.invoice_number}</p>
+                            <p className="text-xs text-gray-400 mt-0.5">{new Date(inv.created_at).toLocaleDateString("en-GH")}</p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className={cn("text-xs font-bold px-2.5 py-1 rounded-full capitalize",
+                              isPaid?"bg-green-50 text-green-700":isPartial?"bg-amber-50 text-amber-700":"bg-red-50 text-red-700")}>
+                              {inv.status}
+                            </span>
+                            <div className="text-right">
+                              <p className="text-[11px] text-gray-400">Balance</p>
+                              <p className={`text-[15px] font-extrabold ${inv.balance>0?"text-red-500":"text-green-600"}`}>
+                                {formatCurrency(inv.balance)}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        {/* Line items */}
+                        {inv.student_invoice_lines?.length > 0 && (
+                          <div className="divide-y divide-gray-50">
+                            {inv.student_invoice_lines.map((line: Record<string,unknown>, i: number) => (
+                              <div key={i} className="px-4 py-2.5 flex items-center justify-between text-sm">
+                                <span className="text-gray-600">{line.item_name as string}</span>
+                                <span className="font-mono text-gray-800">{formatCurrency(Number(line.amount))}</span>
+                              </div>
+                            ))}
+                            <div className="px-4 py-2.5 flex items-center justify-between text-sm font-bold bg-gray-50">
+                              <span className="text-gray-700">Total</span>
+                              <span className="font-mono text-gray-900">{formatCurrency(Number(inv.total_amount))}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Legacy fee payments */}
+              {fees.length > 0 && (
+                <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                  <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+                    <h3 className="font-semibold text-gray-800">Legacy Payment History</h3>
+                    <span className="text-xs text-gray-400">{fees.length} records</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead><tr className="bg-gray-50">
+                        {["Fee Type","Term","Amount Due","Amount Paid","Balance","Status"].map(h=>(
+                          <th key={h} className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-gray-400">{h}</th>
+                        ))}
+                      </tr></thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {fees.map(f => (
+                          <tr key={f.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 font-medium text-gray-800">{f.fee_types?.name ?? "—"}</td>
+                            <td className="px-4 py-3 text-gray-500">{f.terms?.name ?? "—"}</td>
+                            <td className="px-4 py-3 font-mono">{formatCurrency(f.amount_due)}</td>
+                            <td className="px-4 py-3 font-mono text-green-600">{formatCurrency(f.amount_paid)}</td>
+                            <td className="px-4 py-3 font-mono" style={{color:f.balance>0?"#dc2626":"#16a34a"}}>{formatCurrency(f.balance)}</td>
+                            <td className="px-4 py-3">
+                              <span className={cn("text-xs font-semibold px-2 py-0.5 rounded-full capitalize",
+                                f.payment_status==="paid"?"bg-green-50 text-green-700"
+                                :f.payment_status==="partial"?"bg-amber-50 text-amber-700"
+                                :"bg-red-50 text-red-700")}>
+                                {f.payment_status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {!hasWallet && invoices.length === 0 && fees.length === 0 && (
+                <EmptyState icon={<CreditCard className="w-8 h-8 text-gray-300" />} text="No financial records yet." />
+              )}
             </div>
-            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-              <div className="p-4 border-b border-gray-100">
-                <h3 className="font-semibold text-gray-800">Payment History</h3>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead><tr className="bg-gray-50">
-                    {["Fee Type","Term","Amount Due","Amount Paid","Balance","Status"].map(h=>(
-                      <th key={h} className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-gray-400">{h}</th>
-                    ))}
-                  </tr></thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {fees.length===0 && <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-400">No fee records.</td></tr>}
-                    {fees.map(f => (
-                      <tr key={f.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 font-medium text-gray-800">{f.fee_types?.name ?? "—"}</td>
-                        <td className="px-4 py-3 text-gray-500">{f.terms?.name ?? "—"}</td>
-                        <td className="px-4 py-3 font-mono">{formatCurrency(f.amount_due)}</td>
-                        <td className="px-4 py-3 font-mono text-green-600">{formatCurrency(f.amount_paid)}</td>
-                        <td className="px-4 py-3 font-mono" style={{color:f.balance>0?"#dc2626":"#16a34a"}}>{formatCurrency(f.balance)}</td>
-                        <td className="px-4 py-3">
-                          <span className={cn("text-xs font-semibold px-2 py-0.5 rounded-full capitalize",
-                            f.payment_status==="paid"?"bg-green-50 text-green-700"
-                            :f.payment_status==="partial"?"bg-amber-50 text-amber-700"
-                            :"bg-red-50 text-red-700")}>
-                            {f.payment_status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* DISCIPLINE */}
         {tab==="discipline" && (
@@ -1139,8 +1259,8 @@ export function StudentProfile({
         {/* DOCUMENTS */}
         {tab==="documents" && (
           <div className="space-y-4">
-            <div className="flex items-end gap-3">
-              <div className="flex-1">
+            <div className="flex items-end gap-3 flex-wrap">
+              <div className="flex-1 min-w-[160px]">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Document Type</label>
                 <select value={docType} onChange={e=>setDocType(e.target.value)}
                   className={INPUT_CLS + " bg-white"}>
@@ -1149,12 +1269,16 @@ export function StudentProfile({
               </div>
               {canEdit && (
                 <button onClick={() => docRef.current?.click()} disabled={uploadingDoc}
-                  className="flex items-center gap-2 px-4 py-2 bg-[#262262] text-white rounded-lg text-sm font-medium hover:bg-[#1a1856] disabled:opacity-50 transition-colors">
-                  <Upload className="w-4 h-4" /> {uploadingDoc ? "Uploading…" : "Upload File"}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-[#262262] text-white rounded-xl text-sm font-semibold hover:bg-[#1a1856] disabled:opacity-50 transition-colors">
+                  <Upload className="w-4 h-4" />
+                  {uploadingDoc ? "Uploading…" : "Upload Files"}
                 </button>
               )}
-              <input ref={docRef} type="file" className="hidden" onChange={uploadDoc} />
+              <input ref={docRef} type="file" multiple className="hidden" onChange={uploadDoc} />
             </div>
+            {canEdit && (
+              <p className="text-[11px] text-gray-400">You can select multiple files at once. Each will be saved under the selected document type.</p>
+            )}
             {docs.length===0 && (
               <EmptyState icon={<FileText className="w-8 h-8 text-gray-300" />} text="No documents uploaded yet." />
             )}

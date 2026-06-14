@@ -171,12 +171,12 @@ export function AdmitStudentModal({ open, onClose, schoolId }: Props) {
         });
       }
 
-      // ── Fire ERP automation ────────────────────────────────────
-      fetch("/api/admission/complete", {
+      // ── ERP automation — await so billing runs before redirect ──
+      await fetch("/api/admission/complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ student_id: student.id }),
-      }).catch(() => null); // fire-and-forget; doesn't block UI
+      }).catch(() => null);
 
       setSaving(false); doClose();
       router.push(`/students/${student.id}`);

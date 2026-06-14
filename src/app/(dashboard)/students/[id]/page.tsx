@@ -24,6 +24,8 @@ export default async function StudentProfilePage({ params }: { params: Promise<{
     awardsRes,
     promotionsRes,
     timelineRes,
+    walletRes,
+    invoicesRes,
   ] = await Promise.all([
     supabase.from("students").select("*, classrooms(id, name, level)").eq("id", id).eq("school_id", viewer.school_id).single(),
     supabase.from("parents").select("*").eq("student_id", id).order("is_primary", { ascending: false }),
@@ -37,6 +39,8 @@ export default async function StudentProfilePage({ params }: { params: Promise<{
     supabase.from("student_awards").select("*").eq("student_id", id).order("awarded_date", { ascending: false }),
     supabase.from("student_promotions").select("*").eq("student_id", id).order("created_at"),
     supabase.from("student_timeline").select("*").eq("student_id", id).order("event_date", { ascending: false }),
+    supabase.from("student_wallets").select("*").eq("student_id", id).maybeSingle(),
+    supabase.from("student_invoices").select("*, student_invoice_lines(*)").eq("student_id", id).order("created_at", { ascending: false }),
   ]);
 
   if (!studentRes.data) notFound();
@@ -55,6 +59,8 @@ export default async function StudentProfilePage({ params }: { params: Promise<{
       awards={awardsRes.data ?? []}
       promotions={promotionsRes.data ?? []}
       timeline={timelineRes.data ?? []}
+      wallet={walletRes.data ?? null}
+      invoices={invoicesRes.data ?? []}
       viewerRole={viewer.role}
       viewerId={viewer.id}
     />
