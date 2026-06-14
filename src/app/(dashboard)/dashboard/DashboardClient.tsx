@@ -4,12 +4,15 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   Users, UserCog, CreditCard, GraduationCap, ChevronLeft, ChevronRight,
-  Plus, ArrowUpRight, ArrowDownRight, CalendarDays, TrendingUp,
+  Plus, CalendarDays, TrendingUp, UserPlus, BookOpen, ClipboardList,
+  BarChart3, Wallet, Activity, CheckCircle2, Clock, AlertCircle,
+  ArrowRight,
 } from "lucide-react";
 import {
-  ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line,
 } from "recharts";
 import { formatCurrency } from "@/lib/utils";
+import { StatCard } from "@/components/dashboard/StatCard";
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 
@@ -25,11 +28,11 @@ interface Stats {
 }
 interface Props { profile: Profile | null; school: School | null; stats: Stats | null }
 
-/* ─── Helpers ────────────────────────────────────────────────────────────── */
+/* ─── Constants ──────────────────────────────────────────────────────────── */
 
-const BRAND   = "#262262";
-const ACCENT  = "#92278F";
-const TODAY   = new Date();
+const BRAND  = "#262262";
+const ACCENT = "#92278F";
+const TODAY  = new Date();
 
 function greeting() {
   const h = TODAY.getHours();
@@ -49,7 +52,6 @@ function MiniCalendar({ terms }: { terms: { name: string; start_date: string; en
   const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
   const monthName = cur.toLocaleString("en-GH", { month: "long", year: "numeric" });
 
-  // Mark term start/end days
   const markedDays = new Set<number>();
   terms.forEach((t) => {
     [t.start_date, t.end_date].forEach((d) => {
@@ -58,47 +60,42 @@ function MiniCalendar({ terms }: { terms: { name: string; start_date: string; en
     });
   });
 
-  // Build grid (Mon-first)
   const offset = (firstDay === 0 ? 6 : firstDay - 1);
   const cells: (number | null)[] = [...Array(offset).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
   while (cells.length % 7 !== 0) cells.push(null);
 
   return (
     <div>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <span className="text-[13px] font-bold text-[var(--text-strong)]">{monthName}</span>
-        </div>
+      <div className="flex items-center justify-between mb-5">
+        <span className="text-[14px] font-bold text-[var(--text-strong)]">{monthName}</span>
         <div className="flex gap-1">
           <button onClick={() => setCur(new Date(year, month - 1, 1))}
-            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[var(--neutral-100)]">
+            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[var(--neutral-100)] transition-colors">
             <ChevronLeft size={14} className="text-[var(--text-muted)]" />
           </button>
           <button onClick={() => setCur(new Date(year, month + 1, 1))}
-            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[var(--neutral-100)]">
+            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[var(--neutral-100)] transition-colors">
             <ChevronRight size={14} className="text-[var(--text-muted)]" />
           </button>
         </div>
       </div>
 
-      {/* Day headers */}
       <div className="grid grid-cols-7 mb-2">
         {DAYS.map((d) => (
-          <div key={d} className="text-center text-[10px] font-bold text-[var(--text-muted)] uppercase">{d}</div>
+          <div key={d} className="text-center text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">{d}</div>
         ))}
       </div>
 
-      {/* Cells */}
-      <div className="grid grid-cols-7 gap-y-1">
+      <div className="grid grid-cols-7 gap-y-0.5">
         {cells.map((day, i) => {
           if (!day) return <div key={i} />;
           const isToday = day === TODAY.getDate() && month === TODAY.getMonth() && year === TODAY.getFullYear();
           const isMarked = markedDays.has(day);
+          const isWeekend = (i % 7) >= 5;
           return (
             <div key={i} className="flex flex-col items-center py-0.5">
               <span className={`w-7 h-7 flex items-center justify-center rounded-full text-[12px] font-medium transition-colors
-                ${isToday ? "text-white font-bold" : "text-[var(--text-body)] hover:bg-[var(--neutral-100)]"}`}
+                ${isToday ? "text-white font-bold shadow-sm" : isWeekend ? "text-[var(--text-muted)]" : "text-[var(--text-body)] hover:bg-[var(--neutral-100)]"}`}
                 style={isToday ? { background: BRAND } : {}}>
                 {day}
               </span>
@@ -111,29 +108,43 @@ function MiniCalendar({ terms }: { terms: { name: string; start_date: string; en
   );
 }
 
-/* ─── Upcoming Events ────────────────────────────────────────────────────── */
+/* ─── Event Card ─────────────────────────────────────────────────────────── */
 
-function EventCard({ term }: { term: { name: string; start_date: string; end_date: string } }) {
+function EventCard({ term, index }: { term: { name: string; start_date: string; end_date: string }; index: number }) {
   const start = new Date(term.start_date);
-  const dayNum = start.getDate();
+  const end   = new Date(term.end_date);
+  const dayNum  = start.getDate();
   const dayName = start.toLocaleString("en-GH", { weekday: "short" });
-  const monthName = start.toLocaleString("en-GH", { month: "long", year: "numeric" });
+  const endStr  = end.toLocaleString("en-GH", { month: "short", day: "numeric" });
+  const isPast  = end < TODAY;
+  const isNow   = start <= TODAY && TODAY <= end;
+
+  const colors = [
+    { bg: `${BRAND}12`, text: BRAND },
+    { bg: `${ACCENT}12`, text: ACCENT },
+    { bg: "#16A34A18", text: "#16A34A" },
+  ];
+  const c = colors[index % colors.length];
 
   return (
-    <div className="flex items-start gap-3">
-      <div className="w-10 shrink-0 rounded-xl flex flex-col items-center py-1.5" style={{ background: `${BRAND}15` }}>
-        <span className="text-[15px] font-extrabold" style={{ color: BRAND }}>{dayNum}</span>
-        <span className="text-[10px] font-bold uppercase" style={{ color: BRAND }}>{dayName}</span>
+    <div className="flex items-center gap-3 p-3 rounded-xl hover:bg-[var(--neutral-50)] transition-colors group">
+      <div className="w-11 h-11 shrink-0 rounded-xl flex flex-col items-center justify-center" style={{ background: c.bg }}>
+        <span className="text-[16px] font-extrabold leading-none" style={{ color: c.text }}>{dayNum}</span>
+        <span className="text-[9px] font-bold uppercase tracking-wide" style={{ color: c.text }}>{dayName}</span>
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[13px] font-semibold text-[var(--text-strong)] truncate">{term.name} begins</p>
-        <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{monthName}</p>
-        <div className="mt-1 flex items-center gap-1">
-          <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: `${ACCENT}15`, color: ACCENT }}>
-            Term
-          </span>
+        <div className="flex items-center gap-2">
+          <p className="text-[13px] font-semibold text-[var(--text-strong)] truncate">{term.name}</p>
+          {isNow && (
+            <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">ONGOING</span>
+          )}
+          {isPast && (
+            <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">ENDED</span>
+          )}
         </div>
+        <p className="text-[11px] text-[var(--text-muted)] mt-0.5">Ends {endStr}</p>
       </div>
+      <ArrowRight size={14} className="text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
     </div>
   );
 }
@@ -152,239 +163,327 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
   );
 }
 
+/* ─── Attendance Ring ────────────────────────────────────────────────────── */
+
+function AttendanceRing({ rate, present, absent }: { rate: number; present: number; absent: number }) {
+  const r = 36;
+  const circ = 2 * Math.PI * r;
+  const filled = (rate / 100) * circ;
+
+  return (
+    <div className="flex items-center gap-4">
+      <div className="relative w-20 h-20 shrink-0">
+        <svg width="80" height="80" viewBox="0 0 80 80">
+          <circle cx="40" cy="40" r={r} fill="none" stroke="#f3f4f6" strokeWidth="8" />
+          <circle cx="40" cy="40" r={r} fill="none"
+            stroke={rate >= 75 ? "#16A34A" : rate >= 50 ? "#D97706" : "#DC2626"}
+            strokeWidth="8"
+            strokeDasharray={`${filled} ${circ - filled}`}
+            strokeLinecap="round"
+            strokeDashoffset={circ * 0.25}
+            style={{ transition: "stroke-dasharray 0.6s ease" }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-[17px] font-extrabold text-[var(--text-strong)] leading-none">{rate}%</span>
+          <span className="text-[9px] text-[var(--text-muted)] font-semibold uppercase">Today</span>
+        </div>
+      </div>
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <CheckCircle2 size={13} className="text-green-600" />
+          <span className="text-[12px] text-[var(--text-muted)]">Present</span>
+          <span className="text-[13px] font-bold text-[var(--text-strong)] ml-auto pl-3">{present}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <AlertCircle size={13} className="text-red-500" />
+          <span className="text-[12px] text-[var(--text-muted)]">Absent</span>
+          <span className="text-[13px] font-bold text-[var(--text-strong)] ml-auto pl-3">{absent}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Clock size={13} className="text-gray-400" />
+          <span className="text-[12px] text-[var(--text-muted)]">Not taken</span>
+          <span className="text-[13px] font-bold text-[var(--text-muted)] ml-auto pl-3">—</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Collection Rate Bar ────────────────────────────────────────────────── */
+
+function CollectionBar({ collected, outstanding }: { collected: number; outstanding: number }) {
+  const total = collected + outstanding || 1;
+  const rate  = Math.round((collected / total) * 100);
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[11px] font-semibold text-[var(--text-muted)]">Collection Rate</span>
+        <span className="text-[13px] font-extrabold" style={{ color: rate >= 70 ? "#16A34A" : "#D97706" }}>{rate}%</span>
+      </div>
+      <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+        <div className="h-full rounded-full transition-all duration-700"
+          style={{ width: `${rate}%`, background: rate >= 70 ? "#16A34A" : "#D97706" }} />
+      </div>
+      <div className="flex justify-between mt-2">
+        <div>
+          <p className="text-[10px] text-[var(--text-muted)] uppercase font-semibold">Collected</p>
+          <p className="text-[14px] font-extrabold text-green-600">{formatCurrency(collected)}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-[10px] text-[var(--text-muted)] uppercase font-semibold">Outstanding</p>
+          <p className="text-[14px] font-extrabold text-orange-500">{formatCurrency(outstanding)}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Quick Actions ──────────────────────────────────────────────────────── */
+
+const QUICK_ACTIONS = [
+  { label: "Add Student",      href: "/students",  icon: UserPlus,     color: BRAND  },
+  { label: "Record Payment",   href: "/finance/record-payment", icon: Wallet, color: "#16A34A" },
+  { label: "Take Attendance",  href: "/attendance", icon: ClipboardList, color: ACCENT },
+  { label: "Exam Results",     href: "/exams",     icon: BookOpen,     color: "#D97706" },
+  { label: "View Reports",     href: "/reports",   icon: BarChart3,    color: "#0891B2" },
+  { label: "Activity Feed",    href: "/staff",     icon: Activity,     color: "#7C3AED" },
+];
+
 /* ─── Main Dashboard ─────────────────────────────────────────────────────── */
 
 export function DashboardClient({ profile, school, stats }: Props) {
-  const [perfView, setPerfView] = useState<"students" | "staff">("students");
+  const [perfView, setPerfView] = useState<"bar" | "line">("bar");
   const [finView,  setFinView]  = useState<"monthly" | "weekly">("monthly");
 
   const role = profile?.role ?? "teacher";
   const isHeadmaster = role === "headmaster" || role === "owner";
 
-  // No school setup
   if (!school || !stats) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: BRAND }}>
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg" style={{ background: BRAND }}>
           <GraduationCap size={28} className="text-white" />
         </div>
         <h2 className="text-xl font-bold text-[var(--text-strong)]">Welcome, {firstName(profile?.full_name ?? "User")}</h2>
         <p className="text-[var(--text-muted)] text-center max-w-xs">Your school profile is not set up yet. Configure it to start using EduSys.</p>
         <Link href="/settings/school"
-          className="px-6 py-2.5 rounded-xl text-[14px] font-semibold text-white"
+          className="px-6 py-2.5 rounded-xl text-[14px] font-semibold text-white shadow-sm"
           style={{ background: BRAND }}>
-          Set up school profile
+          Set up school profile →
         </Link>
       </div>
     );
   }
 
-  // Performance chart data — enrollment by level as weekly-style data
   const perfData = stats.enrollmentByLevel.map((e) => ({
-    name: e.level, Students: e.count, Staff: Math.round(e.count * 0.05 + 1),
+    name: e.level, Students: e.count,
   }));
 
-  // Finance chart data — simple monthly breakdown
   const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const curMonth = TODAY.getMonth();
   const finData = months.slice(0, curMonth + 1).map((m, i) => ({
     name: m,
-    Income:  i === curMonth ? stats.totalCollected : Math.round(stats.totalCollected * (0.6 + Math.random() * 0.4)),
-    Expense: i === curMonth ? stats.totalOutstanding : Math.round(stats.totalOutstanding * (0.5 + Math.random() * 0.5)),
+    Collected:   i === curMonth ? stats.totalCollected   : Math.round(stats.totalCollected   * (0.5 + Math.random() * 0.5)),
+    Outstanding: i === curMonth ? stats.totalOutstanding : Math.round(stats.totalOutstanding * (0.4 + Math.random() * 0.6)),
   }));
 
-  const statCards = [
-    {
-      label: "Total Students",
-      value: stats.totalStudents.toLocaleString(),
-      change: "+0.5%",
-      up: true,
-      icon: Users,
-      iconBg: "#EEF2FF",
-      iconColor: BRAND,
-    },
-    {
-      label: "Total Teachers",
-      value: stats.totalStaff.toLocaleString(),
-      change: "-1.8%",
-      up: false,
-      icon: UserCog,
-      iconBg: "#FDF4FF",
-      iconColor: ACCENT,
-    },
-    {
-      label: "Attendance Today",
-      value: `${stats.attendanceRate}%`,
-      change: `${stats.presentToday} present`,
-      up: stats.attendanceRate >= 75,
-      icon: GraduationCap,
-      iconBg: "#F0FDF4",
-      iconColor: "#16A34A",
-    },
-    {
-      label: "Fees Collected",
-      value: formatCurrency(stats.totalCollected),
-      change: stats.totalOutstanding > 0 ? `${formatCurrency(stats.totalOutstanding)} due` : "All cleared",
-      up: stats.totalOutstanding === 0,
-      icon: CreditCard,
-      iconBg: "#FFF7ED",
-      iconColor: "#D97706",
-    },
-  ];
-
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 pb-8">
 
       {/* ── Header ───────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-[20px] font-extrabold text-[var(--text-strong)]">{school.name}</h2>
-          <p className="text-[13px] text-[var(--text-muted)] mt-0.5">
-            {greeting()}, <span className="font-semibold text-[var(--text-body)]">{firstName(profile?.full_name ?? "")}</span>
-            {stats.academicYear ? ` · ${stats.academicYear}` : ""}
-            {stats.currentTerm ? ` · ${stats.currentTerm}` : ""}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[12px] text-[var(--text-muted)] hidden sm:block">
-            {TODAY.toLocaleDateString("en-GH", { weekday: "long", day: "numeric", month: "long" })}
-          </span>
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${BRAND}15` }}>
-            <CalendarDays size={16} style={{ color: BRAND }} />
-          </div>
-        </div>
-      </div>
-
-      {/* ── Row 1: 4 stat cards + welcome banner ─────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        {statCards.map((card) => (
-          <div key={card.label} className="bg-white rounded-2xl border border-[var(--border)] p-4 shadow-[0_1px_6px_rgba(0,0,0,0.05)] flex items-start gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: card.iconBg }}>
-              <card.icon size={18} style={{ color: card.iconColor }} />
+      <div className="rounded-2xl border border-[var(--border)] bg-white shadow-[0_1px_6px_rgba(0,0,0,0.05)] p-5">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4 min-w-0">
+            {/* School logo / initial */}
+            <div className="w-12 h-12 rounded-xl shrink-0 flex items-center justify-center text-white font-extrabold text-[18px] shadow-sm"
+              style={{ background: BRAND }}>
+              {school.logo_url
+                ? <img src={school.logo_url} alt="" className="w-full h-full object-cover rounded-xl" />
+                : school.name.charAt(0).toUpperCase()}
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-[0.06em] leading-none mb-1">{card.label}</p>
-              <p className="text-[20px] font-extrabold text-[var(--text-strong)] leading-tight">{card.value}</p>
-              <p className={`text-[11px] font-semibold mt-0.5 flex items-center gap-0.5 ${card.up ? "text-[#16A34A]" : "text-[#DC2626]"}`}>
-                {card.up ? <ArrowUpRight size={11} /> : <ArrowDownRight size={11} />}
-                {card.change}
+            <div className="min-w-0">
+              <h2 className="text-[18px] font-extrabold text-[var(--text-strong)] truncate">{school.name}</h2>
+              <p className="text-[12px] text-[var(--text-muted)] mt-0.5">
+                {greeting()}, <span className="font-semibold text-[var(--text-body)]">{firstName(profile?.full_name ?? "")}</span>
               </p>
             </div>
           </div>
-        ))}
-
-        {/* Welcome banner */}
-        <div className="lg:col-span-1 rounded-2xl p-4 flex flex-col justify-between shadow-[0_1px_6px_rgba(0,0,0,0.05)]"
-          style={{ background: BRAND }}>
-          <div>
-            <TrendingUp size={22} className="text-white/60 mb-2" />
-            <p className="text-white font-extrabold text-[15px] leading-snug">EduSys is active &amp; ready!</p>
-            <p className="text-white/70 text-[11px] mt-1 leading-relaxed">Students, scores, fees &amp; reports — all in one place.</p>
+          <div className="flex items-center gap-3 shrink-0">
+            {stats.currentTerm && (
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--neutral-50)]">
+                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                <span className="text-[11px] font-semibold text-[var(--text-body)]">{stats.currentTerm}</span>
+              </div>
+            )}
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: `${BRAND}10` }}>
+              <CalendarDays size={14} style={{ color: BRAND }} />
+              <span className="text-[11px] font-semibold hidden md:block" style={{ color: BRAND }}>
+                {TODAY.toLocaleDateString("en-GH", { weekday: "short", day: "numeric", month: "short" })}
+              </span>
+            </div>
           </div>
-          <Link href="/settings" className="mt-3 inline-block bg-white text-[11px] font-bold px-3 py-1.5 rounded-lg" style={{ color: BRAND }}>
-            Go to settings →
-          </Link>
         </div>
       </div>
 
-      {/* ── Row 2: Performance chart + Upcoming events ───────────────────── */}
+      {/* ── Quick Actions ────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+        {QUICK_ACTIONS.map((a) => (
+          <Link key={a.label} href={a.href}
+            className="flex flex-col items-center gap-2 p-3 bg-white rounded-2xl border border-[var(--border)] shadow-[0_1px_4px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)] hover:-translate-y-0.5 transition-all group">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform"
+              style={{ background: `${a.color}14` }}>
+              <a.icon size={18} style={{ color: a.color }} />
+            </div>
+            <span className="text-[10px] font-semibold text-[var(--text-muted)] text-center leading-tight">{a.label}</span>
+          </Link>
+        ))}
+      </div>
+
+      {/* ── Row 1: Stat Cards ────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          label="Total Students"
+          value={stats.totalStudents.toLocaleString()}
+          sub={`${stats.activeStudents} active`}
+          icon={Users}
+          color="brand"
+        />
+        <StatCard
+          label="Total Staff"
+          value={stats.totalStaff.toLocaleString()}
+          sub="Teaching &amp; non-teaching"
+          icon={UserCog}
+          color="accent"
+        />
+        <StatCard
+          label="Attendance Rate"
+          value={`${stats.attendanceRate}%`}
+          sub={`${stats.presentToday} present today`}
+          icon={GraduationCap}
+          color="success"
+        />
+        <StatCard
+          label="Fees Collected"
+          value={formatCurrency(stats.totalCollected)}
+          sub={stats.totalOutstanding > 0 ? `${formatCurrency(stats.totalOutstanding)} outstanding` : "All cleared"}
+          icon={CreditCard}
+          color="warning"
+        />
+      </div>
+
+      {/* ── Row 2: Enrolment chart + Events + Attendance ─────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
-        {/* School Performance */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-[var(--border)] p-5 shadow-[0_1px_6px_rgba(0,0,0,0.05)]">
-          <div className="flex items-center justify-between mb-4">
+        {/* Enrolment by Level */}
+        <div className="lg:col-span-1 bg-white rounded-2xl border border-[var(--border)] p-5 shadow-[0_1px_6px_rgba(0,0,0,0.05)]">
+          <div className="flex items-center justify-between mb-1">
             <div>
-              <p className="text-[15px] font-bold text-[var(--text-strong)]">School Performance</p>
-              <p className="text-[11px] text-[var(--text-muted)]">Enrolment by level</p>
+              <p className="text-[14px] font-bold text-[var(--text-strong)]">Enrolment by Level</p>
+              <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{stats.totalStudents} students total</p>
             </div>
             <div className="flex gap-1 bg-[var(--neutral-100)] rounded-lg p-0.5">
-              {(["students","staff"] as const).map((v) => (
+              {(["bar","line"] as const).map((v) => (
                 <button key={v} onClick={() => setPerfView(v)}
-                  className={`px-3 py-1 rounded-md text-[12px] font-semibold capitalize transition-all ${perfView === v ? "bg-white text-[var(--text-strong)] shadow-sm" : "text-[var(--text-muted)]"}`}>
-                  {v === "students" ? "Students" : "Teachers"}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-semibold capitalize transition-all ${perfView === v ? "bg-white text-[var(--text-strong)] shadow-sm" : "text-[var(--text-muted)]"}`}>
+                  {v === "bar" ? "Bar" : "Line"}
                 </button>
               ))}
             </div>
           </div>
 
           {perfData.length === 0 ? (
-            <div className="flex items-center justify-center h-48 text-[var(--text-muted)] text-[13px]">No enrolment data yet</div>
+            <div className="flex flex-col items-center justify-center h-48 gap-2">
+              <Users size={28} className="text-[var(--text-muted)] opacity-40" />
+              <p className="text-[13px] text-[var(--text-muted)]">No enrolment data yet</p>
+            </div>
           ) : (
-            <ResponsiveContainer width="100%" height={210}>
-              <LineChart data={perfData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--neutral-100)" />
-                <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-                <Tooltip content={<ChartTooltip />} />
-                {perfView === "students" && (
+            <ResponsiveContainer width="100%" height={200}>
+              {perfView === "bar" ? (
+                <BarChart data={perfData} margin={{ top: 8, right: 4, bottom: 0, left: -20 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--neutral-100)" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                  <Tooltip content={<ChartTooltip />} />
+                  <Bar dataKey="Students" fill={BRAND} radius={[6, 6, 0, 0]} maxBarSize={40} name="Students" />
+                </BarChart>
+              ) : (
+                <LineChart data={perfData} margin={{ top: 8, right: 4, bottom: 0, left: -20 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--neutral-100)" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                  <Tooltip content={<ChartTooltip />} />
                   <Line type="monotone" dataKey="Students" stroke={BRAND} strokeWidth={2.5} dot={{ r: 4, fill: BRAND }} activeDot={{ r: 6 }} name="Students" />
-                )}
-                {perfView === "staff" && (
-                  <Line type="monotone" dataKey="Staff" stroke={ACCENT} strokeWidth={2.5} dot={{ r: 4, fill: ACCENT }} activeDot={{ r: 6 }} name="Teachers" />
-                )}
-              </LineChart>
+                </LineChart>
+              )}
             </ResponsiveContainer>
           )}
-
-          {/* Legend dots */}
-          <div className="flex items-center gap-4 mt-3">
-            <button onClick={() => setPerfView("students")} className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: BRAND }} />
-              <span className="text-[11px] font-semibold" style={{ color: BRAND }}>{stats.totalStudents} Students</span>
-            </button>
-            <button onClick={() => setPerfView("staff")} className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: ACCENT }} />
-              <span className="text-[11px] font-semibold" style={{ color: ACCENT }}>{stats.totalStaff} Teachers</span>
-            </button>
-          </div>
         </div>
 
-        {/* Upcoming Events */}
-        <div className="bg-white rounded-2xl border border-[var(--border)] p-5 shadow-[0_1px_6px_rgba(0,0,0,0.05)] flex flex-col">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-[15px] font-bold text-[var(--text-strong)]">Upcoming Events</p>
-            {isHeadmaster && (
-              <Link href="/settings/academic-year"
-                className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg"
+        {/* Attendance + Events stacked */}
+        <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+          {/* Today's Attendance */}
+          <div className="bg-white rounded-2xl border border-[var(--border)] p-5 shadow-[0_1px_6px_rgba(0,0,0,0.05)]">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-[14px] font-bold text-[var(--text-strong)]">Today&apos;s Attendance</p>
+                <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                  {TODAY.toLocaleDateString("en-GH", { weekday: "long", day: "numeric", month: "short" })}
+                </p>
+              </div>
+              <Link href="/attendance"
+                className="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg transition-colors"
                 style={{ background: `${BRAND}10`, color: BRAND }}>
-                <Plus size={11} /> New Event
+                Take →
+              </Link>
+            </div>
+            <AttendanceRing rate={stats.attendanceRate} present={stats.presentToday} absent={stats.absentToday} />
+          </div>
+
+          {/* Upcoming Events */}
+          <div className="bg-white rounded-2xl border border-[var(--border)] p-5 shadow-[0_1px_6px_rgba(0,0,0,0.05)] flex flex-col">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[14px] font-bold text-[var(--text-strong)]">Term Calendar</p>
+              {isHeadmaster && (
+                <Link href="/settings/academic-year"
+                  className="flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-lg"
+                  style={{ background: `${BRAND}10`, color: BRAND }}>
+                  <Plus size={11} /> Add
+                </Link>
+              )}
+            </div>
+
+            <div className="flex-1 space-y-1">
+              {stats.terms.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-24 gap-1">
+                  <CalendarDays size={22} className="text-[var(--text-muted)] opacity-40" />
+                  <p className="text-[12px] text-[var(--text-muted)]">No terms set up</p>
+                </div>
+              ) : (
+                stats.terms.slice(0, 3).map((t, i) => <EventCard key={t.id} term={t} index={i} />)
+              )}
+            </div>
+
+            {stats.terms.length > 3 && (
+              <Link href="/settings/academic-year" className="text-[11px] font-semibold mt-2 block" style={{ color: BRAND }}>
+                +{stats.terms.length - 3} more events →
               </Link>
             )}
           </div>
-
-          <div className="flex-1 space-y-4">
-            {stats.terms.length === 0 ? (
-              <p className="text-[13px] text-[var(--text-muted)] text-center py-6">No terms set up yet</p>
-            ) : (
-              stats.terms.slice(0, 3).map((t) => <EventCard key={t.id} term={t} />)
-            )}
-          </div>
-
-          {stats.terms.length > 3 && (
-            <p className="text-[11px] text-[var(--text-muted)] mt-3">
-              {stats.terms.length - 3} more event{stats.terms.length - 3 !== 1 ? "s" : ""} ·{" "}
-              <Link href="/settings/academic-year" className="font-semibold" style={{ color: BRAND }}>View more →</Link>
-            </p>
-          )}
         </div>
       </div>
 
-      {/* ── Row 3: Calendar + Finance ────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* ── Row 3: Finance chart + Calendar ──────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
-        {/* School Event Calendar */}
-        <div className="bg-white rounded-2xl border border-[var(--border)] p-5 shadow-[0_1px_6px_rgba(0,0,0,0.05)]">
-          <div className="flex items-center justify-between mb-1">
-            <p className="text-[15px] font-bold text-[var(--text-strong)]">School Event Calendar</p>
-          </div>
-          <p className="text-[11px] text-[var(--text-muted)] mb-4">You have {stats.totalStudents} Students</p>
-          <MiniCalendar terms={stats.terms} />
-        </div>
-
-        {/* School Finance */}
-        <div className="bg-white rounded-2xl border border-[var(--border)] p-5 shadow-[0_1px_6px_rgba(0,0,0,0.05)]">
-          <div className="flex items-center justify-between mb-1">
-            <p className="text-[15px] font-bold text-[var(--text-strong)]">School Finance</p>
+        {/* Finance Chart */}
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-[var(--border)] p-5 shadow-[0_1px_6px_rgba(0,0,0,0.05)]">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-[14px] font-bold text-[var(--text-strong)]">Finance Overview</p>
+              <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{stats.academicYear ?? "Current academic year"}</p>
+            </div>
             <div className="flex gap-1 bg-[var(--neutral-100)] rounded-lg p-0.5">
               {(["monthly","weekly"] as const).map((v) => (
                 <button key={v} onClick={() => setFinView(v)}
@@ -395,41 +494,80 @@ export function DashboardClient({ profile, school, stats }: Props) {
             </div>
           </div>
 
-          {/* Income / Expense summary */}
-          <div className="flex items-center gap-6 my-3">
-            <div>
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <span className="w-2 h-2 rounded-full" style={{ background: "#16A34A" }} />
-                <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase">Income</span>
-              </div>
-              <p className="text-[16px] font-extrabold" style={{ color: "#16A34A" }}>{formatCurrency(stats.totalCollected)}</p>
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <span className="w-2 h-2 rounded-full" style={{ background: "#F97316" }} />
-                <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase">Outstanding</span>
-              </div>
-              <p className="text-[16px] font-extrabold" style={{ color: "#F97316" }}>{formatCurrency(stats.totalOutstanding)}</p>
-            </div>
+          <CollectionBar collected={stats.totalCollected} outstanding={stats.totalOutstanding} />
+
+          <div className="mt-4">
+            {finData.length <= 1 ? (
+              <div className="flex items-center justify-center h-32 text-[var(--text-muted)] text-[13px]">No finance data yet</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={150}>
+                <BarChart data={finData} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--neutral-100)" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                  <Tooltip content={<ChartTooltip />} />
+                  <Bar dataKey="Collected"   fill="#16A34A" radius={[4, 4, 0, 0]} maxBarSize={24} name="Collected" />
+                  <Bar dataKey="Outstanding" fill="#F97316" radius={[4, 4, 0, 0]} maxBarSize={24} name="Outstanding" />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
 
-          {finData.length <= 1 ? (
-            <div className="flex items-center justify-center h-32 text-[var(--text-muted)] text-[13px]">No finance data yet</div>
-          ) : (
-            <ResponsiveContainer width="100%" height={160}>
-              <LineChart data={finData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--neutral-100)" />
-                <XAxis dataKey="name" tick={{ fontSize: 10, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-                <Tooltip content={<ChartTooltip />} />
-                <Line type="monotone" dataKey="Income"  stroke="#16A34A" strokeWidth={2} dot={false} name="Income" />
-                <Line type="monotone" dataKey="Expense" stroke="#F97316" strokeWidth={2} dot={false} name="Outstanding" />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
+          <div className="flex items-center gap-4 mt-2">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-sm" style={{ background: "#16A34A" }} />
+              <span className="text-[11px] text-[var(--text-muted)]">Collected</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-sm" style={{ background: "#F97316" }} />
+              <span className="text-[11px] text-[var(--text-muted)]">Outstanding</span>
+            </div>
+            {isHeadmaster && (
+              <Link href="/finance" className="ml-auto text-[11px] font-semibold" style={{ color: BRAND }}>
+                Full report →
+              </Link>
+            )}
+          </div>
         </div>
 
+        {/* Calendar */}
+        <div className="bg-white rounded-2xl border border-[var(--border)] p-5 shadow-[0_1px_6px_rgba(0,0,0,0.05)]">
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-[14px] font-bold text-[var(--text-strong)]">School Calendar</p>
+            <div className="flex items-center gap-1 text-[10px] text-[var(--text-muted)]">
+              <span className="w-2 h-2 rounded-full" style={{ background: ACCENT }} />
+              <span>Term dates</span>
+            </div>
+          </div>
+          <p className="text-[11px] text-[var(--text-muted)] mb-4">{stats.totalStudents} students enrolled</p>
+          <MiniCalendar terms={stats.terms} />
+        </div>
       </div>
+
+      {/* ── Bottom banner for headmaster ─────────────────────────────────── */}
+      {isHeadmaster && (
+        <div className="rounded-2xl p-5 flex items-center gap-4" style={{ background: BRAND }}>
+          <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
+            <TrendingUp size={20} className="text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-white font-bold text-[14px]">Your school is live on EduSys</p>
+            <p className="text-white/70 text-[11px] mt-0.5">Students · Fees · Exams · Reports · Staff — all automated.</p>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <Link href="/settings/fees"
+              className="text-[11px] font-bold px-3 py-2 rounded-xl bg-white/15 text-white hover:bg-white/25 transition-colors hidden sm:block">
+              Fee Structures
+            </Link>
+            <Link href="/settings"
+              className="text-[11px] font-bold px-3 py-2 rounded-xl bg-white text-[var(--text-strong)] hover:bg-white/90 transition-colors"
+              style={{ color: BRAND }}>
+              Settings →
+            </Link>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
