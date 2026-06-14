@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
@@ -17,6 +18,7 @@ interface Props {
 
 export function AccountForm({ userId, initialName, initialPhone, role, email }: Props) {
   const supabase = createClient();
+  const router = useRouter();
   const [name, setName] = useState(initialName);
   const [phone, setPhone] = useState(initialPhone);
   const [saving, setSaving] = useState(false);
@@ -34,6 +36,7 @@ export function AccountForm({ userId, initialName, initialPhone, role, email }: 
     setSaving(false);
     if (error) { setErr(error.message); return; }
     setSaved(true);
+    router.refresh();
     setTimeout(() => setSaved(false), 3000);
   }
 

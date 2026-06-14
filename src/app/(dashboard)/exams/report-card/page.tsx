@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { getInitials } from "@/lib/utils";
-import { Printer, Download, Upload, FileSpreadsheet } from "lucide-react";
+import { Printer, Download, FileSpreadsheet } from "lucide-react";
 import * as XLSX from "xlsx";
 
 interface School { name: string; address: string | null; phone: string | null; logo_url: string | null; motto: string | null }
@@ -17,12 +17,7 @@ interface ScoreRow { subject_id: string; class_score: number | null; exam_score:
 interface Term { id: string; name: string; start_date: string; end_date: string }
 interface AcademicYear { name: string }
 
-function gradeColor(grade: string | null) {
-  if (!grade) return "inherit";
-  if (["A1","B2","B3"].includes(grade)) return "#16a34a";
-  if (["C4","C5","C6"].includes(grade)) return "#d97706";
-  return "#dc2626";
-}
+const GRADE_AGG: Record<string, number> = { A1:1, B2:2, B3:3, C4:4, C5:5, C6:6, D7:7, E8:8, F9:9 };
 
 function computeGrade(total: number): string {
   if (total >= 80) return "A1"; if (total >= 75) return "B2"; if (total >= 70) return "B3";
@@ -31,9 +26,18 @@ function computeGrade(total: number): string {
 }
 function computeRemark(grade: string): string {
   if (["A1","B2","B3"].includes(grade)) return "Excellent";
-  if (["C4","C5","C6"].includes(grade)) return "Good";
+  if (["C4","C5","C6"].includes(grade)) return "Credit";
   if (grade === "D7") return "Pass"; return "Fail";
 }
+function gradeColor(grade: string | null) {
+  if (!grade) return "#374151";
+  if (["A1","B2","B3"].includes(grade)) return "#15803d";
+  if (["C4","C5","C6"].includes(grade)) return "#b45309";
+  return "#dc2626";
+}
+
+const LS_HM = "rc_headmaster";
+const LS_HMR = "rc_headmaster_remark";
 
 function ReportCardInner() {
   const supabase = createClient();
@@ -52,9 +56,18 @@ function ReportCardInner() {
   const [termId, setTermId] = useState(searchParams.get("termId") ?? "");
   const [scores, setScores] = useState<Record<string, ScoreRow>>({});
   const [teacherRemark, setTeacherRemark] = useState("");
+  const [headmasterRemark, setHeadmasterRemark] = useState(() => {
+    if (typeof window !== "undefined") return localStorage.getItem(LS_HMR) ?? "";
+    return "";
+  });
   const [nextTermResumes, setNextTermResumes] = useState("");
   const [classTeacher, setClassTeacher] = useState("");
-  const [headmaster, setHeadmaster] = useState("");
+  const [headmaster, setHeadmaster] = useState(() => {
+    if (typeof window !== "undefined") return localStorage.getItem(LS_HM) ?? "";
+    return "";
+  });
+  const [positionInClass, setPositionInClass] = useState("");
+  const [totalInClass, setTotalInClass] = useState("");
   const [printing, setPrinting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -81,7 +94,6 @@ function ReportCardInner() {
       setTerms(termRes.data ?? []);
       setAcademicYear(yearRes.data ?? null);
 
-      // Auto-select current term only if not set from URL params
       if (!searchParams.get("termId")) {
         const currentTerm = (termRes.data ?? []).find((t: Term) => {
           const now = new Date();
@@ -90,12 +102,15 @@ function ReportCardInner() {
         if (currentTerm) setTermId(currentTerm.id);
       }
 
-      // Pre-fill headmaster name
+      // Pre-fill headmaster from localStorage; only fall back to profile name if nothing in storage
       if (profile.role === "headmaster" || profile.role === "owner") {
-        setHeadmaster(profile.full_name ?? "");
+        if (!localStorage.getItem(LS_HM)) {
+          setHeadmaster(profile.full_name ?? "");
+        }
       }
     }
     load();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const initStudentId = searchParams.get("studentId") ?? "";
@@ -105,10 +120,10 @@ function ReportCardInner() {
       .eq("class_id", classId).eq("status", "active").order("last_name")
       .then(({ data }) => {
         setStudents(data ?? []);
-        // Keep URL-param student if switching into class for the first time
         if (!studentId && initStudentId) setStudentId(initStudentId);
         else if (!initStudentId) { setStudentId(""); setScores({}); }
       });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classId]);
 
   useEffect(() => {
@@ -121,7 +136,12 @@ function ReportCardInner() {
         setScores(map);
       });
     setTeacherRemark(""); setNextTermResumes("");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentId, termId, classId]);
+
+  // Persist headmaster name + remark to localStorage
+  useEffect(() => { localStorage.setItem(LS_HM, headmaster); }, [headmaster]);
+  useEffect(() => { localStorage.setItem(LS_HMR, headmasterRemark); }, [headmasterRemark]);
 
   const student = students.find((s) => s.id === studentId) ?? null;
   const cls = classes.find((c) => c.id === classId) ?? null;
@@ -134,20 +154,29 @@ function ReportCardInner() {
     const total = s?.total ?? (cs !== null && es !== null ? cs + es : null);
     const grade = s?.grade ?? (total !== null ? computeGrade(total) : null);
     const remark = s?.remark ?? (grade ? computeRemark(grade) : null);
-    return { ...sub, class_score: cs, exam_score: es, total, grade, remark };
+    const agg = grade ? (GRADE_AGG[grade] ?? null) : null;
+    return { ...sub, class_score: cs, exam_score: es, total, grade, remark, agg };
   });
 
-  const totalMarks = scoredSubjects.reduce((s, r) => s + (r.total ?? 0), 0);
-  const scoredCount = scoredSubjects.filter((r) => r.total !== null).length;
+  const scoredRows = scoredSubjects.filter((r) => r.total !== null);
+  const scoredCount = scoredRows.length;
+  const totalMarks = scoredRows.reduce((s, r) => s + (r.total ?? 0), 0);
   const average = scoredCount > 0 ? (totalMarks / scoredCount).toFixed(1) : "—";
 
-  // Print
+  // BECE aggregate: sum of best 6 (ascending agg = best grade)
+  const aggValues = scoredRows.map(r => r.agg).filter((a): a is number => a !== null).sort((a,b) => a-b);
+  const beceAgg = aggValues.slice(0, 6).reduce((s, v) => s + v, 0);
+
+  function ordinalSuffix(n: number) {
+    const s = ["th","st","nd","rd"]; const v = n % 100;
+    return n + (s[(v-20)%10] || s[v] || s[0]);
+  }
+
   function handlePrint() {
     setPrinting(true);
     setTimeout(() => { window.print(); setPrinting(false); }, 100);
   }
 
-  // PDF export via html2canvas + jspdf
   async function handleExportPDF() {
     if (!reportRef.current) return;
     setExporting(true);
@@ -163,19 +192,16 @@ function ReportCardInner() {
     setExporting(false);
   }
 
-  // Excel import — expected columns: Subject, Class Score, Exam Score
   async function handleExcelImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file || !studentId || !termId || !classId) return;
     setImporting(true);
     const { data: { user } } = await supabase.auth.getUser();
     const { data: profile } = await supabase.from("profiles").select("school_id").eq("id", user!.id).single();
-
     const buffer = await file.arrayBuffer();
     const wb = XLSX.read(buffer, { type: "array" });
     const ws = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json<Record<string, string | number>>(ws);
-
     const upsertRows = rows.map((row) => {
       const subName = String(row["Subject"] ?? row["subject"] ?? "").trim();
       const sub = subjects.find((s) => s.name.toLowerCase() === subName.toLowerCase());
@@ -184,24 +210,10 @@ function ReportCardInner() {
       const es = parseFloat(String(row["Exam Score"] ?? row["exam_score"] ?? "0")) || 0;
       const total = cs + es;
       const grade = computeGrade(total);
-      return {
-        id: crypto.randomUUID(),
-        school_id: profile?.school_id,
-        student_id: studentId,
-        subject_id: sub.id,
-        class_id: classId,
-        term_id: termId,
-        class_score: cs || null,
-        exam_score: es || null,
-        total: total || null,
-        grade,
-        remark: computeRemark(grade),
-      };
+      return { id: crypto.randomUUID(), school_id: profile?.school_id, student_id: studentId, subject_id: sub.id, class_id: classId, term_id: termId, class_score: cs||null, exam_score: es||null, total: total||null, grade, remark: computeRemark(grade) };
     }).filter(Boolean);
-
     if (upsertRows.length) {
       await supabase.from("exam_scores").upsert(upsertRows as object[], { onConflict: "student_id,subject_id,term_id" });
-      // Reload scores
       const { data } = await supabase.from("exam_scores").select("subject_id, class_score, exam_score, total, grade, remark")
         .eq("student_id", studentId).eq("term_id", termId).eq("class_id", classId);
       const map: Record<string, ScoreRow> = {};
@@ -216,20 +228,20 @@ function ReportCardInner() {
 
   return (
     <>
-      {/* Print styles — hides everything except report card */}
       <style>{`
         @media print {
           body > * { display: none !important; }
-          #printable-report-card { display: block !important; position: fixed; inset: 0; background: white; z-index: 9999; padding: 20mm; }
+          #printable-report-card { display: block !important; position: fixed; inset: 0; background: white; z-index: 9999; padding: 10mm 15mm; }
           #printable-report-card * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
       `}</style>
 
       <div className="space-y-5">
+        {/* Toolbar */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-xl font-bold text-[var(--text-strong)]">Report Cards</h2>
-            <p className="text-[15px] text-[var(--text-muted)]">Generate, print and export student terminal report cards</p>
+            <h2 className="text-xl font-extrabold text-[var(--text-strong)]">Report Cards</h2>
+            <p className="text-[13px] text-[var(--text-muted)]">Generate, print and export student terminal report cards</p>
           </div>
           <div className="flex items-center gap-2">
             <input ref={xlsxRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleExcelImport} />
@@ -289,165 +301,227 @@ function ReportCardInner() {
           </Card>
         )}
 
-        {/* Signature inputs */}
+        {/* Extra inputs */}
         {canShow && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="text-sm font-semibold text-[var(--text-strong)] block mb-1.5">Class teacher name</label>
+              <label className="text-sm font-semibold text-[var(--text-strong)] block mb-1.5">Class Teacher Name</label>
               <input value={classTeacher} onChange={(e) => setClassTeacher(e.target.value)} placeholder="e.g. Mr. Kwame Asante"
                 className="h-10 w-full rounded-[10px] border border-[var(--border)] bg-white px-3 text-sm outline-none focus:border-[var(--ring)]" />
             </div>
             <div>
-              <label className="text-sm font-semibold text-[var(--text-strong)] block mb-1.5">Headmaster name</label>
+              <label className="text-sm font-semibold text-[var(--text-strong)] block mb-1.5">Headmaster Name</label>
               <input value={headmaster} onChange={(e) => setHeadmaster(e.target.value)} placeholder="e.g. Mrs. Abena Owusu"
                 className="h-10 w-full rounded-[10px] border border-[var(--border)] bg-white px-3 text-sm outline-none focus:border-[var(--ring)]" />
             </div>
-            <div className="sm:col-span-2">
-              <label className="text-sm font-semibold text-[var(--text-strong)] block mb-1.5">Teacher&apos;s remarks</label>
-              <textarea value={teacherRemark} onChange={(e) => setTeacherRemark(e.target.value)} rows={2}
-                placeholder="e.g. A dedicated and hardworking student. Keep it up!"
-                className="w-full rounded-[10px] border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--ring)] resize-none" />
+            <div>
+              <label className="text-sm font-semibold text-[var(--text-strong)] block mb-1.5">Next Term Resumes</label>
+              <input type="date" value={nextTermResumes} onChange={(e) => setNextTermResumes(e.target.value)}
+                className="h-10 w-full rounded-[10px] border border-[var(--border)] bg-white px-3 text-sm outline-none focus:border-[var(--ring)]" />
             </div>
             <div>
-              <label className="text-sm font-semibold text-[var(--text-strong)] block mb-1.5">Next term resumes</label>
-              <input type="date" value={nextTermResumes} onChange={(e) => setNextTermResumes(e.target.value)}
+              <label className="text-sm font-semibold text-[var(--text-strong)] block mb-1.5">Position in Class</label>
+              <input value={positionInClass} onChange={(e) => setPositionInClass(e.target.value)} placeholder="e.g. 3"
+                className="h-10 w-full rounded-[10px] border border-[var(--border)] bg-white px-3 text-sm outline-none focus:border-[var(--ring)]" />
+            </div>
+            <div>
+              <label className="text-sm font-semibold text-[var(--text-strong)] block mb-1.5">Total Students in Class</label>
+              <input value={totalInClass} onChange={(e) => setTotalInClass(e.target.value)} placeholder="e.g. 30"
+                className="h-10 w-full rounded-[10px] border border-[var(--border)] bg-white px-3 text-sm outline-none focus:border-[var(--ring)]" />
+            </div>
+            <div>
+              <label className="text-sm font-semibold text-[var(--text-strong)] block mb-1.5">Teacher&apos;s Remarks</label>
+              <input value={teacherRemark} onChange={(e) => setTeacherRemark(e.target.value)} placeholder="e.g. Excellent performance!"
+                className="h-10 w-full rounded-[10px] border border-[var(--border)] bg-white px-3 text-sm outline-none focus:border-[var(--ring)]" />
+            </div>
+            <div className="sm:col-span-3">
+              <label className="text-sm font-semibold text-[var(--text-strong)] block mb-1.5">Headmaster&apos;s Remarks</label>
+              <input value={headmasterRemark} onChange={(e) => setHeadmasterRemark(e.target.value)} placeholder="e.g. Approved. Keep up the good work."
                 className="h-10 w-full rounded-[10px] border border-[var(--border)] bg-white px-3 text-sm outline-none focus:border-[var(--ring)]" />
             </div>
           </div>
         )}
 
-        {/* ===== REPORT CARD ===== */}
+        {/* ===== REPORT CARD (GES template) ===== */}
         {canShow && (
           <div id="printable-report-card">
-            <div ref={reportRef} className="bg-white border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm max-w-3xl mx-auto">
-              {/* School header */}
-              <div className="px-8 py-6 border-b-4 text-center" style={{ borderColor: "#262262" }}>
-                <div className="flex items-center justify-center gap-4 mb-3">
-                  {school?.logo_url && (
-                    <img src={school.logo_url} alt="Logo" className="w-16 h-16 object-contain" />
-                  )}
-                  <div>
-                    <h1 className="text-xl font-extrabold uppercase tracking-wide" style={{ color: "#262262" }}>{school?.name}</h1>
-                    {school?.motto && <p className="text-sm italic text-gray-500 mt-0.5">&quot;{school.motto}&quot;</p>}
-                    {school?.address && <p className="text-xs text-gray-500">{school.address}</p>}
-                    {school?.phone && <p className="text-xs text-gray-500">Tel: {school.phone}</p>}
-                  </div>
-                </div>
-                <div className="inline-block px-6 py-1 rounded-full text-white text-sm font-bold" style={{ background: "#262262" }}>
-                  STUDENT TERMINAL REPORT CARD
-                </div>
-                <p className="text-xs text-gray-500 mt-1">{academicYear?.name ?? ""} · {term?.name}</p>
+            <div ref={reportRef}
+              className="bg-white border-2 border-gray-800 max-w-3xl mx-auto"
+              style={{ fontFamily: "Arial, sans-serif", fontSize: "11px", color: "#111" }}>
+
+              {/* GES header strip */}
+              <div className="text-center py-1" style={{ background: "#262262", color: "white", fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em" }}>
+                GHANA EDUCATION SERVICE
               </div>
 
-              {/* Student info */}
-              <div className="px-8 py-4 border-b" style={{ borderColor: "#e5e7eb" }}>
-                <div className="flex items-start gap-6">
-                  {/* Photo */}
-                  <div className="w-24 h-28 border-2 border-gray-300 rounded-lg overflow-hidden flex items-center justify-center bg-gray-50 shrink-0">
-                    {student?.photo_url ? (
-                      <img src={student.photo_url} alt="Passport" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-2xl font-bold text-white"
-                        style={{ background: "linear-gradient(135deg, #262262, #92278F)" }}>
-                        {getInitials(`${student?.first_name} ${student?.last_name}`)}
-                      </div>
-                    )}
-                  </div>
-                  {/* Details */}
-                  <div className="flex-1 grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-                    <div><span className="text-gray-500">Name:</span> <span className="font-bold">{student?.last_name}, {student?.first_name} {student?.middle_name ?? ""}</span></div>
-                    <div><span className="text-gray-500">Admission No:</span> <span className="font-mono font-semibold">{student?.admission_number}</span></div>
-                    <div><span className="text-gray-500">Class:</span> <span className="font-semibold">{cls?.name}</span></div>
-                    <div><span className="text-gray-500">Gender:</span> <span className="font-semibold capitalize">{student?.gender ?? "—"}</span></div>
-                    <div><span className="text-gray-500">Date of Birth:</span> <span className="font-semibold">{student?.date_of_birth ?? "—"}</span></div>
-                    <div><span className="text-gray-500">Term:</span> <span className="font-semibold">{term?.name}</span></div>
-                  </div>
+              {/* School identity row */}
+              <div className="flex items-center gap-4 px-6 py-4 border-b-2 border-gray-800">
+                {/* Logo left */}
+                <div className="w-20 h-20 shrink-0 flex items-center justify-center border border-gray-300 rounded">
+                  {school?.logo_url ? (
+                    <img src={school.logo_url} alt="Logo" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                  ) : (
+                    <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg,#262262,#92278F)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 900, fontSize: "22px" }}>
+                      {school?.name ? school.name.split(" ").map(w => w[0]).join("").slice(0,3) : "S"}
+                    </div>
+                  )}
                 </div>
+                {/* Name center */}
+                <div className="flex-1 text-center">
+                  <div style={{ fontSize: "20px", fontWeight: 900, textTransform: "uppercase", color: "#262262", letterSpacing: "0.03em" }}>{school?.name}</div>
+                  {school?.address && <div style={{ fontSize: "10px", color: "#444", marginTop: 2 }}>{school.address}</div>}
+                  {school?.phone && <div style={{ fontSize: "10px", color: "#444" }}>Tel: {school.phone}</div>}
+                  {school?.motto && <div style={{ fontSize: "10px", fontStyle: "italic", color: "#555", marginTop: 2 }}>&ldquo;{school.motto}&rdquo;</div>}
+                </div>
+                {/* Student photo right */}
+                <div style={{ width: 72, height: 88, border: "1px solid #9ca3af", borderRadius: 4, overflow: "hidden", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "#f9fafb" }}>
+                  {student?.photo_url ? (
+                    <img src={student.photo_url} alt="Passport" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  ) : (
+                    <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg,#262262,#92278F)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: "16px" }}>
+                      {getInitials(`${student?.first_name} ${student?.last_name}`)}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Title bar */}
+              <div className="text-center py-2 border-b border-gray-800" style={{ background: "#f3f4f6" }}>
+                <span style={{ fontSize: "13px", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.1em", color: "#111" }}>
+                  STUDENT TERMINAL REPORT CARD
+                </span>
+                <span style={{ marginLeft: 16, fontSize: "11px", color: "#555" }}>
+                  Academic Year: <strong>{academicYear?.name ?? "—"}</strong> &nbsp;|&nbsp; Term: <strong>{term?.name}</strong>
+                </span>
+              </div>
+
+              {/* Student info table */}
+              <div className="px-4 py-3 border-b border-gray-800">
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px" }}>
+                  <tbody>
+                    <tr>
+                      <td style={{ padding: "3px 6px", width: "16%", color: "#555" }}>Name:</td>
+                      <td style={{ padding: "3px 6px", width: "34%", fontWeight: 700, borderBottom: "1px solid #9ca3af" }}>
+                        {student?.last_name} {student?.first_name} {student?.middle_name ?? ""}
+                      </td>
+                      <td style={{ padding: "3px 6px", width: "16%", color: "#555" }}>Admission No:</td>
+                      <td style={{ padding: "3px 6px", width: "34%", fontWeight: 700, fontFamily: "monospace", borderBottom: "1px solid #9ca3af" }}>{student?.admission_number}</td>
+                    </tr>
+                    <tr>
+                      <td style={{ padding: "3px 6px", color: "#555" }}>Class/Division:</td>
+                      <td style={{ padding: "3px 6px", fontWeight: 700, borderBottom: "1px solid #9ca3af" }}>{cls?.name}</td>
+                      <td style={{ padding: "3px 6px", color: "#555" }}>Sex:</td>
+                      <td style={{ padding: "3px 6px", fontWeight: 700, textTransform: "capitalize", borderBottom: "1px solid #9ca3af" }}>{student?.gender ?? "—"}</td>
+                    </tr>
+                    <tr>
+                      <td style={{ padding: "3px 6px", color: "#555" }}>Date of Birth:</td>
+                      <td style={{ padding: "3px 6px", fontWeight: 700, borderBottom: "1px solid #9ca3af" }}>{student?.date_of_birth ?? "—"}</td>
+                      <td style={{ padding: "3px 6px", color: "#555" }}>Position in Class:</td>
+                      <td style={{ padding: "3px 6px", fontWeight: 700, borderBottom: "1px solid #9ca3af" }}>
+                        {positionInClass ? `${ordinalSuffix(parseInt(positionInClass))} out of ${totalInClass || "?"}` : "—"}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
 
               {/* Scores table */}
-              <div className="px-8 py-4">
-                <table className="w-full text-sm border-collapse">
+              <div className="px-4 py-3 border-b border-gray-800">
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px" }}>
                   <thead>
                     <tr style={{ background: "#262262", color: "white" }}>
-                      <th className="text-left px-3 py-2.5 font-semibold">#</th>
-                      <th className="text-left px-3 py-2.5 font-semibold">Subject</th>
-                      <th className="px-3 py-2.5 text-center font-semibold">Class Score<br/><span className="text-[10px] font-normal">(30)</span></th>
-                      <th className="px-3 py-2.5 text-center font-semibold">Exam Score<br/><span className="text-[10px] font-normal">(70)</span></th>
-                      <th className="px-3 py-2.5 text-center font-semibold">Total<br/><span className="text-[10px] font-normal">(100)</span></th>
-                      <th className="px-3 py-2.5 text-center font-semibold">Grade</th>
-                      <th className="px-3 py-2.5 text-center font-semibold">Remark</th>
+                      <th style={{ padding: "6px 8px", textAlign: "left", fontWeight: 700 }}>No</th>
+                      <th style={{ padding: "6px 8px", textAlign: "left", fontWeight: 700 }}>Subject</th>
+                      <th style={{ padding: "6px 6px", textAlign: "center", fontWeight: 700 }}>Class Score<br /><span style={{ fontWeight: 400, fontSize: "9px" }}>(30)</span></th>
+                      <th style={{ padding: "6px 6px", textAlign: "center", fontWeight: 700 }}>Exam Score<br /><span style={{ fontWeight: 400, fontSize: "9px" }}>(70)</span></th>
+                      <th style={{ padding: "6px 6px", textAlign: "center", fontWeight: 700 }}>Total<br /><span style={{ fontWeight: 400, fontSize: "9px" }}>(100)</span></th>
+                      <th style={{ padding: "6px 6px", textAlign: "center", fontWeight: 700 }}>Grade</th>
+                      <th style={{ padding: "6px 6px", textAlign: "center", fontWeight: 700 }}>Agg</th>
+                      <th style={{ padding: "6px 8px", textAlign: "center", fontWeight: 700 }}>Remark</th>
                     </tr>
                   </thead>
                   <tbody>
                     {scoredSubjects.map((sub, i) => (
-                      <tr key={sub.id} style={{ background: i % 2 === 0 ? "#f9fafb" : "white" }}>
-                        <td className="px-3 py-2 text-gray-400 text-xs">{i + 1}</td>
-                        <td className="px-3 py-2 font-medium text-gray-800">{sub.name}</td>
-                        <td className="px-3 py-2 text-center font-mono">{sub.class_score ?? "—"}</td>
-                        <td className="px-3 py-2 text-center font-mono">{sub.exam_score ?? "—"}</td>
-                        <td className="px-3 py-2 text-center font-mono font-bold">{sub.total?.toFixed(1) ?? "—"}</td>
-                        <td className="px-3 py-2 text-center font-bold font-mono" style={{ color: gradeColor(sub.grade) }}>{sub.grade ?? "—"}</td>
-                        <td className="px-3 py-2 text-center text-xs text-gray-600">{sub.remark ?? "—"}</td>
+                      <tr key={sub.id} style={{ background: i % 2 === 0 ? "#f9fafb" : "white", borderBottom: "1px solid #e5e7eb" }}>
+                        <td style={{ padding: "5px 8px", color: "#6b7280" }}>{i + 1}</td>
+                        <td style={{ padding: "5px 8px", fontWeight: 600 }}>{sub.name}</td>
+                        <td style={{ padding: "5px 6px", textAlign: "center", fontFamily: "monospace" }}>{sub.class_score ?? "—"}</td>
+                        <td style={{ padding: "5px 6px", textAlign: "center", fontFamily: "monospace" }}>{sub.exam_score ?? "—"}</td>
+                        <td style={{ padding: "5px 6px", textAlign: "center", fontFamily: "monospace", fontWeight: 700 }}>{sub.total?.toFixed(1) ?? "—"}</td>
+                        <td style={{ padding: "5px 6px", textAlign: "center", fontWeight: 700, color: gradeColor(sub.grade) }}>{sub.grade ?? "—"}</td>
+                        <td style={{ padding: "5px 6px", textAlign: "center", fontFamily: "monospace" }}>{sub.agg ?? "—"}</td>
+                        <td style={{ padding: "5px 8px", textAlign: "center", color: gradeColor(sub.grade), fontSize: "10px" }}>{sub.remark ?? "—"}</td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
-                    <tr style={{ background: "#f3f4f6", borderTop: "2px solid #262262" }}>
-                      <td colSpan={4} className="px-3 py-2.5 font-bold text-right text-sm">Total / Average:</td>
-                      <td className="px-3 py-2.5 text-center font-bold font-mono text-base">{average}</td>
-                      <td colSpan={2} />
+                    <tr style={{ background: "#262262", color: "white", borderTop: "2px solid #111" }}>
+                      <td colSpan={3} style={{ padding: "6px 8px", fontWeight: 700, textAlign: "right" }}>OVERALL TOTAL:</td>
+                      <td colSpan={2} style={{ padding: "6px 8px", textAlign: "center", fontWeight: 900, fontFamily: "monospace", fontSize: "13px" }}>{totalMarks.toFixed(1)}</td>
+                      <td style={{ padding: "6px 6px", textAlign: "center", fontWeight: 700 }}>AVERAGE:</td>
+                      <td colSpan={2} style={{ padding: "6px 8px", textAlign: "center", fontWeight: 900, fontFamily: "monospace", fontSize: "13px" }}>
+                        {average} &nbsp;|&nbsp; BECE AGG: <span style={{ color: "#facc15" }}>{aggValues.length >= 1 ? beceAgg : "—"}</span>
+                      </td>
                     </tr>
                   </tfoot>
                 </table>
               </div>
 
               {/* Grade key */}
-              <div className="px-8 pb-2">
-                <div className="flex flex-wrap gap-3 text-xs text-gray-500">
-                  {[["A1","80-100","Excellent"],["B2","75-79","V. Good"],["B3","70-74","Good"],["C4","65-69","Credit"],["C5","60-64","Credit"],["C6","55-59","Credit"],["D7","50-54","Pass"],["E8","45-49","Pass"],["F9","0-44","Fail"]].map(([g,r,l]) => (
-                    <span key={g}><b>{g}</b>: {r} ({l})</span>
+              <div className="px-4 py-2 border-b border-gray-800" style={{ background: "#f9fafb" }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 16px", fontSize: "9.5px", color: "#555" }}>
+                  <strong style={{ color: "#111", marginRight: 4 }}>Grade Key:</strong>
+                  {[["A1","80-100"],["B2","75-79"],["B3","70-74"],["C4","65-69"],["C5","60-64"],["C6","55-59"],["D7","50-54"],["E8","45-49"],["F9","0-44"]].map(([g,r]) => (
+                    <span key={g}><b>{g}</b>: {r}</span>
                   ))}
                 </div>
               </div>
 
-              {/* Remarks */}
-              <div className="px-8 py-4 border-t" style={{ borderColor: "#e5e7eb" }}>
-                <div className="grid grid-cols-2 gap-6">
+              {/* Remarks row */}
+              <div className="px-4 py-3 border-b border-gray-800">
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                   <div>
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Class Teacher&apos;s Remarks</p>
-                    <div className="min-h-[48px] border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 bg-gray-50">
-                      {teacherRemark || <span className="text-gray-400 italic">—</span>}
+                    <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", marginBottom: 4 }}>Class Teacher&apos;s Remarks:</div>
+                    <div style={{ minHeight: 44, border: "1px solid #9ca3af", padding: "6px 8px", fontSize: "11px", background: "#fafafa" }}>
+                      {teacherRemark || <span style={{ color: "#9ca3af" }}>__________________________________</span>}
                     </div>
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Headmaster&apos;s Remarks</p>
-                    <div className="min-h-[48px] border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 bg-gray-50">
-                      <span className="text-gray-400 italic">Approved</span>
+                    <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", marginBottom: 4 }}>Headmaster&apos;s Remarks:</div>
+                    <div style={{ minHeight: 44, border: "1px solid #9ca3af", padding: "6px 8px", fontSize: "11px", background: "#fafafa" }}>
+                      {headmasterRemark || <span style={{ color: "#9ca3af" }}>__________________________________</span>}
                     </div>
                   </div>
                 </div>
-                {nextTermResumes && (
-                  <p className="text-sm text-gray-600 mt-3"><span className="font-semibold">Next term resumes:</span> {new Date(nextTermResumes).toLocaleDateString("en-GH", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
-                )}
+              </div>
+
+              {/* Next term */}
+              <div className="px-4 py-2 border-b border-gray-800" style={{ fontSize: "11px" }}>
+                <strong>Next Term Resumes: </strong>
+                {nextTermResumes
+                  ? new Date(nextTermResumes).toLocaleDateString("en-GH", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+                  : <span style={{ color: "#9ca3af" }}>_______________________________</span>}
               </div>
 
               {/* Signatures */}
-              <div className="px-8 pb-8 pt-4 border-t" style={{ borderColor: "#e5e7eb" }}>
-                <div className="grid grid-cols-2 gap-12">
+              <div className="px-4 py-4">
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32 }}>
                   <div>
-                    <div className="h-10 border-b-2 border-gray-400 mb-1" />
-                    <p className="text-xs font-semibold text-gray-600">Class Teacher: {classTeacher || "________________________"}</p>
-                    <p className="text-xs text-gray-400">Date: ____________________</p>
+                    <div style={{ height: 36, borderBottom: "1.5px solid #374151", marginBottom: 4 }} />
+                    <div style={{ fontSize: "10px", fontWeight: 700 }}>Class Teacher: {classTeacher || "________________________________"}</div>
+                    <div style={{ fontSize: "9.5px", color: "#6b7280", marginTop: 2 }}>Date: ______________________________</div>
                   </div>
                   <div>
-                    <div className="h-10 border-b-2 border-gray-400 mb-1" />
-                    <p className="text-xs font-semibold text-gray-600">Headmaster: {headmaster || "________________________"}</p>
-                    <p className="text-xs text-gray-400">Date: ____________________</p>
+                    <div style={{ height: 36, borderBottom: "1.5px solid #374151", marginBottom: 4 }} />
+                    <div style={{ fontSize: "10px", fontWeight: 700 }}>Headmaster: {headmaster || "________________________________"}</div>
+                    <div style={{ fontSize: "9.5px", color: "#6b7280", marginTop: 2 }}>Date: ______________________________</div>
                   </div>
                 </div>
-                <p className="text-center text-[10px] text-gray-400 mt-6">Generated by Compunerd EduSys · {school?.name}</p>
+                <div style={{ textAlign: "center", fontSize: "9px", color: "#9ca3af", marginTop: 16 }}>
+                  Generated by Compunerd EduSys · {school?.name}
+                </div>
               </div>
+
             </div>
           </div>
         )}

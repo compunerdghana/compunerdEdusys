@@ -318,6 +318,37 @@ export default function ExamsPage() {
         <Card><p className="text-[15px] text-[var(--text-muted)] text-center py-3">No active students in this class.</p></Card>
       )}
 
+      {/* Class info banner */}
+      {classId && students.length > 0 && (() => {
+        const cls = classes.find(c => c.id === classId);
+        return (
+          <div className="flex items-center gap-4 px-5 py-4 rounded-2xl border border-[var(--border)] bg-white shadow-sm">
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: "#262262" }}>
+              <FileText size={18} className="text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[15px] font-extrabold text-[var(--text-strong)]">{cls?.name}</p>
+              <p className="text-[12px] text-[var(--text-muted)] mt-0.5">
+                {students.length} active student{students.length !== 1 ? "s" : ""} · {subjects.length} subject{subjects.length !== 1 ? "s" : ""}
+                {termId ? "" : " · ⚠ No current term"}
+              </p>
+            </div>
+            {selectedStudent && (
+              <div className="flex items-center gap-3 shrink-0 border-l border-[var(--border)] pl-4">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0"
+                  style={{ background: "linear-gradient(135deg,#262262,#92278F)" }}>
+                  {getInitials(`${selectedStudent.first_name} ${selectedStudent.last_name}`)}
+                </div>
+                <div>
+                  <p className="text-[13px] font-bold text-[var(--text-strong)]">{selectedStudent.first_name} {selectedStudent.last_name}</p>
+                  <p className="text-[11px] text-[var(--text-muted)]">Student {(selectedStudentIdx ?? 0) + 1} of {students.length}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       {classId && students.length > 0 && (
         <div className="flex gap-4 items-start">
           {/* Student list */}

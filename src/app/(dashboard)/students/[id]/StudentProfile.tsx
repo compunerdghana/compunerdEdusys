@@ -196,9 +196,13 @@ export function StudentProfile({
   const [uploadingDoc, setUploadingDoc] = useState(false);
 
   // ── Summary stats ──────────────────────────────────────────────
+  // Use wallet data (new ERP system) if available; fallback to old fee_payments
+  const walletBalance = wallet
+    ? Math.max(0, Number(wallet.total_billed ?? 0) - Number(wallet.total_paid ?? 0) - Number(wallet.total_waived ?? 0))
+    : null;
   const totalDue  = fees.reduce((s,f)=>s+f.amount_due,0);
   const totalPaid = fees.reduce((s,f)=>s+f.amount_paid,0);
-  const balance   = totalDue - totalPaid;
+  const balance   = walletBalance ?? (totalDue - totalPaid);
   const present   = attendance.filter(a=>a.status==="present").length;
   const absent    = attendance.filter(a=>a.status==="absent").length;
   const late      = attendance.filter(a=>a.status==="late").length;
@@ -470,18 +474,26 @@ export function StudentProfile({
   const statusStyle = STATUS_COLORS[student.status] ?? { bg:"#f3f4f6", text:"#374151" };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* ── Header ─────────────────────────────────────────────── */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <button onClick={() => router.back()} className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-4 transition-colors">
+    <div className="min-h-screen bg-[var(--neutral-50)]">
+      {/* ── Hero Header ─────────────────────────────────────────── */}
+      <div className="relative overflow-hidden" style={{ background: "linear-gradient(135deg, #262262 0%, #3d1f6e 55%, #92278F 100%)" }}>
+        {/* Decorative blobs */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div style={{ position:"absolute", top:-40, right:-40, width:180, height:180, borderRadius:"50%", background:"rgba(255,255,255,0.05)" }} />
+          <div style={{ position:"absolute", bottom:-30, left:60, width:120, height:120, borderRadius:"50%", background:"rgba(255,255,255,0.04)" }} />
+        </div>
+
+        <div className="relative max-w-7xl mx-auto px-6 pt-4 pb-0">
+          <button onClick={() => router.back()}
+            className="flex items-center gap-1.5 text-[13px] text-white/60 hover:text-white mb-4 transition-colors">
             <ArrowLeft className="w-4 h-4" /> Back to Students
           </button>
 
-          <div className="flex items-start gap-5">
+          <div className="flex items-end gap-5 pb-5">
             {/* Photo */}
             <div className="relative flex-shrink-0">
-              <div className="w-20 h-20 rounded-2xl overflow-hidden bg-[#262262] flex items-center justify-center text-white text-2xl font-bold">
+              <div className="w-24 h-24 rounded-2xl overflow-hidden flex items-center justify-center text-white text-3xl font-black shadow-xl ring-4 ring-white/20"
+                style={{ background: "rgba(255,255,255,0.15)", backdropFilter: "blur(8px)" }}>
                 {photoPreview
                   ? <img src={photoPreview} alt={fullName} className="w-full h-full object-cover" />
                   : <span>{getInitials(fullName)}</span>
@@ -489,8 +501,8 @@ export function StudentProfile({
               </div>
               {canEdit && (
                 <button onClick={() => photoRef.current?.click()}
-                  className="absolute -bottom-1 -right-1 bg-[#262262] text-white p-1.5 rounded-full hover:bg-[#1a1856] transition-colors">
-                  <Camera className="w-3 h-3" />
+                  className="absolute -bottom-1.5 -right-1.5 bg-white text-[#262262] p-1.5 rounded-full shadow-lg hover:scale-110 transition-transform">
+                  <Camera className="w-3.5 h-3.5" />
                 </button>
               )}
               <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
@@ -499,66 +511,71 @@ export function StudentProfile({
             {/* Info */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-2xl font-extrabold text-gray-900">{fullName}</h1>
-                <span className="px-2.5 py-1 rounded-full text-xs font-semibold capitalize"
+                <h1 className="text-[26px] font-black text-white leading-tight">{fullName}</h1>
+                <span className="px-2.5 py-1 rounded-full text-[11px] font-bold capitalize"
                   style={{ background: statusStyle.bg, color: statusStyle.text }}>
                   {student.status}
                 </span>
               </div>
-              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-sm text-gray-500">
-                <span className="font-mono font-semibold text-gray-700">{student.admission_number}</span>
+              <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[12px] text-white/60">
+                <span className="font-mono font-bold text-white/80">{student.admission_number}</span>
+                <span className="text-white/30">·</span>
                 <span>{student.classrooms?.name ?? "No class"}</span>
+                <span className="text-white/30">·</span>
                 <span className="capitalize">{student.gender}</span>
-                {student.date_of_birth && <span>Born {formatDate(student.date_of_birth)}</span>}
-                <span>Admitted {formatDate(student.admission_date)}</span>
+                {student.date_of_birth && <><span className="text-white/30">·</span><span>Born {formatDate(student.date_of_birth)}</span></>}
               </div>
 
-              {/* Mini summary bar */}
-              <div className="flex flex-wrap gap-4 mt-3">
+              {/* Stats chips */}
+              <div className="flex flex-wrap gap-3 mt-3">
                 {attRate !== null && (
-                  <div className="text-center">
-                    <p className="text-xs text-gray-400">Attendance</p>
-                    <p className={`text-base font-bold ${attRate>=75?"text-green-600":"text-red-500"}`}>{attRate}%</p>
+                  <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm rounded-xl px-3 py-1.5">
+                    <ClipboardList className="w-3.5 h-3.5 text-white/60" />
+                    <span className="text-[11px] text-white/60">Attendance</span>
+                    <span className={`text-[13px] font-extrabold ml-0.5 ${attRate>=75?"text-green-300":"text-red-300"}`}>{attRate}%</span>
                   </div>
                 )}
                 {canFinance && (
-                  <div className="text-center">
-                    <p className="text-xs text-gray-400">Balance</p>
-                    <p className={`text-base font-bold ${balance>0?"text-red-500":"text-green-600"}`}>{formatCurrency(balance)}</p>
+                  <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm rounded-xl px-3 py-1.5">
+                    <CreditCard className="w-3.5 h-3.5 text-white/60" />
+                    <span className="text-[11px] text-white/60">Balance</span>
+                    <span className={`text-[13px] font-extrabold ml-0.5 ${balance>0?"text-red-300":"text-green-300"}`}>{formatCurrency(balance)}</span>
                   </div>
                 )}
-                <div className="text-center">
-                  <p className="text-xs text-gray-400">Awards</p>
-                  <p className="text-base font-bold text-[#262262]">{awards.length}</p>
+                <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm rounded-xl px-3 py-1.5">
+                  <Trophy className="w-3.5 h-3.5 text-white/60" />
+                  <span className="text-[11px] text-white/60">Awards</span>
+                  <span className="text-[13px] font-extrabold ml-0.5 text-yellow-300">{awards.length}</span>
                 </div>
-                <div className="text-center">
-                  <p className="text-xs text-gray-400">Subjects</p>
-                  <p className="text-base font-bold text-[#262262]">{[...new Set(scores.map(s=>s.subjects?.name))].filter(Boolean).length}</p>
+                <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm rounded-xl px-3 py-1.5">
+                  <BookOpen className="w-3.5 h-3.5 text-white/60" />
+                  <span className="text-[11px] text-white/60">Subjects</span>
+                  <span className="text-[13px] font-extrabold ml-0.5 text-white">{[...new Set(scores.map(s=>s.subjects?.name))].filter(Boolean).length}</span>
                 </div>
               </div>
             </div>
 
             {/* Actions */}
-            <div className="flex gap-2 flex-shrink-0">
+            <div className="flex gap-2 flex-shrink-0 pb-0.5">
               <button onClick={exportPDF}
-                className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-                <FileDown className="w-4 h-4" /> Export PDF
+                className="flex items-center gap-1.5 px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-[12px] font-semibold transition-colors backdrop-blur-sm">
+                <FileDown className="w-3.5 h-3.5" /> Export PDF
               </button>
               {canEdit && !editing && (
                 <button onClick={() => setEditing(true)}
-                  className="flex items-center gap-2 px-3 py-2 bg-[#262262] text-white rounded-lg text-sm font-medium hover:bg-[#1a1856] transition-colors">
-                  <Edit3 className="w-4 h-4" /> Edit
+                  className="flex items-center gap-1.5 px-3 py-2 bg-white text-[#262262] rounded-xl text-[12px] font-bold hover:bg-white/90 transition-colors shadow-lg">
+                  <Edit3 className="w-3.5 h-3.5" /> Edit
                 </button>
               )}
               {editing && (
                 <>
                   <button onClick={saveEdit} disabled={saving}
-                    className="flex items-center gap-2 px-3 py-2 bg-[#262262] text-white rounded-lg text-sm font-medium hover:bg-[#1a1856] disabled:opacity-50 transition-colors">
-                    <Save className="w-4 h-4" /> {saving?"Saving…":"Save"}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-white text-[#262262] rounded-xl text-[12px] font-bold hover:bg-white/90 disabled:opacity-50 transition-colors shadow-lg">
+                    <Save className="w-3.5 h-3.5" /> {saving?"Saving…":"Save"}
                   </button>
                   <button onClick={() => setEditing(false)}
-                    className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-                    <X className="w-4 h-4" /> Cancel
+                    className="flex items-center gap-1.5 px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-[12px] font-semibold transition-colors backdrop-blur-sm">
+                    <X className="w-3.5 h-3.5" /> Cancel
                   </button>
                 </>
               )}
@@ -566,17 +583,17 @@ export function StudentProfile({
           </div>
         </div>
 
-        {/* Tabs */}
+        {/* Tabs — float at bottom of header */}
         <div className="max-w-7xl mx-auto px-6 overflow-x-auto">
-          <div className="flex gap-0 border-b-0 min-w-max">
+          <div className="flex gap-0 min-w-max">
             {TABS.map(t => {
               const Icon = t.icon;
               return (
                 <button key={t.id} onClick={() => setTab(t.id)}
-                  className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
+                  className={`flex items-center gap-1.5 px-4 py-3 text-[12px] font-semibold border-b-2 whitespace-nowrap transition-all ${
                     tab===t.id
-                      ? "border-[#262262] text-[#262262]"
-                      : "border-transparent text-gray-500 hover:text-gray-700"
+                      ? "border-white text-white"
+                      : "border-transparent text-white/50 hover:text-white/80"
                   }`}>
                   <Icon className="w-3.5 h-3.5" />{t.label}
                 </button>

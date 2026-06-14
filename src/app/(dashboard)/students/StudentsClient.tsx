@@ -178,7 +178,7 @@ export function StudentsClient({ students, classes, schoolId, filters, role }: P
                   const age = calcAge(s.date_of_birth);
                   const isActive = selected?.id === s.id;
                   return (
-                    <tr key={s.id} onClick={() => setSelected(isActive ? null : s)}
+                    <tr key={s.id} onClick={() => router.push(`/students/${s.id}`)}
                       className={`transition-colors cursor-pointer group ${isActive ? "bg-[#ede9fe]" : "hover:bg-[var(--neutral-50)]"}`}>
                       <td className="px-4 py-3"><input type="checkbox" checked={isActive} readOnly className="rounded accent-[#262262]" onClick={(e) => e.stopPropagation()} /></td>
                       <td className="px-3 py-3">

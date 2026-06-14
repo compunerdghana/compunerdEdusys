@@ -1,108 +1,296 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import { Card, StatCard } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
 import { formatCurrency, formatDate, getInitials } from "@/lib/utils";
-import { PlusCircle, CreditCard } from "lucide-react";
+import {
+  PlusCircle, CreditCard, TrendingUp, TrendingDown, Wallet,
+  ReceiptText, ArrowUpRight, Users,
+} from "lucide-react";
+import { FinanceOwingSection } from "./FinanceOwingSection";
+
+const BRAND  = "#262262";
+const ACCENT = "#92278F";
 
 export default async function FinancePage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  const { data: profile } = await supabase.from("profiles").select("school_id").eq("id", user!.id).single();
+  const { data: profile } = await supabase.from("profiles").select("school_id, role").eq("id", user!.id).single();
   const schoolId = profile?.school_id;
+  const isFinance = ["headmaster","owner","accountant"].includes(profile?.role ?? "");
 
-  const [paymentsRes, summaryRes] = await Promise.all([
-    supabase.from("fee_payments")
-      .select("*, students(first_name, last_name, admission_number), fee_types(name)")
+  const [walletRes, invoiceRes, paymentsRes, recentInvoicesRes, owingRes, classesRes] = await Promise.all([
+    supabase.from("student_wallets").select("total_billed, total_paid, total_waived").eq("school_id", schoolId),
+    supabase.from("student_invoices").select("status").eq("school_id", schoolId),
+    supabase.from("payment_receipts")
+      .select("*, students(first_name, last_name, admission_number, classrooms(name))")
       .eq("school_id", schoolId)
       .order("created_at", { ascending: false })
-      .limit(50),
-    supabase.from("fee_payments")
-      .select("amount_paid, balance, payment_status")
-      .eq("school_id", schoolId),
+      .limit(20),
+    supabase.from("student_invoices")
+      .select("*, students(first_name, last_name, admission_number, classrooms(name))")
+      .eq("school_id", schoolId)
+      .order("created_at", { ascending: false })
+      .limit(20),
+    // Students with outstanding balance
+    supabase.from("student_wallets")
+      .select("student_id, total_billed, total_paid, total_waived, total_discounts, students(id, first_name, last_name, admission_number, class_id, classrooms(id, name))")
+      .eq("school_id", schoolId)
+      .gt("total_billed", 0),
+    supabase.from("classrooms").select("id, name").eq("school_id", schoolId).order("name"),
   ]);
 
-  const payments = paymentsRes.data ?? [];
-  const summary = summaryRes.data ?? [];
-  const totalCollected = summary.reduce((s: number, p: { amount_paid: number }) => s + (p.amount_paid ?? 0), 0);
-  const totalOutstanding = summary.reduce((s: number, p: { balance: number }) => s + (p.balance ?? 0), 0);
-  const paidCount = summary.filter((p: { payment_status: string }) => p.payment_status === "paid").length;
+  // Wallet aggregates
+  const wallets = walletRes.data ?? [];
+  const totalBilled      = wallets.reduce((s, w) => s + Number(w.total_billed ?? 0), 0);
+  const totalPaid        = wallets.reduce((s, w) => s + Number(w.total_paid ?? 0), 0);
+  const totalWaived      = wallets.reduce((s, w) => s + Number(w.total_waived ?? 0), 0);
+  const totalOutstanding = Math.max(0, totalBilled - totalPaid - totalWaived);
+  const collectionRate   = totalBilled > 0 ? Math.round((totalPaid / totalBilled) * 100) : 0;
+
+  // Invoice counts
+  const invoices = invoiceRes.data ?? [];
+  const paidCount    = invoices.filter(i => i.status === "paid").length;
+  const partialCount = invoices.filter(i => i.status === "partial").length;
+  const unpaidCount  = invoices.filter(i => i.status === "unpaid").length;
+
+  const receipts       = paymentsRes.data ?? [];
+  const recentInvoices = recentInvoicesRes.data ?? [];
+
+  // Build owing list
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const owingStudents = (owingRes.data ?? []).map((w: Record<string, any>) => {
+    const outstanding = Math.max(0,
+      Number(w.total_billed ?? 0) - Number(w.total_paid ?? 0) -
+      Number(w.total_waived ?? 0) - Number(w.total_discounts ?? 0)
+    );
+    return {
+      student_id: w.student_id,
+      outstanding,
+      total_billed: Number(w.total_billed ?? 0),
+      total_paid: Number(w.total_paid ?? 0),
+      student: w.students,
+    };
+  }).filter((w: { outstanding: number }) => w.outstanding > 0)
+    .sort((a: { outstanding: number }, b: { outstanding: number }) => b.outstanding - a.outstanding);
 
   const statusVariant: Record<string, "success" | "warning" | "danger"> = {
     paid: "success", partial: "warning", unpaid: "danger",
   };
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 pb-8">
+
+      {/* Header */}
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-[var(--text-strong)]">Finance</h2>
-          <p className="text-sm text-[var(--text-muted)]">Fee payments and outstanding balances</p>
+          <h2 className="text-[20px] font-extrabold text-[var(--text-strong)]">Finance</h2>
+          <p className="text-[13px] text-[var(--text-muted)] mt-0.5">Fee collection, invoices &amp; wallet balances</p>
         </div>
-        <Link href="/finance/record-payment">
-          <Button><PlusCircle size={15} /> Record payment</Button>
-        </Link>
+        {isFinance && (
+          <Link href="/finance/record-payment"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold text-white shadow-sm hover:opacity-90 transition-opacity"
+            style={{ background: BRAND }}>
+            <PlusCircle size={15} /> Record Payment
+          </Link>
+        )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard label="Total collected" value={formatCurrency(totalCollected)} icon={<CreditCard size={18} />} accent />
-        <StatCard label="Outstanding" value={formatCurrency(totalOutstanding)} icon={<CreditCard size={18} />} />
-        <StatCard label="Fully paid" value={`${paidCount} students`} icon={<CreditCard size={18} />} />
+      {/* Stats row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          {
+            label: "Total Billed",
+            value: formatCurrency(totalBilled),
+            sub: `${invoices.length} invoices`,
+            icon: ReceiptText,
+            iconBg: "#EEF2FF",
+            iconColor: BRAND,
+          },
+          {
+            label: "Collected",
+            value: formatCurrency(totalPaid),
+            sub: `${collectionRate}% collection rate`,
+            icon: TrendingUp,
+            iconBg: "#F0FDF4",
+            iconColor: "#16A34A",
+          },
+          {
+            label: "Outstanding",
+            value: formatCurrency(totalOutstanding),
+            sub: `${owingStudents.length} students owing`,
+            icon: TrendingDown,
+            iconBg: "#FFF7ED",
+            iconColor: "#D97706",
+          },
+          {
+            label: "Waived / Scholarship",
+            value: formatCurrency(totalWaived),
+            sub: `${paidCount} fully paid`,
+            icon: Wallet,
+            iconBg: "#FDF4FF",
+            iconColor: ACCENT,
+          },
+        ].map(card => (
+          <div key={card.label} className="bg-white rounded-2xl border border-[var(--border)] p-5 shadow-[0_1px_6px_rgba(0,0,0,0.05)] flex items-start gap-4">
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: card.iconBg }}>
+              <card.icon size={20} style={{ color: card.iconColor }} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wide">{card.label}</p>
+              <p className="text-[22px] font-extrabold text-[var(--text-strong)] leading-tight mt-0.5">{card.value}</p>
+              <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{card.sub}</p>
+            </div>
+          </div>
+        ))}
       </div>
 
-      <Card padding="none">
-        <div className="px-5 py-3 border-b border-[var(--border)]">
-          <h3 className="text-sm font-semibold text-[var(--text-strong)]">Recent payments</h3>
+      {/* Collection rate bar */}
+      <div className="bg-white rounded-2xl border border-[var(--border)] p-5 shadow-[0_1px_6px_rgba(0,0,0,0.05)]">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-[14px] font-bold text-[var(--text-strong)]">Collection Progress</p>
+          <span className="text-[13px] font-extrabold" style={{ color: collectionRate >= 70 ? "#16A34A" : "#D97706" }}>
+            {collectionRate}%
+          </span>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-[var(--border)]">
-                {["Student", "Fee type", "Amount paid", "Balance", "Date", "Status"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--border)]">
-              {payments.map((p: {
-                id: string; amount_paid: number; balance: number; payment_status: string;
-                created_at: string; receipt_number: string | null;
-                students: { first_name: string; last_name: string; admission_number: string } | null;
-                fee_types: { name: string } | null;
-              }) => (
-                <tr key={p.id} className="hover:bg-[var(--neutral-50)]">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0" style={{ background: "var(--gradient-brand)" }}>
-                        {p.students ? getInitials(`${p.students.first_name} ${p.students.last_name}`) : "?"}
-                      </div>
-                      <span className="font-medium text-[var(--text-strong)]">
-                        {p.students ? `${p.students.first_name} ${p.students.last_name}` : "—"}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-[var(--text-body)]">{p.fee_types?.name ?? "—"}</td>
-                  <td className="px-4 py-3 font-mono text-[var(--text-strong)]">{formatCurrency(p.amount_paid)}</td>
-                  <td className="px-4 py-3 font-mono text-[var(--text-muted)]">{formatCurrency(p.balance)}</td>
-                  <td className="px-4 py-3 text-[var(--text-muted)]">{formatDate(p.created_at)}</td>
-                  <td className="px-4 py-3">
-                    <Badge variant={statusVariant[p.payment_status] ?? "default"}>{p.payment_status}</Badge>
-                  </td>
-                </tr>
-              ))}
-              {payments.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-sm text-[var(--text-muted)]">
-                    No payments recorded yet.{" "}
-                    <Link href="/finance/record-payment" className="text-[var(--brand)] font-semibold">Record the first payment</Link>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+        <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+          <div className="h-full rounded-full transition-all duration-700"
+            style={{ width: `${collectionRate}%`, background: collectionRate >= 70 ? "#16A34A" : "#D97706" }} />
         </div>
-      </Card>
+        <div className="flex justify-between mt-3 flex-wrap gap-2">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
+              <span className="text-[11px] text-[var(--text-muted)]">Paid: <strong className="text-green-600">{paidCount}</strong></span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+              <span className="text-[11px] text-[var(--text-muted)]">Partial: <strong className="text-amber-600">{partialCount}</strong></span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
+              <span className="text-[11px] text-[var(--text-muted)]">Unpaid: <strong className="text-red-600">{unpaidCount}</strong></span>
+            </div>
+          </div>
+          <div className="text-[11px] text-[var(--text-muted)]">
+            {invoices.length} total invoices · {wallets.length} student wallets
+          </div>
+        </div>
+      </div>
+
+      {/* Students Owing — interactive client component */}
+      <FinanceOwingSection
+        owingStudents={owingStudents}
+        classes={classesRes.data ?? []}
+        isFinance={isFinance}
+      />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+        {/* Recent payments */}
+        <div className="bg-white rounded-2xl border border-[var(--border)] shadow-[0_1px_6px_rgba(0,0,0,0.05)] overflow-hidden">
+          <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CreditCard size={16} style={{ color: BRAND }} />
+              <h3 className="text-[14px] font-bold text-[var(--text-strong)]">Recent Payments</h3>
+            </div>
+            <span className="text-[11px] text-[var(--text-muted)]">{receipts.length} receipts</span>
+          </div>
+          <div className="divide-y divide-[var(--border)]">
+            {receipts.length === 0 ? (
+              <div className="px-5 py-10 text-center">
+                <CreditCard size={28} className="text-[var(--text-muted)] opacity-30 mx-auto mb-2" />
+                <p className="text-[13px] text-[var(--text-muted)]">No payments recorded yet.</p>
+                {isFinance && (
+                  <Link href="/finance/record-payment" className="text-[13px] font-semibold mt-1 inline-block" style={{ color: BRAND }}>
+                    Record first payment →
+                  </Link>
+                )}
+              </div>
+            ) : receipts.map((r: {
+              id: string; receipt_number: string; amount: number; payment_method: string;
+              payment_date: string; created_at: string;
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              students: Record<string, any> | null;
+            }) => (
+              <div key={r.id} className="flex items-center gap-3 px-5 py-3 hover:bg-[var(--neutral-50)] transition-colors">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+                  style={{ background: "linear-gradient(135deg,#262262,#92278F)" }}>
+                  {r.students ? getInitials(`${r.students.first_name} ${r.students.last_name}`) : "?"}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-semibold text-[var(--text-strong)] truncate">
+                    {r.students ? `${r.students.first_name} ${r.students.last_name}` : "—"}
+                  </p>
+                  <p className="text-[11px] text-[var(--text-muted)] truncate">
+                    {r.receipt_number} · {r.payment_method} · {r.students?.classrooms?.name ?? "—"}
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-[14px] font-extrabold text-green-600">{formatCurrency(r.amount)}</p>
+                  <p className="text-[10px] text-[var(--text-muted)]">{formatDate(r.payment_date ?? r.created_at)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Recent invoices */}
+        <div className="bg-white rounded-2xl border border-[var(--border)] shadow-[0_1px_6px_rgba(0,0,0,0.05)] overflow-hidden">
+          <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Users size={16} style={{ color: ACCENT }} />
+              <h3 className="text-[14px] font-bold text-[var(--text-strong)]">Recent Invoices</h3>
+            </div>
+            <span className="text-[11px] text-[var(--text-muted)]">{recentInvoices.length} shown</span>
+          </div>
+          <div className="divide-y divide-[var(--border)]">
+            {recentInvoices.length === 0 ? (
+              <div className="px-5 py-10 text-center">
+                <ReceiptText size={28} className="text-[var(--text-muted)] opacity-30 mx-auto mb-2" />
+                <p className="text-[13px] text-[var(--text-muted)]">No invoices yet. Admit a student to auto-generate invoices.</p>
+              </div>
+            ) : recentInvoices.map((inv: {
+              id: string; invoice_number: string; total_amount: number; balance: number;
+              status: string; created_at: string;
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              students: Record<string, any> | null;
+            }) => (
+              <div key={inv.id} className="flex items-center gap-3 px-5 py-3 hover:bg-[var(--neutral-50)] transition-colors">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+                  style={{ background: "linear-gradient(135deg,#92278F,#262262)" }}>
+                  {inv.students ? getInitials(`${inv.students.first_name} ${inv.students.last_name}`) : "?"}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-semibold text-[var(--text-strong)] truncate">
+                    {inv.students ? `${inv.students.first_name} ${inv.students.last_name}` : "—"}
+                  </p>
+                  <p className="text-[11px] text-[var(--text-muted)] truncate">
+                    {inv.invoice_number} · {inv.students?.classrooms?.name ?? "—"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <Badge variant={statusVariant[inv.status] ?? "default"}>{inv.status}</Badge>
+                  <div className="text-right">
+                    <p className="text-[13px] font-bold" style={{ color: inv.balance > 0 ? "#DC2626" : "#16A34A" }}>
+                      {formatCurrency(inv.balance)}
+                    </p>
+                    <p className="text-[10px] text-[var(--text-muted)]">of {formatCurrency(inv.total_amount)}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          {isFinance && (
+            <div className="px-5 py-3 border-t border-[var(--border)] bg-[var(--neutral-50)]">
+              <Link href="/finance/record-payment"
+                className="flex items-center gap-1.5 text-[12px] font-semibold w-fit"
+                style={{ color: BRAND }}>
+                <ArrowUpRight size={13} /> Record a payment
+              </Link>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
@@ -59,7 +58,8 @@ export function Sidebar({ userName = "Admin", userRole = "admin", schoolName, sc
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 bg-white/20 backdrop-blur-sm overflow-hidden">
             {schoolLogo
-              ? <Image src={schoolLogo} alt="Logo" width={40} height={40} className="w-full h-full object-contain" />
+              // eslint-disable-next-line @next/next/no-img-element
+              ? <img src={schoolLogo} alt="Logo" className="w-full h-full object-contain" />
               : <GraduationCap size={20} className="text-white" />
             }
           </div>
