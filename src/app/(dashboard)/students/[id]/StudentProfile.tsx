@@ -261,7 +261,22 @@ export function StudentProfile({
       admission_year: ef.admission_year.trim() || null,
     }).eq("id", student.id).select("*, classrooms(id,name,level)").single();
     setSaving(false);
-    if (!error && data) { setStudent(data); setEditing(false); router.refresh(); }
+    if (!error && data) {
+      // Fire status-change automation if status changed
+      if (ef.status !== student.status) {
+        fetch("/api/billing/status-change", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            student_id: student.id,
+            new_status: ef.status,
+            old_status: student.status,
+            school_id: student.school_id,
+          }),
+        }).catch(() => null);
+      }
+      setStudent(data); setEditing(false); router.refresh();
+    }
   }
 
   async function saveMedical() {

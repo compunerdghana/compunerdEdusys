@@ -170,6 +170,14 @@ export function AdmitStudentModal({ open, onClose, schoolId }: Props) {
           address: form.parent_address.trim() || null, is_primary: true,
         });
       }
+
+      // ── Fire ERP automation ────────────────────────────────────
+      fetch("/api/admission/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ student_id: student.id }),
+      }).catch(() => null); // fire-and-forget; doesn't block UI
+
       setSaving(false); doClose();
       router.push(`/students/${student.id}`);
     } else {
