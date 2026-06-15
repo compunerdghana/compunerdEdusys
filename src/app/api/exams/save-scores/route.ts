@@ -26,6 +26,7 @@ export async function POST(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } },
   );
+  function getAdmin() { return admin; }
 
   // Delete existing scores — chain properly (Supabase builder is immutable)
   let delQuery = getAdmin().from("exam_scores").delete().eq("student_id", student_id);

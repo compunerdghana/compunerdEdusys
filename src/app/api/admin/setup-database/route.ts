@@ -22,6 +22,8 @@ export async function POST() {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
+  function getAdmin() { return admin; }
+
   const errors: string[] = [];
 
   // ── exam_scores ──────────────────────────────────────────────────────────────

@@ -18,6 +18,7 @@ export async function POST(request: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
       { auth: { autoRefreshToken: false, persistSession: false } },
     );
+    function getAdmin() { return admin; }
     await getAdmin().from("fee_payments").update({
       payment_status: "paid",
       balance: 0,

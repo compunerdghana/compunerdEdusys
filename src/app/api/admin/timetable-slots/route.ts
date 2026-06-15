@@ -35,6 +35,7 @@ export async function GET(req: NextRequest) {
 
   if (!schoolId) return NextResponse.json({ error: "schoolId required" }, { status: 400 });
 
+  const admin = getAdmin();
   let query = admin
     .from("timetable_slots")
     .select("*, timetable_periods(*), subjects(id, name), profiles(id, full_name)")
@@ -68,6 +69,7 @@ export async function POST(req: NextRequest) {
   };
 
   // NULL term_id breaks ON CONFLICT matching, so we DELETE the existing slot then INSERT
+  const admin = getAdmin();
   const deleteQuery = admin
     .from("timetable_slots")
     .delete()

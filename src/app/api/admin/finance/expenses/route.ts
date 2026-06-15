@@ -29,6 +29,7 @@ export async function GET(req: NextRequest) {
   const schoolId = sp.get("schoolId");
   if (!schoolId) return NextResponse.json({ error: "schoolId required" }, { status: 400 });
 
+  const admin = getAdmin();
   let query = admin
     .from("expenses")
     .select(`*, category:expense_categories(id,name), creator:profiles!expenses_created_by_fkey(id,full_name)`)

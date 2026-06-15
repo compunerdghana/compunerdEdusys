@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
@@ -133,7 +133,7 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
 
 // ─── Main Component ─────────────────────────────────────────────────────────
 
-export function ReportsClient({
+function ReportsInner({
   school, classes, students, terms, currentTermId, staff, wallets, receipts,
   attendanceRecords, expenses, incomeRecords, examResults, commLogs, payrollRuns, admissions,
 }: Props) {
@@ -473,7 +473,7 @@ export function ReportsClient({
                 <LineChart data={monthlyReceipts} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
                   <XAxis dataKey="month" tick={{ fontSize: 10, fill: "#6b7280" }} />
                   <YAxis tick={{ fontSize: 10, fill: "#6b7280" }} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
-                  <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid #e5e7eb", fontSize: 11 }} formatter={(v: number) => [fmt(v), "Collected"]} />
+                  <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid #e5e7eb", fontSize: 11 }} formatter={(v) => [fmt(Number(v)), "Collected"]} />
                   <Line type="monotone" dataKey="amount" stroke={BRAND} strokeWidth={2.5} dot={false} name="Collected" />
                 </LineChart>
               </ResponsiveContainer>
@@ -488,10 +488,10 @@ export function ReportsClient({
               <div className="h-52">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={genderData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+                    <Pie data={genderData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, percent }: { name?: string; percent?: number }) => `${name ?? ""} ${((percent ?? 0) * 100).toFixed(0)}%`} labelLine={false}>
                       {genderData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                     </Pie>
-                    <Tooltip formatter={(v: number) => [v, "Students"]} />
+                    <Tooltip formatter={(v) => [Number(v), "Students"]} />
                     <Legend />
                   </PieChart>
                 </ResponsiveContainer>
@@ -1002,10 +1002,10 @@ export function ReportsClient({
               : <div className="h-52">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={expensePieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={75} label={({ name, percent }) => `${name.slice(0,8)} ${(percent*100).toFixed(0)}%`} labelLine={false}>
+                    <Pie data={expensePieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={75} label={({ name, percent }: { name?: string; percent?: number }) => `${(name ?? "").slice(0,8)} ${((percent ?? 0)*100).toFixed(0)}%`} labelLine={false}>
                       {expensePieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                     </Pie>
-                    <Tooltip formatter={(v: number) => [fmt(v), ""]} />
+                    <Tooltip formatter={(v) => [fmt(Number(v)), ""]} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -1019,10 +1019,10 @@ export function ReportsClient({
               : <div className="h-52">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={incomePieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={75} label={({ name, percent }) => `${name.slice(0,8)} ${(percent*100).toFixed(0)}%`} labelLine={false}>
+                    <Pie data={incomePieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={75} label={({ name, percent }: { name?: string; percent?: number }) => `${(name ?? "").slice(0,8)} ${((percent ?? 0)*100).toFixed(0)}%`} labelLine={false}>
                       {incomePieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                     </Pie>
-                    <Tooltip formatter={(v: number) => [fmt(v), ""]} />
+                    <Tooltip formatter={(v) => [fmt(Number(v)), ""]} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -1053,7 +1053,7 @@ export function ReportsClient({
                 <LineChart data={monthlyReceipts} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
                   <XAxis dataKey="month" tick={{ fontSize: 10, fill: "#6b7280" }} />
                   <YAxis tick={{ fontSize: 10, fill: "#6b7280" }} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
-                  <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid #e5e7eb", fontSize: 11 }} formatter={(v: number) => [fmt(v), "Collected"]} />
+                  <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid #e5e7eb", fontSize: 11 }} formatter={(v) => [fmt(Number(v)), "Collected"]} />
                   <Line type="monotone" dataKey="amount" stroke={BRAND} strokeWidth={2.5} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
@@ -1164,5 +1164,13 @@ export function ReportsClient({
         </div>
       </div>
     </div>
+  );
+}
+
+export function ReportsClient(props: Props) {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-[13px] text-[var(--text-muted)]">Loading reports…</div>}>
+      <ReportsInner {...props} />
+    </Suspense>
   );
 }

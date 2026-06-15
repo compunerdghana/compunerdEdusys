@@ -35,6 +35,7 @@ export async function GET(req: NextRequest) {
   const type = searchParams.get("type");
   const targetType = searchParams.get("targetType");
 
+  const admin = getAdmin();
   let query = admin
     .from("messages")
     .select("*, sender:profiles!sender_id(full_name)")
