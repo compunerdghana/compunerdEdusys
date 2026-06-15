@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils";
-import { Modal } from "@/components/ui/Modal";
+import { SlidePanel } from "@/components/ui/SlidePanel";
 import { Badge } from "@/components/ui/Badge";
 import { Building2, PlusCircle, Edit2, Smartphone, CreditCard } from "lucide-react";
 
@@ -143,13 +143,13 @@ export default function BankAccountsPage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-[20px] font-extrabold text-[var(--text-strong)]">Bank Accounts</h2>
-          <p className="text-[13px] text-[var(--text-muted)] mt-0.5">Manage school bank accounts and mobile money wallets</p>
+          <h2 className="text-[22px] font-extrabold text-[var(--text-strong)]">Bank Accounts</h2>
+          <p className="text-[14px] text-[var(--text-muted)] mt-0.5">Manage school bank accounts and mobile money wallets</p>
         </div>
         <button onClick={openNew}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold text-white shadow-sm hover:opacity-90 transition-opacity"
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[14px] font-bold text-white shadow-sm hover:opacity-90 transition-opacity"
           style={{ background: GRADIENT }}>
-          <PlusCircle size={15} /> Add Account
+          <PlusCircle size={16} /> Add Account
         </button>
       </div>
 
@@ -161,33 +161,35 @@ export default function BankAccountsPage() {
         </div>
       )}
 
-      {/* Total */}
-      {accounts.length > 0 && (
-        <div className="bg-white rounded-2xl border border-[var(--border)] p-5 shadow-[0_1px_6px_rgba(0,0,0,0.05)] flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wide">Total Across All Accounts</p>
-            <p className="text-[28px] font-extrabold mt-0.5" style={{ color: BRAND }}>{formatCurrency(totalBalance)}</p>
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-4">
+        {[
+          { label: "Total Balance", value: formatCurrency(totalBalance), sub: "Across all accounts", icon: Building2, bg: "#EEF2FF", color: BRAND },
+          { label: "Total Accounts", value: accounts.length.toString(), sub: "Bank & MoMo", icon: CreditCard, bg: "#F0FDF4", color: "#16A34A" },
+          { label: "Mobile Money", value: accounts.filter(a => isMoMo(a.bank_name)).length.toString(), sub: "MoMo wallets", icon: Smartphone, bg: "#FDF4FF", color: "#92278F" },
+        ].map(c => (
+          <div key={c.label} className="bg-white rounded-2xl border border-[var(--border)] p-5 shadow-[0_1px_6px_rgba(0,0,0,0.05)] flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: c.bg }}>
+              <c.icon size={22} style={{ color: c.color }} />
+            </div>
+            <div>
+              <p className="text-[12px] font-semibold text-[var(--text-muted)] uppercase tracking-wide">{c.label}</p>
+              <p className="text-[24px] font-extrabold text-[var(--text-strong)] leading-tight">{c.value}</p>
+              <p className="text-[12px] text-[var(--text-muted)]">{c.sub}</p>
+            </div>
           </div>
-          <div className="flex items-center gap-2 flex-wrap justify-end">
-            <span className="text-[12px] text-[var(--text-muted)]">Supported banks:</span>
-            {BANKS.slice(0, 6).map(b => (
-              <span key={b.name} className="px-2.5 py-1 rounded-full text-[10px] font-bold text-white" style={{ background: b.color }}>
-                {b.name}
-              </span>
-            ))}
-            <span className="text-[11px] text-[var(--text-muted)]">+ more</span>
-          </div>
-        </div>
-      )}
+        ))}
+      </div>
 
       {/* Account Cards */}
       {loading ? (
-        <div className="py-12 text-center text-[13px] text-[var(--text-muted)]">Loading accounts…</div>
+        <div className="py-12 text-center text-[14px] text-[var(--text-muted)]">Loading accounts…</div>
       ) : accounts.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-[var(--border)] p-12 text-center shadow-[0_1px_6px_rgba(0,0,0,0.05)]">
-          <Building2 size={32} className="mx-auto mb-3 opacity-20 text-[var(--text-muted)]" />
-          <p className="text-[14px] font-semibold text-[var(--text-muted)]">No bank accounts added</p>
-          <button onClick={openNew} className="mt-4 px-4 py-2 rounded-xl text-[13px] font-bold text-white" style={{ background: GRADIENT }}>
+        <div className="bg-white rounded-2xl border border-[var(--border)] p-16 text-center shadow-[0_1px_6px_rgba(0,0,0,0.05)]">
+          <Building2 size={36} className="mx-auto mb-3 opacity-20 text-[var(--text-muted)]" />
+          <p className="text-[16px] font-bold text-[var(--text-muted)]">No bank accounts added</p>
+          <p className="text-[13px] text-[var(--text-muted)] mt-1">Add your school bank accounts to track balances</p>
+          <button onClick={openNew} className="mt-5 px-5 py-2.5 rounded-xl text-[14px] font-bold text-white" style={{ background: GRADIENT }}>
             Add First Account
           </button>
         </div>
@@ -237,73 +239,73 @@ export default function BankAccountsPage() {
         </div>
       )}
 
-      {/* Form Modal */}
-      <Modal open={showForm} onClose={() => setShowForm(false)}
+      {/* Form Panel */}
+      <SlidePanel open={showForm} onClose={() => setShowForm(false)}
         title={editAccount ? "Edit Bank Account" : "Add Bank Account"}
         subtitle={editAccount ? "Update account details or balance" : "Add a new bank or mobile money account"}
-        size="md">
-        <form onSubmit={handleSubmit} className="space-y-4">
+        width="md">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[12px] font-semibold text-[var(--text-muted)] mb-1.5">Bank *</label>
+              <label className="block text-[13px] font-semibold text-[var(--text-strong)] mb-1.5">Bank *</label>
               <select required value={form.bank_name} onChange={e => setForm(f => ({ ...f, bank_name: e.target.value }))}
-                className="h-10 w-full rounded-xl border border-[var(--border)] bg-white px-3 text-[13px] outline-none focus:border-[#262262]">
+                className="h-11 w-full rounded-xl border border-[var(--border)] bg-white px-4 text-[14px] outline-none focus:border-[#262262] focus:ring-2 focus:ring-[#262262]/10 cursor-pointer">
                 {BANKS.map(b => <option key={b.name}>{b.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-[12px] font-semibold text-[var(--text-muted)] mb-1.5">Account Type *</label>
+              <label className="block text-[13px] font-semibold text-[var(--text-strong)] mb-1.5">Account Type *</label>
               <select required value={form.account_type} onChange={e => setForm(f => ({ ...f, account_type: e.target.value }))}
-                className="h-10 w-full rounded-xl border border-[var(--border)] bg-white px-3 text-[13px] outline-none focus:border-[#262262]">
+                className="h-11 w-full rounded-xl border border-[var(--border)] bg-white px-4 text-[14px] outline-none focus:border-[#262262] focus:ring-2 focus:ring-[#262262]/10 cursor-pointer">
                 {ACCOUNT_TYPES.map(t => <option key={t}>{t}</option>)}
               </select>
             </div>
           </div>
           <div>
-            <label className="block text-[12px] font-semibold text-[var(--text-muted)] mb-1.5">Account Name *</label>
+            <label className="block text-[13px] font-semibold text-[var(--text-strong)] mb-1.5">Account Name *</label>
             <input required value={form.account_name} onChange={e => setForm(f => ({ ...f, account_name: e.target.value }))} placeholder="e.g. School Main Account"
-              className="h-10 w-full rounded-xl border border-[var(--border)] bg-white px-3 text-[13px] outline-none focus:border-[#262262]" />
+              className="h-11 w-full rounded-xl border border-[var(--border)] bg-white px-4 text-[14px] outline-none focus:border-[#262262] focus:ring-2 focus:ring-[#262262]/10 transition-all" />
           </div>
           <div>
-            <label className="block text-[12px] font-semibold text-[var(--text-muted)] mb-1.5">Account Number *</label>
+            <label className="block text-[13px] font-semibold text-[var(--text-strong)] mb-1.5">Account Number *</label>
             <input required value={form.account_number} onChange={e => setForm(f => ({ ...f, account_number: e.target.value }))} placeholder="Full account / mobile number"
-              className="h-10 w-full rounded-xl border border-[var(--border)] bg-white px-3 text-[13px] outline-none focus:border-[#262262]" />
+              className="h-11 w-full rounded-xl border border-[var(--border)] bg-white px-4 text-[14px] outline-none focus:border-[#262262] focus:ring-2 focus:ring-[#262262]/10 transition-all" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[12px] font-semibold text-[var(--text-muted)] mb-1.5">Opening Balance (GHS)</label>
+              <label className="block text-[13px] font-semibold text-[var(--text-strong)] mb-1.5">Opening Balance (GHS)</label>
               <input type="number" min="0" step="0.01" value={form.opening_balance} onChange={e => setForm(f => ({ ...f, opening_balance: e.target.value }))} placeholder="0.00"
-                className="h-10 w-full rounded-xl border border-[var(--border)] bg-white px-3 text-[13px] outline-none focus:border-[#262262]" />
+                className="h-11 w-full rounded-xl border border-[var(--border)] bg-white px-4 text-[14px] outline-none focus:border-[#262262] focus:ring-2 focus:ring-[#262262]/10 transition-all" />
             </div>
             <div>
-              <label className="block text-[12px] font-semibold text-[var(--text-muted)] mb-1.5">Current Balance (GHS)</label>
+              <label className="block text-[13px] font-semibold text-[var(--text-strong)] mb-1.5">Current Balance (GHS)</label>
               <input type="number" min="0" step="0.01" value={form.current_balance} onChange={e => setForm(f => ({ ...f, current_balance: e.target.value }))} placeholder="0.00"
-                className="h-10 w-full rounded-xl border border-[var(--border)] bg-white px-3 text-[13px] outline-none focus:border-[#262262]" />
+                className="h-11 w-full rounded-xl border border-[var(--border)] bg-white px-4 text-[14px] outline-none focus:border-[#262262] focus:ring-2 focus:ring-[#262262]/10 transition-all" />
             </div>
           </div>
           <div>
-            <label className="block text-[12px] font-semibold text-[var(--text-muted)] mb-1.5">Branch (optional)</label>
+            <label className="block text-[13px] font-semibold text-[var(--text-strong)] mb-1.5">Branch (optional)</label>
             <input value={form.branch} onChange={e => setForm(f => ({ ...f, branch: e.target.value }))} placeholder="e.g. Accra Main"
-              className="h-10 w-full rounded-xl border border-[var(--border)] bg-white px-3 text-[13px] outline-none focus:border-[#262262]" />
+              className="h-11 w-full rounded-xl border border-[var(--border)] bg-white px-4 text-[14px] outline-none focus:border-[#262262] focus:ring-2 focus:ring-[#262262]/10 transition-all" />
           </div>
           <div>
-            <label className="block text-[12px] font-semibold text-[var(--text-muted)] mb-1.5">Notes (optional)</label>
-            <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2}
-              className="w-full rounded-xl border border-[var(--border)] bg-white px-3 py-2 text-[13px] outline-none focus:border-[#262262] resize-none" />
+            <label className="block text-[13px] font-semibold text-[var(--text-strong)] mb-1.5">Notes (optional)</label>
+            <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3}
+              className="w-full rounded-xl border border-[var(--border)] bg-white px-4 py-3 text-[14px] outline-none focus:border-[#262262] resize-none transition-all" />
           </div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={() => setShowForm(false)}
-              className="flex-1 h-10 rounded-xl border border-[var(--border)] text-[13px] font-semibold text-[var(--text-muted)] hover:bg-[var(--neutral-50)]">
+              className="flex-1 h-11 rounded-xl border border-[var(--border)] text-[14px] font-semibold text-[var(--text-muted)] hover:bg-[var(--neutral-50)] transition-colors">
               Cancel
             </button>
             <button type="submit" disabled={submitting}
-              className="flex-1 h-10 rounded-xl text-[13px] font-bold text-white disabled:opacity-60"
+              className="flex-1 h-11 rounded-xl text-[14px] font-bold text-white disabled:opacity-60 hover:opacity-90 transition-opacity"
               style={{ background: GRADIENT }}>
               {submitting ? "Saving…" : editAccount ? "Update Account" : "Add Account"}
             </button>
           </div>
         </form>
-      </Modal>
+      </SlidePanel>
     </div>
   );
 }

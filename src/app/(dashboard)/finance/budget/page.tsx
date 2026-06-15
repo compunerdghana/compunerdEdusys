@@ -3,8 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { Modal } from "@/components/ui/Modal";
-import { PlusCircle, BarChart2, AlertTriangle, DollarSign, Target } from "lucide-react";
+import { SlidePanel } from "@/components/ui/SlidePanel";
+import { PlusCircle, BarChart2, AlertTriangle, Target, DollarSign, Pencil } from "lucide-react";
 
 const GRADIENT = "linear-gradient(135deg, #262262, #92278F)";
 const BRAND = "#262262";
@@ -27,6 +27,13 @@ interface Budget {
   created_at: string;
 }
 
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return <label className="block text-[13px] font-semibold text-[var(--text-strong)] mb-1.5">{children}</label>;
+}
+function FormInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return <input {...props} className="h-11 w-full rounded-xl border border-[var(--border)] bg-white px-4 text-[14px] outline-none focus:border-[#262262] focus:ring-2 focus:ring-[#262262]/10 transition-all" />;
+}
+
 export default function BudgetPage() {
   const [schoolId, setSchoolId] = useState<string | null>(null);
   const [budgets, setBudgets] = useState<Budget[]>([]);
@@ -35,14 +42,7 @@ export default function BudgetPage() {
   const [showForm, setShowForm] = useState(false);
   const [editBudget, setEditBudget] = useState<Budget | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [form, setForm] = useState({
-    budget_name: "",
-    category: CATEGORIES[0],
-    period_start: "",
-    period_end: "",
-    allocated_amount: "",
-    notes: "",
-  });
+  const [form, setForm] = useState({ budget_name: "", category: CATEGORIES[0], period_start: "", period_end: "", allocated_amount: "", notes: "" });
 
   useEffect(() => {
     (async () => {
@@ -71,17 +71,9 @@ export default function BudgetPage() {
     setForm({ budget_name: "", category: CATEGORIES[0], period_start: "", period_end: "", allocated_amount: "", notes: "" });
     setShowForm(true);
   }
-
   function openEdit(b: Budget) {
     setEditBudget(b);
-    setForm({
-      budget_name: b.budget_name,
-      category: b.category,
-      period_start: b.period_start,
-      period_end: b.period_end,
-      allocated_amount: String(b.allocated_amount),
-      notes: b.notes ?? "",
-    });
+    setForm({ budget_name: b.budget_name, category: b.category, period_start: b.period_start, period_end: b.period_end, allocated_amount: String(b.allocated_amount), notes: b.notes ?? "" });
     setShowForm(true);
   }
 
@@ -103,66 +95,62 @@ export default function BudgetPage() {
   const totalUsed = budgets.reduce((s, b) => s + Number(b.used_amount), 0);
   const overBudgetCount = budgets.filter(b => Number(b.used_amount) > Number(b.allocated_amount)).length;
 
-  function getBarColor(used: number, allocated: number) {
+  function barColor(used: number, allocated: number) {
     if (allocated === 0) return "#9CA3AF";
-    const pct = used / allocated;
-    if (pct > 1) return "#DC2626";
-    if (pct >= 0.8) return "#D97706";
-    return "#16A34A";
+    const p = used / allocated;
+    return p > 1 ? "#DC2626" : p >= 0.8 ? "#D97706" : "#16A34A";
   }
 
   return (
     <div className="space-y-6 pb-8">
-      {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-[20px] font-extrabold text-[var(--text-strong)]">Budget Management</h2>
-          <p className="text-[13px] text-[var(--text-muted)] mt-0.5">Allocate and track spending across budget categories</p>
+          <h2 className="text-[22px] font-extrabold text-[var(--text-strong)]">Budget Management</h2>
+          <p className="text-[14px] text-[var(--text-muted)] mt-0.5">Allocate and track spending across budget categories</p>
         </div>
         <button onClick={openNew}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold text-white shadow-sm hover:opacity-90 transition-opacity"
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[14px] font-bold text-white shadow-sm hover:opacity-90 transition-opacity"
           style={{ background: GRADIENT }}>
-          <PlusCircle size={15} /> New Budget
+          <PlusCircle size={16} /> New Budget
         </button>
       </div>
 
       {tableNotReady && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
-          <p className="font-semibold text-amber-800 text-[14px]">Finance Module Setup Required</p>
-          <p className="text-[13px] text-amber-700 mt-1">Run the SQL migration first to enable this feature.</p>
-          <a href="/finance/setup" className="text-[12px] font-semibold text-amber-800 underline mt-2 inline-block">View setup instructions →</a>
+          <p className="font-bold text-amber-800 text-[15px]">Finance Module Setup Required</p>
+          <a href="/finance/setup" className="text-[13px] font-semibold text-amber-800 underline mt-1 inline-block">View setup →</a>
         </div>
       )}
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-4">
         {[
-          { label: "Total Allocated", value: formatCurrency(totalAllocated), sub: `${budgets.length} budgets`, icon: Target, iconBg: "#EEF2FF", iconColor: BRAND },
-          { label: "Total Used", value: formatCurrency(totalUsed), sub: `${Math.round(totalAllocated > 0 ? (totalUsed / totalAllocated) * 100 : 0)}% of budget`, icon: BarChart2, iconBg: "#F0FDF4", iconColor: "#16A34A" },
-          { label: "Over Budget", value: overBudgetCount.toString(), sub: "categories exceeded", icon: AlertTriangle, iconBg: "#FEF2F2", iconColor: "#DC2626" },
-        ].map(card => (
-          <div key={card.label} className="bg-white rounded-2xl border border-[var(--border)] p-5 shadow-[0_1px_6px_rgba(0,0,0,0.05)] flex items-start gap-4">
-            <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: card.iconBg }}>
-              <card.icon size={20} style={{ color: card.iconColor }} />
+          { label: "Total Allocated", value: formatCurrency(totalAllocated), sub: `${budgets.length} budgets`, icon: Target, bg: "#EEF2FF", color: BRAND },
+          { label: "Total Used", value: formatCurrency(totalUsed), sub: `${Math.round(totalAllocated > 0 ? (totalUsed / totalAllocated) * 100 : 0)}% of budget`, icon: BarChart2, bg: "#F0FDF4", color: "#16A34A" },
+          { label: "Over Budget", value: overBudgetCount.toString(), sub: "categories exceeded", icon: AlertTriangle, bg: "#FEF2F2", color: "#DC2626" },
+        ].map(c => (
+          <div key={c.label} className="bg-white rounded-2xl border border-[var(--border)] p-5 shadow-[0_1px_6px_rgba(0,0,0,0.05)] flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: c.bg }}>
+              <c.icon size={22} style={{ color: c.color }} />
             </div>
             <div>
-              <p className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wide">{card.label}</p>
-              <p className="text-[22px] font-extrabold text-[var(--text-strong)] leading-tight mt-0.5">{card.value}</p>
-              <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{card.sub}</p>
+              <p className="text-[12px] font-semibold text-[var(--text-muted)] uppercase tracking-wide">{c.label}</p>
+              <p className="text-[24px] font-extrabold text-[var(--text-strong)] leading-tight">{c.value}</p>
+              <p className="text-[12px] text-[var(--text-muted)]">{c.sub}</p>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Budget Cards Grid */}
+      {/* Budget Cards */}
       {loading ? (
-        <div className="py-12 text-center text-[13px] text-[var(--text-muted)]">Loading budgets…</div>
+        <div className="py-12 text-center text-[14px] text-[var(--text-muted)]">Loading budgets…</div>
       ) : budgets.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-[var(--border)] p-12 text-center shadow-[0_1px_6px_rgba(0,0,0,0.05)]">
-          <DollarSign size={32} className="mx-auto mb-3 opacity-20 text-[var(--text-muted)]" />
-          <p className="text-[14px] font-semibold text-[var(--text-muted)]">No budgets yet</p>
-          <p className="text-[12px] text-[var(--text-muted)] mt-1">Create your first budget to track spending</p>
-          <button onClick={openNew} className="mt-4 px-4 py-2 rounded-xl text-[13px] font-bold text-white" style={{ background: GRADIENT }}>
+        <div className="bg-white rounded-2xl border border-[var(--border)] p-16 text-center shadow-[0_1px_6px_rgba(0,0,0,0.05)]">
+          <DollarSign size={36} className="mx-auto mb-3 opacity-20 text-[var(--text-muted)]" />
+          <p className="text-[16px] font-bold text-[var(--text-muted)]">No budgets yet</p>
+          <p className="text-[13px] text-[var(--text-muted)] mt-1">Create your first budget to track spending</p>
+          <button onClick={openNew} className="mt-5 px-5 py-2.5 rounded-xl text-[14px] font-bold text-white" style={{ background: GRADIENT }}>
             Create Budget
           </button>
         </div>
@@ -173,107 +161,104 @@ export default function BudgetPage() {
             const used = Number(b.used_amount);
             const pct = allocated > 0 ? Math.min(Math.round((used / allocated) * 100), 100) : 0;
             const isOver = used > allocated;
-            const barColor = getBarColor(used, allocated);
+            const color = barColor(used, allocated);
 
             return (
-              <div key={b.id} className="bg-white rounded-2xl border border-[var(--border)] shadow-[0_1px_6px_rgba(0,0,0,0.05)] p-5 flex flex-col gap-3">
+              <div key={b.id} className="bg-white rounded-2xl border border-[var(--border)] shadow-[0_1px_6px_rgba(0,0,0,0.05)] p-5 flex flex-col gap-4">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-[14px] font-bold text-[var(--text-strong)] truncate">{b.budget_name}</h3>
+                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                      <h3 className="text-[15px] font-bold text-[var(--text-strong)] truncate">{b.budget_name}</h3>
                       {isOver && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-white bg-red-600 px-2 py-0.5 rounded-full">
-                          <AlertTriangle size={10} /> OVER BUDGET
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-white bg-red-500 px-2 py-0.5 rounded-full shrink-0">
+                          <AlertTriangle size={9} /> OVER
                         </span>
                       )}
                     </div>
-                    <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{b.category}</p>
+                    <p className="text-[12px] text-[var(--text-muted)]">{b.category}</p>
+                    <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{formatDate(b.period_start)} – {formatDate(b.period_end)}</p>
                   </div>
                   <button onClick={() => openEdit(b)}
-                    className="text-[11px] font-semibold px-2 py-1 rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:border-[#262262] hover:text-[#262262] transition-colors shrink-0">
-                    Edit
+                    className="w-8 h-8 flex items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] hover:border-[#262262] hover:text-[#262262] transition-colors shrink-0">
+                    <Pencil size={13} />
                   </button>
                 </div>
 
-                <div className="text-[11px] text-[var(--text-muted)]">
-                  {formatDate(b.period_start)} – {formatDate(b.period_end)}
-                </div>
-
                 <div>
-                  <div className="flex justify-between mb-1.5">
-                    <span className="text-[11px] text-[var(--text-muted)]">Used: <strong style={{ color: barColor }}>{formatCurrency(used)}</strong></span>
-                    <span className="text-[11px] font-bold" style={{ color: barColor }}>{isOver ? `+${Math.round(((used - allocated) / allocated) * 100)}%` : `${pct}%`}</span>
+                  <div className="flex justify-between mb-2">
+                    <div>
+                      <p className="text-[11px] text-[var(--text-muted)]">Used</p>
+                      <p className="text-[18px] font-extrabold" style={{ color }}>{formatCurrency(used)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[11px] text-[var(--text-muted)]">Allocated</p>
+                      <p className="text-[18px] font-extrabold text-[var(--text-strong)]">{formatCurrency(allocated)}</p>
+                    </div>
                   </div>
-                  <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full transition-all duration-500"
-                      style={{ width: `${Math.min(pct, 100)}%`, background: barColor }} />
+                  <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(pct, 100)}%`, background: color }} />
                   </div>
-                  <div className="flex justify-between mt-1.5">
-                    <span className="text-[10px] text-[var(--text-muted)]">GH₵ 0</span>
-                    <span className="text-[10px] font-semibold text-[var(--text-muted)]">Allocated: {formatCurrency(allocated)}</span>
-                  </div>
+                  <p className="text-right text-[12px] font-bold mt-1" style={{ color }}>
+                    {isOver ? `${Math.round(((used - allocated) / allocated) * 100)}% over` : `${pct}% used`}
+                  </p>
                 </div>
 
-                {b.notes && <p className="text-[11px] text-[var(--text-muted)] italic border-t border-[var(--border)] pt-2">{b.notes}</p>}
+                {b.notes && <p className="text-[12px] text-[var(--text-muted)] italic border-t border-[var(--border)] pt-3">{b.notes}</p>}
               </div>
             );
           })}
         </div>
       )}
 
-      {/* Form Modal */}
-      <Modal open={showForm} onClose={() => setShowForm(false)}
+      {/* Form Panel */}
+      <SlidePanel open={showForm} onClose={() => setShowForm(false)}
         title={editBudget ? "Edit Budget" : "New Budget"}
         subtitle={editBudget ? "Update budget allocation" : "Create a new spending budget"}
-        size="md">
-        <form onSubmit={handleSubmit} className="space-y-4">
+        width="md">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-[12px] font-semibold text-[var(--text-muted)] mb-1.5">Budget Name *</label>
-            <input required value={form.budget_name} onChange={e => setForm(f => ({ ...f, budget_name: e.target.value }))} placeholder="e.g. Term 1 Stationery"
-              className="h-10 w-full rounded-xl border border-[var(--border)] bg-white px-3 text-[13px] outline-none focus:border-[#262262]" />
+            <FieldLabel>Budget Name *</FieldLabel>
+            <FormInput required value={form.budget_name} onChange={e => setForm(f => ({ ...f, budget_name: e.target.value }))} placeholder="e.g. Term 1 Stationery" />
           </div>
           <div>
-            <label className="block text-[12px] font-semibold text-[var(--text-muted)] mb-1.5">Category *</label>
+            <FieldLabel>Category *</FieldLabel>
             <select required value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-              className="h-10 w-full rounded-xl border border-[var(--border)] bg-white px-3 text-[13px] outline-none focus:border-[#262262]">
+              className="h-11 w-full rounded-xl border border-[var(--border)] bg-white px-4 text-[14px] outline-none focus:border-[#262262] focus:ring-2 focus:ring-[#262262]/10 cursor-pointer">
               {CATEGORIES.map(c => <option key={c}>{c}</option>)}
             </select>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[12px] font-semibold text-[var(--text-muted)] mb-1.5">Period Start *</label>
-              <input type="date" required value={form.period_start} onChange={e => setForm(f => ({ ...f, period_start: e.target.value }))}
-                className="h-10 w-full rounded-xl border border-[var(--border)] bg-white px-3 text-[13px] outline-none focus:border-[#262262]" />
+              <FieldLabel>Period Start *</FieldLabel>
+              <FormInput type="date" required value={form.period_start} onChange={e => setForm(f => ({ ...f, period_start: e.target.value }))} />
             </div>
             <div>
-              <label className="block text-[12px] font-semibold text-[var(--text-muted)] mb-1.5">Period End *</label>
-              <input type="date" required value={form.period_end} onChange={e => setForm(f => ({ ...f, period_end: e.target.value }))}
-                className="h-10 w-full rounded-xl border border-[var(--border)] bg-white px-3 text-[13px] outline-none focus:border-[#262262]" />
+              <FieldLabel>Period End *</FieldLabel>
+              <FormInput type="date" required value={form.period_end} onChange={e => setForm(f => ({ ...f, period_end: e.target.value }))} />
             </div>
           </div>
           <div>
-            <label className="block text-[12px] font-semibold text-[var(--text-muted)] mb-1.5">Allocated Amount (GHS) *</label>
-            <input type="number" min="0.01" step="0.01" required value={form.allocated_amount} onChange={e => setForm(f => ({ ...f, allocated_amount: e.target.value }))} placeholder="0.00"
-              className="h-10 w-full rounded-xl border border-[var(--border)] bg-white px-3 text-[13px] outline-none focus:border-[#262262]" />
+            <FieldLabel>Allocated Amount (GHS) *</FieldLabel>
+            <FormInput type="number" min="0.01" step="0.01" required value={form.allocated_amount} onChange={e => setForm(f => ({ ...f, allocated_amount: e.target.value }))} placeholder="0.00" />
           </div>
           <div>
-            <label className="block text-[12px] font-semibold text-[var(--text-muted)] mb-1.5">Notes</label>
-            <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2} placeholder="Optional notes…"
-              className="w-full rounded-xl border border-[var(--border)] bg-white px-3 py-2 text-[13px] outline-none focus:border-[#262262] resize-none" />
+            <FieldLabel>Notes</FieldLabel>
+            <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} placeholder="Optional notes…"
+              className="w-full rounded-xl border border-[var(--border)] bg-white px-4 py-3 text-[14px] outline-none focus:border-[#262262] resize-none transition-all" />
           </div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={() => setShowForm(false)}
-              className="flex-1 h-10 rounded-xl border border-[var(--border)] text-[13px] font-semibold text-[var(--text-muted)] hover:bg-[var(--neutral-50)]">
+              className="flex-1 h-11 rounded-xl border border-[var(--border)] text-[14px] font-semibold text-[var(--text-muted)] hover:bg-[var(--neutral-50)] transition-colors">
               Cancel
             </button>
             <button type="submit" disabled={submitting}
-              className="flex-1 h-10 rounded-xl text-[13px] font-bold text-white disabled:opacity-60"
+              className="flex-1 h-11 rounded-xl text-[14px] font-bold text-white disabled:opacity-60 hover:opacity-90 transition-opacity"
               style={{ background: GRADIENT }}>
               {submitting ? "Saving…" : editBudget ? "Update Budget" : "Create Budget"}
             </button>
           </div>
         </form>
-      </Modal>
+      </SlidePanel>
     </div>
   );
 }
