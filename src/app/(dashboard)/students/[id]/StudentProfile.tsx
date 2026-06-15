@@ -201,8 +201,10 @@ export function StudentProfile({
 
   // ── Summary stats ──────────────────────────────────────────────
   // Use wallet data (new ERP system) if available; fallback to old fee_payments
+  const walletBilled  = wallet ? Number(wallet.total_billed ?? 0) : null;
+  const hasBeenBilled = walletBilled !== null ? walletBilled > 0 : fees.some(f=>f.amount_due>0);
   const walletBalance = wallet
-    ? Math.max(0, Number(wallet.total_billed ?? 0) - Number(wallet.total_paid ?? 0) - Number(wallet.total_waived ?? 0))
+    ? Number(wallet.total_billed ?? 0) - Number(wallet.total_paid ?? 0) - Number(wallet.total_waived ?? 0)
     : null;
   const totalDue  = fees.reduce((s,f)=>s+f.amount_due,0);
   const totalPaid = fees.reduce((s,f)=>s+f.amount_paid,0);
@@ -693,10 +695,14 @@ export function StudentProfile({
                   </div>
                 )}
                 {canFinance && (
-                  <div className={`flex items-center gap-1.5 backdrop-blur-sm rounded-xl px-3 py-1.5 ${balance>0?"bg-red-500/20 ring-1 ring-red-400/30":"bg-white/10"}`}>
+                  <div className={`flex items-center gap-1.5 backdrop-blur-sm rounded-xl px-3 py-1.5 ${!hasBeenBilled?"bg-white/10":balance>0?"bg-red-500/20 ring-1 ring-red-400/30":"bg-white/10"}`}>
                     <CreditCard className="w-3.5 h-3.5 text-white/60" />
-                    <span className={`text-[11px] font-semibold ${balance>0?"text-red-200":"text-white/60"}`}>{balance>0?"Outstanding":"Cleared"}</span>
-                    <span className={`text-[13px] font-extrabold ml-0.5 ${balance>0?"text-red-300":"text-green-300"}`}>{formatCurrency(balance)}</span>
+                    <span className={`text-[11px] font-semibold ${!hasBeenBilled?"text-white/60":balance>0?"text-red-200":"text-white/60"}`}>
+                      {!hasBeenBilled ? "Fees" : balance>0 ? "Outstanding" : "Cleared"}
+                    </span>
+                    <span className={`text-[13px] font-extrabold ml-0.5 ${!hasBeenBilled?"text-white/50":balance>0?"text-red-300":"text-green-300"}`}>
+                      {!hasBeenBilled ? "—" : balance>0 ? `−${formatCurrency(balance)}` : formatCurrency(0)}
+                    </span>
                   </div>
                 )}
                 <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm rounded-xl px-3 py-1.5">
@@ -814,8 +820,8 @@ export function StudentProfile({
                   ["Notes", student.medical_notes ?? "—"],
                 ].map(([l,v]) => (
                   <div key={l}>
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-0.5">{l}</p>
-                    <p className="text-sm text-gray-800 font-medium capitalize">{v as string}</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1">{l}</p>
+                    <p className="text-[15px] text-gray-900 font-semibold capitalize">{v as string}</p>
                   </div>
                 ))}
               </div>
@@ -853,8 +859,8 @@ export function StudentProfile({
                   ["Previous Class", (student as never as Record<string,string>).previous_class ?? "—"],
                 ].map(([l,v]) => (
                   <div key={l}>
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-0.5">{l}</p>
-                    <p className="text-sm text-gray-800 font-medium capitalize">{v as string}</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1">{l}</p>
+                    <p className="text-[15px] text-gray-900 font-semibold capitalize">{v as string}</p>
                   </div>
                 ))}
               </div>
@@ -925,8 +931,8 @@ export function StudentProfile({
                         ["Digital Address", (p as unknown as Record<string,string>).digital_address ?? "—"],
                       ].map(([l,v]) => (
                         <div key={l}>
-                          <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{l}</p>
-                          <p className="text-sm text-gray-800">{v as string}</p>
+                          <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1">{l}</p>
+                          <p className="text-[15px] text-gray-900 font-semibold">{v as string}</p>
                         </div>
                       ))}
                     </div>
@@ -1003,8 +1009,8 @@ export function StudentProfile({
                   ["Special Needs", medical?.special_needs ?? "None recorded"],
                 ].map(([l,v]) => (
                   <div key={l}>
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-0.5">{l}</p>
-                    <p className="text-sm text-gray-800">{v as string}</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1">{l}</p>
+                    <p className="text-[15px] text-gray-900 font-semibold">{v as string}</p>
                   </div>
                 ))}
               </div>
@@ -1183,12 +1189,13 @@ export function StudentProfile({
           </div>
         )}
         {tab==="finance" && canFinance && (() => {
-          const walletBilled      = Number(wallet?.total_billed ?? 0);
-          const walletPaid        = Number(wallet?.total_paid ?? 0);
-          const walletWaived      = Number(wallet?.total_waived ?? 0);
-          const walletOutstanding = Math.max(0, walletBilled - walletPaid - walletWaived);
-          const hasWallet         = !!wallet;
-          const collectionRate    = walletBilled > 0 ? Math.round((walletPaid / walletBilled) * 100) : 0;
+          const wBilled      = Number(wallet?.total_billed ?? 0);
+          const wPaid        = Number(wallet?.total_paid ?? 0);
+          const wWaived      = Number(wallet?.total_waived ?? 0);
+          const wOutstanding = wBilled - wPaid - wWaived;
+          const hasWallet    = !!wallet;
+          const notYetBilled = hasWallet && wBilled === 0;
+          const collectionRate = wBilled > 0 ? Math.round((wPaid / wBilled) * 100) : 0;
           return (
             <div className="space-y-5">
               {/* Wallet balance banner */}
@@ -1199,32 +1206,32 @@ export function StudentProfile({
                       <p className="text-white/70 text-[11px] font-semibold uppercase tracking-wider mb-1">
                         Wallet · {wallet.wallet_number}
                       </p>
-                      <p className={`text-[32px] font-extrabold leading-none ${walletOutstanding > 0 ? "text-red-300" : "text-green-300"}`}>
-                        {walletOutstanding > 0 ? `−${formatCurrency(walletOutstanding)}` : "Cleared"}
+                      <p className={`text-[32px] font-extrabold leading-none ${notYetBilled ? "text-white/40" : wOutstanding > 0 ? "text-red-300" : "text-green-300"}`}>
+                        {notYetBilled ? "—" : wOutstanding > 0 ? `−${formatCurrency(wOutstanding)}` : "Cleared"}
                       </p>
                       <p className="text-white/60 text-[12px] mt-1">
-                        {walletOutstanding > 0 ? "Outstanding balance" : "No outstanding balance"}
+                        {notYetBilled ? "Not yet billed" : wOutstanding > 0 ? "Outstanding balance" : "No outstanding balance"}
                       </p>
                     </div>
                     <div className="flex gap-6">
                       <div className="text-right">
                         <p className="text-white/60 text-[10px] uppercase font-semibold">Total Billed</p>
-                        <p className="text-white font-bold text-[15px]">{formatCurrency(walletBilled)}</p>
+                        <p className="text-white font-bold text-[15px]">{wBilled > 0 ? formatCurrency(wBilled) : "—"}</p>
                       </div>
                       <div className="text-right">
                         <p className="text-white/60 text-[10px] uppercase font-semibold">Paid</p>
-                        <p className="text-green-300 font-bold text-[15px]">{formatCurrency(walletPaid)}</p>
+                        <p className="text-green-300 font-bold text-[15px]">{wPaid > 0 ? formatCurrency(wPaid) : "—"}</p>
                       </div>
-                      {walletWaived > 0 && (
+                      {wWaived > 0 && (
                         <div className="text-right">
                           <p className="text-white/60 text-[10px] uppercase font-semibold">Waived</p>
-                          <p className="text-purple-300 font-bold text-[15px]">{formatCurrency(walletWaived)}</p>
+                          <p className="text-purple-300 font-bold text-[15px]">{formatCurrency(wWaived)}</p>
                         </div>
                       )}
                     </div>
                   </div>
                   {/* Collection progress */}
-                  {walletBilled > 0 && (
+                  {wBilled > 0 && (
                     <div className="mt-4">
                       <div className="flex justify-between text-[11px] text-white/60 mb-1">
                         <span>Collection progress</span>

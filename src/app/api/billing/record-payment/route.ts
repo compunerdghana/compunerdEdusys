@@ -71,22 +71,51 @@ export async function POST(req: NextRequest) {
       }).eq("id", inv.id);
     }
 
-    // ── 5. Update wallet ───────────────────────────────────────────
-    const { data: wallet } = await admin.from("student_wallets")
+    // ── 5. Update wallet (create if not exists) ────────────────────
+    let { data: wallet } = await admin.from("student_wallets")
       .select("*")
       .eq("student_id", student_id)
       .maybeSingle();
 
-    if (wallet) {
+    if (!wallet) {
+      // Auto-create wallet so payments always get credited
+      const walletNum = `W-${Date.now().toString().slice(-8)}`;
+      const { data: created } = await admin.from("student_wallets").insert({
+        student_id,
+        school_id,
+        wallet_number: walletNum,
+        total_billed: 0,
+        total_paid: payAmt,
+        total_waived: 0,
+        total_discounts: 0,
+        current_balance: payAmt,
+      }).select("*").single();
+      wallet = created;
+
+      if (wallet) {
+        await admin.from("wallet_transactions").insert({
+          wallet_id: wallet.id,
+          school_id,
+          student_id,
+          type: "credit",
+          category: "payment",
+          amount: payAmt,
+          balance_after: payAmt,
+          reference: receiptNumber,
+          description: `Payment received — ${receiptNumber}`,
+          invoice_id: inv?.id ?? null,
+          recorded_by: recorded_by ?? null,
+        });
+      }
+    } else {
       const newTotalPaid = Number(wallet.total_paid) + payAmt;
-      const newBalance = Number(wallet.total_billed) - newTotalPaid - Number(wallet.total_waived) - Number(wallet.total_discounts);
+      const newBalance = Number(wallet.total_billed) - newTotalPaid - Number(wallet.total_waived) - Number(wallet.total_discounts ?? 0);
       await admin.from("student_wallets").update({
         total_paid: newTotalPaid,
         current_balance: -newBalance,
         updated_at: new Date().toISOString(),
       }).eq("id", wallet.id);
 
-      // Wallet transaction
       await admin.from("wallet_transactions").insert({
         wallet_id: wallet.id,
         school_id,
