@@ -1,5 +1,6 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
+import { PhotoCropModal } from "@/components/ui/PhotoCropModal";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -123,6 +124,8 @@ export function StudentProfile({
   const [photoPreview, setPhotoPreview] = useState<string>(initial.photo_url ?? "");
   const photoRef = useRef<HTMLInputElement>(null);
   const docRef   = useRef<HTMLInputElement>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [pendingPhotoFile, setPendingPhotoFile] = useState<File | null>(null);
 
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [confirmDeleteType, setConfirmDeleteType] = useState<"parent"|"doc"|"disc"|"award">("parent");
@@ -239,19 +242,29 @@ export function StudentProfile({
   })();
 
   // ── Handlers ───────────────────────────────────────────────────
-  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
-    setPhotoPreview(URL.createObjectURL(f));
-    const ext = f.name.split(".").pop();
-    const path = `students/${student.id}-photo.${ext}`;
-    const { error } = await supabase.storage.from("school-assets").upload(path, f, { upsert: true });
+    setPendingPhotoFile(f);
+    setCropSrc(URL.createObjectURL(f));
+    e.target.value = "";
+  }
+
+  const handleCropConfirm = useCallback(async (blob: Blob) => {
+    setCropSrc(null);
+    const f = pendingPhotoFile;
+    setPendingPhotoFile(null);
+    const ext = f?.name.split(".").pop() ?? "jpg";
+    const path = `students/${student.id}-photo-${Date.now()}.${ext}`;
+    const preview = URL.createObjectURL(blob);
+    setPhotoPreview(preview);
+    const { error } = await supabase.storage.from("school-assets").upload(path, blob, { upsert: true, contentType: "image/jpeg" });
     if (!error) {
       const { data } = supabase.storage.from("school-assets").getPublicUrl(path);
       await supabase.from("students").update({ photo_url: data.publicUrl }).eq("id", student.id);
       setPhotoPreview(data.publicUrl);
     }
-  }
+  }, [pendingPhotoFile, student.id, supabase]);
 
   async function saveEdit() {
     setSaving(true);
@@ -436,60 +449,205 @@ export function StudentProfile({
 
   async function exportPDF() {
     const { default: jsPDF } = await import("jspdf");
-    const doc = new jsPDF();
-    doc.setFillColor(38,34,98);
-    doc.rect(0,0,210,32,"F");
-    doc.setTextColor(255,255,255);
-    doc.setFontSize(18); doc.setFont("helvetica","bold");
-    doc.text("Student Profile", 14, 14);
-    doc.setFontSize(10); doc.setFont("helvetica","normal");
-    doc.text(`Generated ${new Date().toLocaleDateString("en-GH")}`, 14, 22);
-    let y = 44;
-    doc.setTextColor(0,0,0);
-    doc.setFontSize(15); doc.setFont("helvetica","bold");
-    doc.text(fullName, 14, y); y += 8;
-    doc.setFontSize(10); doc.setFont("helvetica","normal");
-    doc.setTextColor(100,100,100);
-    doc.text(`${student.admission_number} · ${student.classrooms?.name ?? "No class"} · ${student.status}`, 14, y); y += 10;
-    doc.setTextColor(0,0,0);
-    const fields: [string,string][] = [
-      ["Admission No.", student.admission_number],
-      ["Gender", student.gender],
-      ["Date of Birth", student.date_of_birth ? formatDate(student.date_of_birth) : "—"],
-      ["Class", student.classrooms?.name ?? "—"],
-      ["Status", student.status],
-      ["Admission Date", formatDate(student.admission_date)],
-      ["Nationality", (student as never as Record<string,string>).nationality ?? "—"],
-      ["Blood Group", (student as never as Record<string,string>).blood_group ?? "—"],
-    ];
-    fields.forEach(([l,v]) => {
-      doc.setFont("helvetica","bold"); doc.setTextColor(80,80,80);
-      doc.text(l+":", 14, y);
-      doc.setFont("helvetica","normal"); doc.setTextColor(30,30,30);
-      doc.text(v, 70, y); y += 7;
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const M = 14; const PW = 182;
+
+    function header(title: string) {
+      doc.setFillColor(38,34,98); doc.rect(0,0,210,30,"F");
+      doc.setTextColor(255,255,255); doc.setFontSize(16); doc.setFont("helvetica","bold");
+      doc.text("Student Profile", M, 12);
+      doc.setFontSize(9); doc.setFont("helvetica","normal");
+      doc.text(`${title}  ·  ${fullName}  ·  ${student.admission_number}`, M, 20);
+      doc.setFontSize(8); doc.text(`Generated ${new Date().toLocaleDateString("en-GH")}`, 210-M, 20, { align:"right" });
+    }
+
+    function section(label: string, y: number): number {
+      doc.setFillColor(240,240,250); doc.rect(M, y, PW, 7, "F");
+      doc.setFontSize(9); doc.setFont("helvetica","bold"); doc.setTextColor(38,34,98);
+      doc.text(label.toUpperCase(), M+2, y+5); return y+10;
+    }
+
+    function row(label: string, value: string, y: number, indent=0): number {
+      doc.setFont("helvetica","bold"); doc.setTextColor(80,80,80); doc.setFontSize(9);
+      doc.text(label+":", M+indent, y);
+      doc.setFont("helvetica","normal"); doc.setTextColor(20,20,20);
+      const lines = doc.splitTextToSize(value || "—", PW-65);
+      doc.text(lines, M+60+indent, y);
+      return y + Math.max(6, lines.length*5);
+    }
+
+    function newPage(title: string) { doc.addPage(); header(title); return 38; }
+    function checkPage(y: number, title: string, threshold=250): number {
+      return y > threshold ? newPage(title) : y;
+    }
+
+    // ── PAGE 1: Bio Data ───────────────────────────────────────────
+    header("Bio Data"); let y = 38;
+    const s = student as never as Record<string,string>;
+    y = section("Personal Information", y);
+    y = row("Full Name", fullName, y);
+    y = row("Admission No.", student.admission_number, y);
+    y = row("Gender", student.gender, y);
+    y = row("Date of Birth", student.date_of_birth ? formatDate(student.date_of_birth) : "—", y);
+    y = row("Class", student.classrooms?.name ?? "—", y);
+    y = row("Status", student.status, y);
+    y = row("Nationality", s.nationality || "Ghanaian", y);
+    y = row("Place of Birth", s.place_of_birth || "—", y);
+    y = row("Religion", s.religion || "—", y);
+    y = row("Blood Group", s.blood_group || "—", y);
+    y += 4;
+    y = section("Admission", y);
+    y = row("Admission Date", formatDate(student.admission_date), y);
+    y = row("Admission Type", s.admission_type || "—", y);
+    y = row("Previous School", student.previous_school || "—", y);
+    y = row("Previous Class", s.previous_class || "—", y);
+
+    // ── PAGE 2: Parents/Guardians ───────────────────────────────────
+    y = newPage("Parents / Guardians");
+    if (parents.length === 0) { doc.setFontSize(10); doc.setTextColor(120,120,120); doc.text("No parents/guardians on record.", M, y); }
+    parents.forEach((p, i) => {
+      y = checkPage(y, "Parents / Guardians");
+      y = section(`${p.relationship} ${i+1}: ${p.full_name}`, y);
+      y = row("Phone", p.phone || "—", y);
+      y = row("Email", (p as never as Record<string,string>).email || "—", y);
+      y = row("Occupation", (p as never as Record<string,string>).occupation || "—", y);
+      y = row("Address", (p as never as Record<string,string>).address || "—", y);
+      y += 3;
     });
-    doc.save(`student_${student.admission_number}.pdf`);
+
+    // ── PAGE 3: Medical ────────────────────────────────────────────
+    y = newPage("Medical");
+    const med = medical as Record<string,string> | null;
+    y = section("Medical Information", y);
+    y = row("Blood Group", med?.blood_group || s.blood_group || "—", y);
+    y = row("Allergies", med?.allergies || "—", y);
+    y = row("Medical Conditions", med?.conditions || student.medical_notes || "—", y);
+    y = row("Medications", med?.medications || "—", y);
+    y = row("Doctor Name", med?.doctor_name || "—", y);
+    y = row("Doctor Phone", med?.doctor_phone || "—", y);
+
+    // ── PAGE 4: Academic ───────────────────────────────────────────
+    y = newPage("Academic Performance");
+    if (scores.length === 0) { doc.setFontSize(10); doc.setTextColor(120,120,120); doc.text("No exam scores recorded.", M, y); }
+    else {
+      const byTerm: Record<string, typeof scores> = {};
+      scores.forEach(sc => { const t = sc.terms?.name ?? "N/A"; (byTerm[t] ??= []).push(sc); });
+      Object.entries(byTerm).forEach(([term, list]) => {
+        y = checkPage(y, "Academic Performance", 240);
+        y = section(term, y);
+        list.forEach(sc => {
+          y = checkPage(y, "Academic Performance", 270);
+          doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(30,30,30);
+          doc.text(`${sc.subjects?.name ?? "Subject"}`, M+2, y);
+          doc.text(`${sc.total ?? "—"}%`, M+PW-10, y, { align:"right" });
+          y += 5.5;
+        });
+        y += 2;
+      });
+    }
+
+    // ── PAGE 5: Attendance ─────────────────────────────────────────
+    y = newPage("Attendance");
+    y = section("Summary", y);
+    y = row("Total Days", `${attendance.length}`, y);
+    y = row("Present", `${present} (${attRate ?? "—"}%)`, y);
+    y = row("Absent", `${absent}`, y);
+    y = row("Late", `${late}`, y);
+    y += 6;
+    if (attendance.length > 0) {
+      y = section("Attendance Log (last 30)", y);
+      attendance.slice(0,30).forEach(a => {
+        y = checkPage(y, "Attendance", 270);
+        doc.setFont("helvetica","normal"); doc.setFontSize(8.5); doc.setTextColor(40,40,40);
+        doc.text(a.date, M+2, y);
+        doc.setTextColor(a.status==="present"?0:a.status==="absent"?180:130, a.status==="present"?130:0, 0);
+        doc.text(a.status.charAt(0).toUpperCase()+a.status.slice(1), M+40, y);
+        doc.setTextColor(40,40,40);
+        y += 5;
+      });
+    }
+
+    // ── PAGE 6: Finance ────────────────────────────────────────────
+    if (canFinance) {
+      y = newPage("Finance");
+      const wb = wallet as Record<string,number> | null;
+      y = section("Wallet Summary", y);
+      y = row("Total Billed", wb ? formatCurrency(Number(wb.total_billed)) : "—", y);
+      y = row("Total Paid", wb ? formatCurrency(Number(wb.total_paid)) : "—", y);
+      y = row("Waived", wb ? formatCurrency(Number(wb.total_waived)) : "—", y);
+      const outstanding = wb ? Math.max(0, Number(wb.total_billed)-Number(wb.total_paid)-Number(wb.total_waived)) : 0;
+      y = row("Outstanding", outstanding > 0 ? `OUTSTANDING: ${formatCurrency(outstanding)}` : "Cleared", y);
+      y += 6;
+      if (invoices.length > 0) {
+        y = section("Invoices", y);
+        invoices.forEach((inv: Record<string,unknown>) => {
+          y = checkPage(y, "Finance", 265);
+          const ivr = inv as Record<string, number | string | null>;
+          doc.setFont("helvetica","normal"); doc.setFontSize(8.5); doc.setTextColor(40,40,40);
+          doc.text(String(ivr.description ?? ivr.term_name ?? "Invoice"), M+2, y);
+          doc.text(String(ivr.status ?? ""), M+90, y);
+          doc.text(formatCurrency(Number(ivr.amount_due ?? 0)), M+PW-10, y, { align:"right" });
+          y += 5.5;
+        });
+      }
+    }
+
+    // ── PAGE 7: Discipline & Awards ─────────────────────────────────
+    y = newPage("Discipline & Awards");
+    y = section(`Discipline Records (${discipline.length})`, y);
+    if (discipline.length===0) { doc.setFontSize(9); doc.setTextColor(120,120,120); doc.text("No incidents recorded.", M+2, y); y+=8; }
+    else discipline.slice(0,15).forEach(d => {
+      y = checkPage(y, "Discipline & Awards", 265);
+      const dr = d as Record<string,string>;
+      doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(30,30,30);
+      doc.text(`${dr.incident_type || "Incident"}`, M+2, y);
+      doc.setFont("helvetica","normal"); doc.setTextColor(80,80,80);
+      doc.text(`${dr.incident_date || ""}  ${dr.action_taken || ""}`, M+60, y);
+      y += 5.5;
+    });
+    y += 4;
+    y = section(`Awards & Recognition (${awards.length})`, y);
+    if (awards.length===0) { doc.setFontSize(9); doc.setTextColor(120,120,120); doc.text("No awards on record.", M+2, y); y+=8; }
+    else awards.forEach(a => {
+      y = checkPage(y, "Discipline & Awards", 265);
+      const ar = a as Record<string,string>;
+      doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(30,30,30);
+      doc.text(`${ar.title || ar.award_type || "Award"}`, M+2, y);
+      doc.setFont("helvetica","normal"); doc.setTextColor(80,80,80);
+      doc.text(`${ar.awarded_date || ""}`, M+80, y);
+      y += 5.5;
+    });
+
+    doc.save(`student_profile_${student.admission_number}.pdf`);
   }
 
   const statusStyle = STATUS_COLORS[student.status] ?? { bg:"#f3f4f6", text:"#374151" };
 
   return (
     <div className="min-h-screen bg-[var(--neutral-50)]">
+      {/* Photo crop modal */}
+      {cropSrc && (
+        <PhotoCropModal
+          src={cropSrc}
+          onConfirm={handleCropConfirm}
+          onCancel={() => { setCropSrc(null); setPendingPhotoFile(null); }}
+        />
+      )}
       {/* ── Hero Header ─────────────────────────────────────────── */}
-      <div className="relative overflow-hidden" style={{ background: "linear-gradient(135deg, #262262 0%, #3d1f6e 55%, #92278F 100%)" }}>
+      <div className="relative overflow-hidden" style={{ background: "linear-gradient(135deg, #3a3596 0%, #5e3b9e 50%, #9e3da0 100%)" }}>
         {/* Decorative blobs */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div style={{ position:"absolute", top:-40, right:-40, width:180, height:180, borderRadius:"50%", background:"rgba(255,255,255,0.05)" }} />
           <div style={{ position:"absolute", bottom:-30, left:60, width:120, height:120, borderRadius:"50%", background:"rgba(255,255,255,0.04)" }} />
         </div>
 
-        <div className="relative max-w-7xl mx-auto px-6 pt-4 pb-0">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 pt-4 pb-0">
           <button onClick={() => router.back()}
             className="flex items-center gap-1.5 text-[13px] text-white/60 hover:text-white mb-4 transition-colors">
             <ArrowLeft className="w-4 h-4" /> Back to Students
           </button>
 
-          <div className="flex items-end gap-5 pb-5">
+          <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 sm:gap-5 pb-5">
             {/* Photo */}
             <div className="relative flex-shrink-0">
               <div className="w-24 h-24 rounded-2xl overflow-hidden flex items-center justify-center text-white text-3xl font-black shadow-xl ring-4 ring-white/20"
@@ -536,9 +694,9 @@ export function StudentProfile({
                   </div>
                 )}
                 {canFinance && (
-                  <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm rounded-xl px-3 py-1.5">
+                  <div className={`flex items-center gap-1.5 backdrop-blur-sm rounded-xl px-3 py-1.5 ${balance>0?"bg-red-500/20 ring-1 ring-red-400/30":"bg-white/10"}`}>
                     <CreditCard className="w-3.5 h-3.5 text-white/60" />
-                    <span className="text-[11px] text-white/60">Balance</span>
+                    <span className={`text-[11px] font-semibold ${balance>0?"text-red-200":"text-white/60"}`}>{balance>0?"Outstanding":"Cleared"}</span>
                     <span className={`text-[13px] font-extrabold ml-0.5 ${balance>0?"text-red-300":"text-green-300"}`}>{formatCurrency(balance)}</span>
                   </div>
                 )}
@@ -584,7 +742,7 @@ export function StudentProfile({
         </div>
 
         {/* Tabs — float at bottom of header */}
-        <div className="max-w-7xl mx-auto px-6 overflow-x-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 overflow-x-auto scrollbar-hide">
           <div className="flex gap-0 min-w-max">
             {TABS.map(t => {
               const Icon = t.icon;
@@ -604,7 +762,7 @@ export function StudentProfile({
       </div>
 
       {/* ── Content ────────────────────────────────────────────── */}
-      <div className="max-w-7xl mx-auto px-6 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
 
         {/* BIO DATA */}
         {tab==="biodata" && (

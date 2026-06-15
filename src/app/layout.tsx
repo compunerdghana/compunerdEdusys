@@ -5,6 +5,13 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "CompunerdEduSys — School Management OS",
   description: "Offline-first school management system for Ghana & Africa by Compunerd Ghana",
+  icons: {
+    icon: [
+      { url: "/logo.svg", type: "image/svg+xml" },
+    ],
+    shortcut: "/logo.svg",
+    apple: "/logo.svg",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

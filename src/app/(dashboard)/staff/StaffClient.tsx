@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
+import { PhotoCropModal } from "@/components/ui/PhotoCropModal";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -62,6 +63,7 @@ export function StaffClient({ initialStaff, schoolId, isHeadmaster }: Props) {
   const [savingBio, setSavingBio] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const profilePhotoInputRef = useRef<HTMLInputElement>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
 
   function f(k: string, v: string) { setForm((p) => ({ ...p, [k]: v })); }
 
@@ -69,8 +71,16 @@ export function StaffClient({ initialStaff, schoolId, isHeadmaster }: Props) {
     const file = e.target.files?.[0];
     if (!file) return;
     setPhotoFile(file);
-    setPhotoPreview(URL.createObjectURL(file));
+    setCropSrc(URL.createObjectURL(file));
+    e.target.value = "";
   }
+
+  const handleCropConfirm = useCallback((blob: Blob) => {
+    const url = URL.createObjectURL(blob);
+    setPhotoPreview(url);
+    setPhotoFile(new File([blob], photoFile?.name ?? "photo.jpg", { type: "image/jpeg" }));
+    setCropSrc(null);
+  }, [photoFile]);
 
   async function uploadPhoto(staffId: string, file: File): Promise<string | null> {
     const supabase = createClient();
@@ -273,153 +283,85 @@ export function StaffClient({ initialStaff, schoolId, isHeadmaster }: Props) {
         </div>
       </div>
 
-      {/* Split layout */}
-      <div className="flex gap-4 items-start">
-        {/* Grid */}
-        <div className={`min-w-0 transition-all ${selected ? "flex-[2]" : "flex-1"}`}>
-          {filtered.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-[var(--border)] py-16 text-center">
-              <p className="text-[14px] font-semibold text-[var(--text-strong)]">No staff found</p>
-              <p className="text-[13px] text-[var(--text-muted)] mt-1">{search ? "Try a different search." : isHeadmaster ? 'Click "Add Staff" to get started.' : ""}</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-              {filtered.map((member) => {
-                const rs = ROLE_STYLE[member.role] ?? { bg: "#f3f4f6", text: "#374151" };
-                const isActive = selected?.id === member.id;
-                return (
-                  <div key={member.id} onClick={() => router.push(`/staff/${member.id}`)}
-                    className={`bg-white rounded-2xl border p-4 flex flex-col items-center gap-2 cursor-pointer hover:shadow-md transition-all ${isActive ? "border-[#262262] shadow-md" : "border-[var(--border)]"} ${!member.is_active ? "opacity-50" : ""}`}>
-                    {member.photo_url ? (
-                      <img src={member.photo_url} alt="" className="w-16 h-16 rounded-full object-cover" />
-                    ) : (
-                      <div className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold text-white"
-                        style={{ background: member.is_active ? "linear-gradient(135deg, #262262, #92278F)" : "#9ca3af" }}>
-                        {getInitials(member.full_name)}
-                      </div>
-                    )}
-                    <div className="text-center">
-                      <p className="text-[13px] font-bold text-[var(--text-strong)] leading-tight">{member.full_name}</p>
-                      <p className="text-[11px] text-[var(--text-muted)] mt-0.5">@{member.username}</p>
-                    </div>
-                    <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: rs.bg, color: rs.text }}>
-                      {ROLES.find((r) => r.value === member.role)?.label ?? member.role}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Right Profile Panel */}
-        {selected && (
-          <div className="w-72 shrink-0 bg-white rounded-2xl border border-[var(--border)] shadow-[0_2px_12px_rgba(0,0,0,0.06)] overflow-hidden sticky top-4">
-            {/* Actions bar */}
-            <div className="flex items-center justify-between px-4 pt-3 pb-1">
-              <p className="text-[11px] font-semibold text-[var(--text-muted)]">Teacher Profile</p>
-              <div className="flex gap-1">
-                {isHeadmaster && (
-                  <>
-                    <button onClick={() => { setEditingStaff(selected); setForm({ ...EMPTY, full_name: selected.full_name, username: selected.username, role: selected.role, phone: selected.phone ?? "" }); setErr(null); }}
-                      className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-[var(--neutral-100)] text-[var(--text-muted)]"><Pencil size={12} /></button>
-                    <button onClick={() => setConfirmDeactivate(selected)}
-                      className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-[var(--danger-bg)] text-[var(--text-muted)] hover:text-[var(--danger)]">
-                      {selected.is_active ? <UserX size={12} /> : <UserCheck size={12} />}
-                    </button>
-                  </>
-                )}
-                <button onClick={() => setSelected(null)} className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-[var(--neutral-100)] text-[var(--text-muted)]"><X size={14} /></button>
-              </div>
-            </div>
-
-            {/* Photo + name */}
-            <div className="flex flex-col items-center px-4 pb-4 pt-2">
-              <input ref={profilePhotoInputRef} type="file" accept="image/*" className="hidden" onChange={handleProfilePhotoChange} />
-              <button type="button" onClick={() => profilePhotoInputRef.current?.click()}
-                className="relative w-20 h-20 rounded-full overflow-hidden group" disabled={uploadingPhoto}>
-                {selected.photo_url ? (
-                  <img src={selected.photo_url} alt="" className="w-full h-full object-cover shadow-md" />
-                ) : (
-                  <div className="w-full h-full rounded-full flex items-center justify-center text-2xl font-bold text-white shadow-md"
-                    style={{ background: selected.is_active ? "linear-gradient(135deg, #262262, #92278F)" : "#9ca3af" }}>
-                    {getInitials(selected.full_name)}
-                  </div>
-                )}
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
-                  {uploadingPhoto
-                    ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    : <Camera size={16} className="text-white" />
-                  }
-                </div>
-              </button>
-              <h3 className="text-[15px] font-bold text-[var(--text-strong)] mt-3 text-center">{selected.full_name}</h3>
-              <p className="text-[12px] text-[var(--text-muted)]">@{selected.username}</p>
-              {(() => { const rs = ROLE_STYLE[selected.role] ?? { bg: "#f3f4f6", text: "#374151" }; return (
-                <span className="mt-1.5 flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: rs.bg, color: rs.text }}>
-                  <ShieldCheck size={10} /> {ROLES.find((r) => r.value === selected.role)?.label ?? selected.role}
-                </span>
-              ); })()}
-              {!selected.is_active && <span className="mt-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[var(--neutral-100)] text-[var(--text-muted)]">Inactive</span>}
-
-              {/* Contact icons */}
-              <div className="flex gap-2 mt-3">
-                {selected.phone && <a href={`tel:${selected.phone}`} className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "#ede9fe" }}><Phone size={13} className="text-[#5b21b6]" /></a>}
-                <button className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "#dbeafe" }}><Mail size={13} className="text-[#1e40af]" /></button>
-                <button className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "#d1fae5" }}><MessageSquare size={13} className="text-[#065f46]" /></button>
-              </div>
-            </div>
-
-            {/* About */}
-            <div className="border-t border-[var(--border)] px-4 py-3">
-              <div className="flex items-center justify-between mb-1.5">
-                <p className="text-[12px] font-bold text-[var(--text-strong)]">About</p>
-                {isHeadmaster && !editingBio && (
-                  <button onClick={() => { setEditingBio(true); setBioText(selected.bio ?? ""); }}
-                    className="w-5 h-5 flex items-center justify-center rounded hover:bg-[var(--neutral-100)] text-[var(--text-muted)]">
-                    <Pencil size={10} />
-                  </button>
-                )}
-              </div>
-              {editingBio ? (
-                <div className="space-y-2">
-                  <textarea value={bioText} onChange={(e) => setBioText(e.target.value)} rows={3}
-                    className="w-full text-[12px] rounded-lg border border-[var(--border)] p-2 outline-none focus:border-[var(--ring)] resize-none"
-                    placeholder="Write a short bio or notes about this staff member…" />
-                  <div className="flex gap-1.5">
-                    <button onClick={saveBio} disabled={savingBio}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-white"
-                      style={{ background: "linear-gradient(135deg,#262262,#92278F)" }}>
-                      {savingBio ? "Saving…" : <><Check size={10} /> Save</>}
-                    </button>
-                    <button onClick={() => setEditingBio(false)}
-                      className="px-2.5 py-1 rounded-lg text-[11px] font-semibold border border-[var(--border)] text-[var(--text-muted)]">Cancel</button>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-[12px] text-[var(--text-muted)] leading-relaxed">
-                  {selected.bio || `${selected.full_name} is a ${ROLES.find((r) => r.value === selected.role)?.label ?? selected.role} at this school.${selected.phone ? ` Reachable at ${selected.phone}.` : ""}`}
-                </p>
-              )}
-            </div>
-
-            {/* Details */}
-            <div className="border-t border-[var(--border)] px-4 py-3">
-              <p className="text-[12px] font-bold text-[var(--text-strong)] mb-2">Details</p>
-              <div className="grid grid-cols-2 gap-3 text-[12px]">
-                <div><p className="text-[var(--text-muted)]">Username</p><p className="font-bold text-[var(--text-strong)]">@{selected.username}</p></div>
-                <div><p className="text-[var(--text-muted)]">Status</p><p className="font-bold text-[var(--text-strong)] capitalize">{selected.is_active ? "Active" : "Inactive"}</p></div>
-                <div><p className="text-[var(--text-muted)]">Joined</p><p className="font-bold text-[var(--text-strong)]">{formatDate(selected.created_at)}</p></div>
-                {selected.phone && <div><p className="text-[var(--text-muted)]">Phone</p><p className="font-bold text-[var(--text-strong)]">{selected.phone}</p></div>}
-              </div>
-              <button onClick={() => exportStaffPDF(selected)}
-                className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-[12px] font-semibold border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--neutral-50)] transition-colors">
-                <FileDown size={13} /> Export PDF
-              </button>
-            </div>
+      {/* Staff table */}
+      <div className="bg-white rounded-2xl border border-[var(--border)] overflow-hidden">
+        {filtered.length === 0 ? (
+          <div className="py-16 text-center">
+            <p className="text-[14px] font-semibold text-[var(--text-strong)]">No staff found</p>
+            <p className="text-[13px] text-[var(--text-muted)] mt-1">{search ? "Try a different search." : isHeadmaster ? 'Click "Add Staff" to get started.' : ""}</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-[13px]">
+              <thead>
+                <tr className="border-b border-[var(--border)] bg-[var(--neutral-50)]">
+                  <th className="text-left px-5 py-3 font-semibold text-[var(--text-muted)] w-10">#</th>
+                  <th className="text-left px-4 py-3 font-semibold text-[var(--text-muted)]">Name</th>
+                  <th className="text-left px-4 py-3 font-semibold text-[var(--text-muted)] hidden sm:table-cell">Role</th>
+                  <th className="text-left px-4 py-3 font-semibold text-[var(--text-muted)] hidden md:table-cell">Username</th>
+                  <th className="text-left px-4 py-3 font-semibold text-[var(--text-muted)] hidden lg:table-cell">Phone</th>
+                  <th className="text-left px-4 py-3 font-semibold text-[var(--text-muted)]">Status</th>
+                  <th className="px-4 py-3 w-10" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--border)]">
+                {filtered.map((member, idx) => {
+                  const rs = ROLE_STYLE[member.role] ?? { bg: "#f3f4f6", text: "#374151" };
+                  return (
+                    <tr key={member.id}
+                      onClick={() => router.push(`/staff/${member.id}`)}
+                      className={`hover:bg-[var(--neutral-50)] cursor-pointer transition-colors ${!member.is_active ? "opacity-50" : ""}`}>
+                      <td className="px-5 py-3 text-[var(--text-subtle)] font-mono text-[12px]">{idx + 1}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          {member.photo_url ? (
+                            <img src={member.photo_url} alt="" className="w-9 h-9 rounded-full object-cover shrink-0" />
+                          ) : (
+                            <div className="w-9 h-9 rounded-full flex items-center justify-center text-[13px] font-bold text-white shrink-0"
+                              style={{ background: member.is_active ? "linear-gradient(135deg, #262262, #92278F)" : "#9ca3af" }}>
+                              {getInitials(member.full_name)}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="font-semibold text-[var(--text-strong)] truncate">{member.full_name}</p>
+                            <p className="text-[11px] text-[var(--text-muted)] sm:hidden">
+                              {ROLES.find((r) => r.value === member.role)?.label ?? member.role}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 hidden sm:table-cell">
+                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: rs.bg, color: rs.text }}>
+                          {ROLES.find((r) => r.value === member.role)?.label ?? member.role}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-[var(--text-muted)] hidden md:table-cell">@{member.username}</td>
+                      <td className="px-4 py-3 text-[var(--text-muted)] hidden lg:table-cell">{member.phone ?? "—"}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${member.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                          {member.is_active ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <ChevronRight size={15} className="text-[var(--text-subtle)]" />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
+
+      {/* Photo crop */}
+      {cropSrc && (
+        <PhotoCropModal
+          src={cropSrc}
+          onConfirm={handleCropConfirm}
+          onCancel={() => setCropSrc(null)}
+        />
+      )}
 
       {/* Add Staff Modal */}
       <Modal open={showAdd} onClose={() => { setShowAdd(false); setPhotoFile(null); setPhotoPreview(null); }} title="Add staff member">
