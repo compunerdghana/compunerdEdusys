@@ -1,9 +1,16 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@supabase/supabase-js";
+import { createClient as createServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { ExpensesClient } from "./ExpensesClient";
 
+const admin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { autoRefreshToken: false, persistSession: false } },
+);
+
 export default async function ExpensesPage() {
-  const supabase = await createClient();
+  const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
@@ -13,50 +20,45 @@ export default async function ExpensesPage() {
     .eq("id", user.id)
     .single();
 
-  const allowedRoles = ["owner", "headmaster", "accountant"];
-  if (!profile || !allowedRoles.includes(profile.role)) {
+  if (!profile || !["owner", "headmaster", "accountant"].includes(profile.role)) {
     redirect("/dashboard");
   }
 
   const schoolId = profile.school_id as string;
-  const role = profile.role as string;
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-
+  // Direct Supabase queries — no self-fetch
   const [expensesRes, categoriesRes] = await Promise.all([
-    fetch(`${baseUrl}/api/admin/finance/expenses?schoolId=${schoolId}`, {
-      cache: "no-store",
-    }),
-    fetch(`${baseUrl}/api/admin/finance/categories?schoolId=${schoolId}`, {
-      cache: "no-store",
-    }),
+    admin
+      .from("expenses")
+      .select("*, expense_categories(id, name), creator:profiles!created_by(full_name), approver:profiles!approved_by(full_name)")
+      .eq("school_id", schoolId)
+      .order("created_at", { ascending: false })
+      .limit(100),
+    admin
+      .from("expense_categories")
+      .select("id, name")
+      .or(`school_id.is.null,school_id.eq.${schoolId}`)
+      .order("name"),
   ]);
 
-  let expenses: Expense[] = [];
-  let categories: Category[] = [];
-  let tableNotReady = false;
+  const tableNotReady =
+    (expensesRes.error?.code === "42P01" || expensesRes.error?.message?.includes("does not exist")) ||
+    (categoriesRes.error?.code === "42P01" || categoriesRes.error?.message?.includes("does not exist"));
 
-  if (expensesRes.ok) {
-    const json = await expensesRes.json();
-    if (json.tableNotReady) {
-      tableNotReady = true;
-    } else {
-      expenses = json.data ?? [];
-    }
-  } else {
-    const json = await expensesRes.json().catch(() => ({}));
-    if (json.tableNotReady) tableNotReady = true;
-  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const expenses: Expense[] = tableNotReady ? [] : (expensesRes.data ?? []).map((e: any) => ({
+    ...e,
+    category: e.expense_categories ?? null,
+    created_by_name: e.creator?.full_name ?? null,
+    approved_by_name: e.approver?.full_name ?? null,
+  }));
 
-  if (!tableNotReady && categoriesRes.ok) {
-    const json = await categoriesRes.json();
-    categories = json.data ?? [];
-  }
+  const categories: Category[] = tableNotReady ? [] : (categoriesRes.data ?? []);
 
   return (
     <ExpensesClient
       schoolId={schoolId}
-      role={role}
+      role={profile.role}
       userName={profile.full_name ?? ""}
       initialExpenses={expenses}
       initialCategories={categories}
@@ -92,5 +94,5 @@ export interface Expense {
 export interface Category {
   id: string;
   name: string;
-  school_id: string;
+  school_id: string | null;
 }

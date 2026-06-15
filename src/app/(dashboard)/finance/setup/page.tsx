@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createAdmin } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
-import { CheckCircle2, XCircle, Copy, Database } from "lucide-react";
+import { CheckCircle2, XCircle, Database } from "lucide-react";
 import { SetupCopyButton } from "./SetupCopyButton";
 
 const BRAND = "#262262";
@@ -13,17 +14,6 @@ interface SetupStatus {
   petty_cash_accounts: boolean;
   bank_accounts: boolean;
   allReady: boolean;
-  tableNotReady?: boolean;
-}
-
-async function fetchSetupStatus(): Promise<SetupStatus | null> {
-  try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/api/admin/setup-finance`, { cache: "no-store" });
-    if (!res.ok) return null;
-    return res.json();
-  } catch {
-    return null;
-  }
 }
 
 const MIGRATION_SQL = `-- CompunerdEduSys Finance Module Migration
@@ -157,7 +147,32 @@ export default async function FinanceSetupPage() {
     redirect("/dashboard");
   }
 
-  const status = await fetchSetupStatus();
+  const admin = createAdmin(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+  const ok = (e: { code?: string; message?: string } | null) =>
+    !(e?.code === "42P01" || e?.message?.includes("does not exist"));
+
+  const checks = await Promise.all([
+    admin.from("school_wallets").select("id").limit(1),
+    admin.from("expenses").select("id").limit(1),
+    admin.from("income_records").select("id").limit(1),
+    admin.from("budgets").select("id").limit(1),
+    admin.from("petty_cash_accounts").select("id").limit(1),
+    admin.from("school_bank_accounts").select("id").limit(1),
+  ]);
+
+  const status: SetupStatus = {
+    school_wallet: ok(checks[0].error),
+    finance_expenses: ok(checks[1].error),
+    finance_income: ok(checks[2].error),
+    finance_budgets: ok(checks[3].error),
+    petty_cash_accounts: ok(checks[4].error),
+    bank_accounts: ok(checks[5].error),
+    allReady: checks.every(c => ok(c.error)),
+  };
 
   return (
     <div className="space-y-6 pb-8 max-w-3xl">

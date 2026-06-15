@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createAdmin } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/Badge";
@@ -13,7 +14,6 @@ interface WalletData {
   total_income: number;
   total_expenses: number;
   total_collections: number;
-  tableNotReady?: boolean;
 }
 
 interface WalletTransaction {
@@ -26,27 +26,6 @@ interface WalletTransaction {
   created_at: string;
 }
 
-interface TransactionsData {
-  data: WalletTransaction[];
-  tableNotReady?: boolean;
-}
-
-async function fetchWallet(schoolId: string): Promise<WalletData | null> {
-  try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/api/admin/finance/wallet?schoolId=${schoolId}`, { cache: "no-store" });
-    if (!res.ok) return null;
-    return res.json();
-  } catch { return null; }
-}
-
-async function fetchTransactions(schoolId: string): Promise<TransactionsData | null> {
-  try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/api/admin/finance/wallet/transactions?schoolId=${schoolId}&limit=20`, { cache: "no-store" });
-    if (!res.ok) return null;
-    return res.json();
-  } catch { return null; }
-}
-
 export default async function WalletPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -56,14 +35,28 @@ export default async function WalletPage() {
     redirect("/dashboard");
   }
 
-  const schoolId = profile?.school_id;
-  const [wallet, txData] = await Promise.all([
-    fetchWallet(schoolId!),
-    fetchTransactions(schoolId!),
+  const schoolId = profile?.school_id as string;
+
+  const admin = createAdmin(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+
+  const [walletRes, txRes] = await Promise.all([
+    admin.from("school_wallets").select("current_balance, opening_balance, total_income, total_expenses, total_collections").eq("school_id", schoolId).single(),
+    admin.from("school_wallet_transactions").select("id, description, category, type, amount, balance_after, created_at").eq("school_id", schoolId).order("created_at", { ascending: false }).limit(20),
   ]);
 
-  const tableNotReady = wallet?.tableNotReady || txData?.tableNotReady;
-  const transactions = txData?.data ?? [];
+  const isTableMissing = (e: { code?: string; message?: string } | null) =>
+    e?.code === "42P01" || e?.message?.includes("does not exist");
+
+  const tableNotReady = isTableMissing(walletRes.error) || isTableMissing(txRes.error);
+  const wallet = walletRes.data as WalletData | null;
+  const transactions: WalletTransaction[] = tableNotReady ? [] : (txRes.data ?? []).map((t: Record<string, unknown>) => ({
+    ...t,
+    transaction_type: t.type as "credit" | "debit",
+  }));
 
   const categoryVariant: Record<string, "success" | "info" | "brand" | "warning" | "danger" | "default"> = {
     "Fee Collection": "success",

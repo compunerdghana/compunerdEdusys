@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createAdmin } from "@supabase/supabase-js";
 import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
 import { formatCurrency, formatDate, getInitials } from "@/lib/utils";
@@ -23,31 +24,58 @@ interface DashboardData {
   monthly_income?: number;
   monthly_expenses?: number;
   net_position?: number;
-  collection_rate?: number;
   health_score?: number;
   pending_approvals?: number;
   tableNotReady?: boolean;
-}
-
-async function fetchFinanceDashboard(schoolId: string): Promise<DashboardData | null> {
-  try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/api/admin/finance/dashboard?schoolId=${schoolId}`,
-      { cache: "no-store" }
-    );
-    if (!res.ok) return null;
-    return res.json();
-  } catch { return null; }
 }
 
 export default async function FinancePage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const { data: profile } = await supabase.from("profiles").select("school_id, role").eq("id", user!.id).single();
-  const schoolId = profile?.school_id;
+  const schoolId = profile?.school_id as string;
   const isFinance = ["headmaster","owner","accountant"].includes(profile?.role ?? "");
 
-  const dashboardData = await fetchFinanceDashboard(schoolId!);
+  // Direct admin queries — no self-fetch
+  const admin = createAdmin(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+
+  const isTableMissing = (e: { code?: string; message?: string } | null) =>
+    e?.code === "42P01" || e?.message?.includes("does not exist");
+
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+
+  const [walletRes, pendingRes, monthIncomeRes, monthExpRes] = await Promise.all([
+    admin.from("school_wallets").select("current_balance, total_income, total_expenses").eq("school_id", schoolId).single(),
+    admin.from("expenses").select("id", { count: "exact", head: true }).eq("school_id", schoolId).eq("status", "pending"),
+    admin.from("income_records").select("amount").eq("school_id", schoolId).gte("income_date", monthStart),
+    admin.from("expenses").select("amount").eq("school_id", schoolId).eq("status", "approved").gte("expense_date", monthStart),
+  ]);
+
+  let dashboardData: DashboardData | null = null;
+  if (!isTableMissing(walletRes.error)) {
+    const monthly_income = (monthIncomeRes.data ?? []).reduce((s: number, r: { amount: number }) => s + Number(r.amount), 0);
+    const monthly_expenses = (monthExpRes.data ?? []).reduce((s: number, r: { amount: number }) => s + Number(r.amount), 0);
+    const net_position = monthly_income - monthly_expenses;
+    const balance = Number(walletRes.data?.current_balance ?? 0);
+    const health_score = Math.min(100, Math.round(
+      (balance > 0 ? 50 : 0) + (net_position >= 0 ? 30 : 0) + Math.min(20, (balance / 10000) * 20)
+    ));
+    dashboardData = {
+      wallet: walletRes.data ?? undefined,
+      monthly_income,
+      monthly_expenses,
+      net_position,
+      health_score,
+      pending_approvals: pendingRes.count ?? 0,
+    };
+  } else if (isTableMissing(walletRes.error)) {
+    dashboardData = { tableNotReady: true };
+  }
 
   const [schoolRes, walletRes, invoiceRes, paymentsRes, recentInvoicesRes, owingRes, classesRes] = await Promise.all([
     supabase.from("schools").select("id, name, address, phone, email, logo_url, headmaster_signature_url, motto").eq("id", schoolId!).single(),
