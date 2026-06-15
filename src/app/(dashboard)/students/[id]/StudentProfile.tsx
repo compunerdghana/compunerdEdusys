@@ -774,25 +774,25 @@ export function StudentProfile({
           <div className="bg-white rounded-2xl border border-gray-200 p-6">
             {editing ? (
               <div className="space-y-4">
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <EField label="First Name *" value={ef.first_name} onChange={v=>setEf(f=>({...f,first_name:v}))} required />
                   <EField label="Middle Name" value={ef.middle_name} onChange={v=>setEf(f=>({...f,middle_name:v}))} />
                   <EField label="Last Name *" value={ef.last_name} onChange={v=>setEf(f=>({...f,last_name:v}))} required />
                 </div>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <ESelect label="Gender" value={ef.gender} onChange={v=>setEf(f=>({...f,gender:v as "male"|"female"}))}
                     options={[{v:"male",l:"Male"},{v:"female",l:"Female"}]} />
                   <EField label="Date of Birth" value={ef.date_of_birth} onChange={v=>setEf(f=>({...f,date_of_birth:v}))} type="date" />
                   <ESelect label="Blood Group" value={ef.blood_group} onChange={v=>setEf(f=>({...f,blood_group:v}))}
                     options={BLOOD_GROUPS.map(b=>({v:b,l:b}))} placeholder="Select" />
                 </div>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <EField label="Nationality" value={ef.nationality} onChange={v=>setEf(f=>({...f,nationality:v}))} />
                   <EField label="Place of Birth" value={ef.place_of_birth} onChange={v=>setEf(f=>({...f,place_of_birth:v}))} />
                   <ESelect label="Religion" value={ef.religion} onChange={v=>setEf(f=>({...f,religion:v}))}
                     options={RELIGIONS.map(r=>({v:r,l:r}))} placeholder="Select" />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <EField label="Student ID (manual)" value={ef.student_id_manual} onChange={v=>setEf(f=>({...f,student_id_manual:v}))} placeholder="e.g. STU-001" />
                   <ESelect label="Status" value={ef.status} onChange={v=>setEf(f=>({...f,status:v as Student["status"]}))}
                     options={STATUSES.map(s=>({v:s,l:s.charAt(0).toUpperCase()+s.slice(1)}))} />
@@ -834,14 +834,14 @@ export function StudentProfile({
           <div className="bg-white rounded-2xl border border-gray-200 p-6">
             {editing ? (
               <div className="space-y-4">
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <ESelect label="Admission Type" value={ef.admission_type} onChange={v=>setEf(f=>({...f,admission_type:v}))}
                     options={ADMISSION_TYPES.map(a=>({v:a,l:a}))} />
                   <EField label="Admission Year" value={ef.admission_year} onChange={v=>setEf(f=>({...f,admission_year:v}))} placeholder="e.g. 2024" />
                   <ESelect label="Class" value={ef.class_id} onChange={v=>setEf(f=>({...f,class_id:v}))}
                     options={classes.map(c=>({v:c.id,l:c.name}))} placeholder="Select class" />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <EField label="Previous School" value={ef.previous_school} onChange={v=>setEf(f=>({...f,previous_school:v}))} />
                   <EField label="Previous Class" value={ef.previous_class} onChange={v=>setEf(f=>({...f,previous_class:v}))} />
                 </div>
@@ -885,17 +885,17 @@ export function StudentProfile({
               <div className="bg-white rounded-2xl border border-gray-200 p-5">
                 <p className="text-sm font-semibold text-gray-800 mb-4">Add Parent / Guardian</p>
                 <form onSubmit={saveParent} className="space-y-4">
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <EField label="Full Name *" value={pf.full_name} onChange={v=>setPf(f=>({...f,full_name:v}))} required />
                     <EField label="Phone *" value={pf.phone} onChange={v=>setPf(f=>({...f,phone:v}))} type="tel" required />
                     <ESelect label="Relationship" value={pf.relationship} onChange={v=>setPf(f=>({...f,relationship:v}))}
                       options={["Father","Mother","Guardian","Uncle","Aunt","Grandparent","Other"].map(r=>({v:r,l:r}))} />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <EField label="Email" value={pf.email} onChange={v=>setPf(f=>({...f,email:v}))} type="email" />
                     <EField label="Occupation" value={pf.occupation} onChange={v=>setPf(f=>({...f,occupation:v}))} />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <EField label="Employer" value={pf.employer} onChange={v=>setPf(f=>({...f,employer:v}))} />
                     <EField label="Digital Address" value={pf.digital_address} onChange={v=>setPf(f=>({...f,digital_address:v}))} placeholder="e.g. GA-123-4567" />
                   </div>
@@ -919,7 +919,7 @@ export function StudentProfile({
                     <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
                       <User className="w-5 h-5 text-indigo-600" />
                     </div>
-                    <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3">
+                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-3">
                       {[
                         ["Name", p.full_name],
                         ["Relationship", p.relationship],
@@ -978,7 +978,7 @@ export function StudentProfile({
             </div>
             {editMedical ? (
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <ESelect label="Blood Group" value={mf.blood_group} onChange={v=>setMf(f=>({...f,blood_group:v}))}
                     options={BLOOD_GROUPS.map(b=>({v:b,l:b}))} placeholder="Select" />
                   <EField label="Doctor's Name" value={mf.doctor_name} onChange={v=>setMf(f=>({...f,doctor_name:v}))} />
@@ -987,7 +987,7 @@ export function StudentProfile({
                 <ETextarea label="Allergies" value={mf.allergies} onChange={v=>setMf(f=>({...f,allergies:v}))} />
                 <ETextarea label="Medical Conditions" value={mf.medical_conditions} onChange={v=>setMf(f=>({...f,medical_conditions:v}))} />
                 <ETextarea label="Special Needs" value={mf.special_needs} onChange={v=>setMf(f=>({...f,special_needs:v}))} />
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <EField label="Insurance Provider" value={mf.insurance_provider} onChange={v=>setMf(f=>({...f,insurance_provider:v}))} />
                   <EField label="Insurance Number" value={mf.insurance_number} onChange={v=>setMf(f=>({...f,insurance_number:v}))} />
                 </div>
@@ -1201,19 +1201,19 @@ export function StudentProfile({
               {/* Wallet balance banner */}
               {hasWallet ? (
                 <div className="rounded-2xl p-5" style={{background:"#262262"}}>
-                  <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between flex-wrap gap-3">
                     <div>
                       <p className="text-white/70 text-[11px] font-semibold uppercase tracking-wider mb-1">
                         Wallet · {wallet.wallet_number}
                       </p>
-                      <p className={`text-[32px] font-extrabold leading-none ${notYetBilled ? "text-white/40" : wOutstanding > 0 ? "text-red-300" : "text-green-300"}`}>
+                      <p className={`text-[24px] sm:text-[32px] font-extrabold leading-none ${notYetBilled ? "text-white/40" : wOutstanding > 0 ? "text-red-300" : "text-green-300"}`}>
                         {notYetBilled ? "—" : wOutstanding > 0 ? `−${formatCurrency(wOutstanding)}` : "Cleared"}
                       </p>
                       <p className="text-white/60 text-[12px] mt-1">
                         {notYetBilled ? "Not yet billed" : wOutstanding > 0 ? "Outstanding balance" : "No outstanding balance"}
                       </p>
                     </div>
-                    <div className="flex gap-6">
+                    <div className="flex flex-wrap gap-3 sm:gap-6">
                       <div className="text-right">
                         <p className="text-white/60 text-[10px] uppercase font-semibold">Total Billed</p>
                         <p className="text-white font-bold text-[15px]">{wBilled > 0 ? formatCurrency(wBilled) : "—"}</p>
@@ -1361,7 +1361,7 @@ export function StudentProfile({
             {addingDisc && (
               <div className="bg-white rounded-2xl border border-gray-200 p-5">
                 <form onSubmit={saveDisc} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <EField label="Incident Date *" value={df.incident_date} onChange={v=>setDf(f=>({...f,incident_date:v}))} type="date" required />
                     <ESelect label="Incident Type *" value={df.incident_type} onChange={v=>setDf(f=>({...f,incident_type:v}))}
                       options={INCIDENT_TYPES.map(t=>({v:t,l:t}))} placeholder="Select type" />
@@ -1423,12 +1423,12 @@ export function StudentProfile({
             {addingAward && (
               <div className="bg-white rounded-2xl border border-gray-200 p-5">
                 <form onSubmit={saveAward} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <ESelect label="Award Type" value={awf.award_type} onChange={v=>setAwf(f=>({...f,award_type:v}))}
                       options={AWARD_TYPES.map(t=>({v:t,l:t}))} />
                     <EField label="Title *" value={awf.title} onChange={v=>setAwf(f=>({...f,title:v}))} required />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <EField label="Date Awarded" value={awf.awarded_date} onChange={v=>setAwf(f=>({...f,awarded_date:v}))} type="date" />
                     <EField label="Awarded By" value={awf.awarded_by} onChange={v=>setAwf(f=>({...f,awarded_by:v}))} />
                   </div>
@@ -1443,7 +1443,7 @@ export function StudentProfile({
             {awards.length===0 && !addingAward && (
               <EmptyState icon={<Trophy className="w-8 h-8 text-gray-300" />} text="No awards or achievements recorded." />
             )}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {awards.map(a => (
                 <div key={a.id} className="bg-white rounded-2xl border border-gray-200 p-4 flex gap-3">
                   <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0",

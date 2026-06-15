@@ -377,7 +377,7 @@ export function StaffProfileClient({
             {/* Overview */}
             {tab === "overview" && (
               <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <InfoCard title="Employment">
                     <InfoRow label="Employment Type" value={details?.employment_type?.replace(/_/g," ")} />
                     <InfoRow label="Staff Category" value={details?.staff_category?.replace("_"," ")} />
@@ -391,7 +391,7 @@ export function StaffProfileClient({
                     <InfoRow label="ID Number" value={details?.national_id_number} />
                   </InfoCard>
                 </div>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <StatBox label="Classes Assigned" value={assignedClasses.length} />
                   <StatBox label="Subjects Assigned" value={assignedSubjects.length} />
                   <StatBox label="Documents" value={docs.length} />

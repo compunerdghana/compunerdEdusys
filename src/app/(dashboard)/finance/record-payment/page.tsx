@@ -311,7 +311,7 @@ function RecordPaymentInner() {
                 )}
 
                 {/* Amount + Date */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-[12px] font-semibold text-gray-600 block mb-1.5">Amount (GH₵) *</label>
                     <input type="number" min="0.01" step="0.01" required value={amount} onChange={e => setAmount(e.target.value)}
@@ -347,7 +347,7 @@ function RecordPaymentInner() {
               </div>
               <div className="p-4 space-y-4">
                 {/* Method picker */}
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {METHODS.map(({ value, label, icon: Icon, color, bg }) => (
                     <button key={value} type="button" onClick={() => { setMethod(value); setReference(""); setMomoName(""); setMomoNumber(""); }}
                       className="flex items-center gap-2.5 px-4 py-3 rounded-xl border text-[13px] font-semibold transition-all"
@@ -380,7 +380,7 @@ function RecordPaymentInner() {
                         placeholder="e.g. GHA-240615-12345"
                         className="h-10 w-full rounded-xl border border-purple-200 bg-white px-3 text-[13px] outline-none focus:border-purple-500" />
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="text-[12px] font-semibold text-gray-600 block mb-1.5">Sender&apos;s Name *</label>
                         <input value={momoName} onChange={e => setMomoName(e.target.value)} required={method === "momo"}

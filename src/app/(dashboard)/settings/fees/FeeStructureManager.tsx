@@ -242,7 +242,7 @@ export function FeeStructureManager({ schoolId, feeTypes: initial, terms, classe
         <Card>
           <p className="text-sm font-semibold text-[var(--text-strong)] mb-4">New fee type</p>
           <form onSubmit={save} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input label="Fee name" placeholder="e.g. School fees, PTA levy" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
               <Input label={`Amount (GH₵)`} type="number" min="0" step="0.01" placeholder="0.00" value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} required />
             </div>
@@ -345,7 +345,7 @@ export function FeeStructureManager({ schoolId, feeTypes: initial, terms, classe
       <Modal open={!!editingFee} onClose={() => setEditingFee(null)} title="Edit fee type">
         {editingFee && (
           <form onSubmit={saveEdit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input label="Fee name" value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} required />
               <Input label="Amount (GH₵)" type="number" min="0" step="0.01" value={editForm.amount} onChange={(e) => setEditForm((f) => ({ ...f, amount: e.target.value }))} required />
             </div>
@@ -448,7 +448,7 @@ export function FeeStructureManager({ schoolId, feeTypes: initial, terms, classe
               <Input label="Structure Name *" value={structForm.name}
                 onChange={e => setStructForm(f => ({ ...f, name: e.target.value }))}
                 placeholder="e.g. Basic 1 — Term 1 2025/26" required />
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-semibold text-[var(--text-strong)] block mb-1.5">Class (specific)</label>
                   <select value={structForm.class_id}
@@ -489,7 +489,7 @@ export function FeeStructureManager({ schoolId, feeTypes: initial, terms, classe
                 </div>
                 <div className="space-y-2">
                   {structForm.items.map((item, i) => (
-                    <div key={i} className="grid grid-cols-[1fr_120px_auto_auto] gap-2 items-center">
+                    <div key={i} className="grid grid-cols-[1fr_auto_auto_auto] sm:grid-cols-[1fr_120px_auto_auto] gap-2 items-center">
                       <input value={item.name} onChange={e => updateItem(i, "name", e.target.value)}
                         placeholder="Fee name" required
                         className="h-9 rounded-[8px] border border-[var(--border)] px-3 text-sm text-[var(--text-strong)] outline-none focus:border-[var(--ring)]" />

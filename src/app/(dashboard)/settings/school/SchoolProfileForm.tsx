@@ -253,12 +253,12 @@ export function SchoolProfileForm({ school, schoolId }: Props) {
         <div className="space-y-4">
           <Input label="School name *" value={form.name} onChange={(e) => set("name", e.target.value)} required placeholder="e.g. Adisco Basic School" />
           <Input label="School motto" value={form.motto} onChange={(e) => set("motto", e.target.value)} placeholder="e.g. Excellence in Education" />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Phone" type="tel" value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="024 000 0000" />
             <Input label="Email" type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="school@example.com" />
           </div>
           <Input label="Address" value={form.address} onChange={(e) => set("address", e.target.value)} placeholder="P.O. Box …, Kumasi" />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Region dropdown */}
             <div className="flex flex-col gap-1.5">
               <label className="text-[15px] font-semibold text-[var(--text-strong)]">Region</label>
@@ -280,7 +280,7 @@ export function SchoolProfileForm({ school, schoolId }: Props) {
               </select>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="GPS Address (Ghana Post)" value={form.gps_address} onChange={(e) => set("gps_address", e.target.value)} placeholder="e.g. AK-039-5028" />
             {/* Currency dropdown */}
             <div className="flex flex-col gap-1.5">
