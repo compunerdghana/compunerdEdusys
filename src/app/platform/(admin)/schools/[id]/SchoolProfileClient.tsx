@@ -144,11 +144,11 @@ export function SchoolProfileClient({ school, subscription, features, tickets, a
                 <span className={`text-[11px] font-extrabold uppercase px-2.5 py-1 rounded-full ${statusBadge[schoolStatus] ?? "bg-slate-100 text-slate-500"}`}>
                   {schoolStatus}
                 </span>
-                {subscription?.plan_name && (
+                {subscription?.plan_name ? (
                   <span className="text-[11px] font-extrabold uppercase px-2.5 py-1 rounded-full bg-purple-100 text-purple-700">
                     {String(subscription.plan_name)}
                   </span>
-                )}
+                ) : null}
               </div>
             </div>
 
@@ -244,7 +244,7 @@ export function SchoolProfileClient({ school, subscription, features, tickets, a
                   ["Created", school.created_at ? new Date(String(school.created_at)).toLocaleDateString() : "—"],
                 ].map(([label, value]) => (
                   <div key={String(label)} className="flex items-start gap-4 py-2.5 border-b border-slate-50 last:border-0">
-                    <span className="text-sm font-bold text-slate-400 w-36 shrink-0">{label}</span>
+                    <span className="text-sm font-bold text-slate-400 w-36 shrink-0">{String(label ?? "")}</span>
                     <span className="text-sm font-semibold text-slate-800">{String(value ?? "—")}</span>
                   </div>
                 ))}

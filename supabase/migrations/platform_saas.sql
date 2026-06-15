@@ -293,40 +293,13 @@ CREATE POLICY impersonation_sessions_policy ON impersonation_sessions
 -- 15. Seed subscription_plans
 -- --------------------------------------------------------
 INSERT INTO subscription_plans (name, display_name, description, price_monthly, price_annual, max_students, max_staff, storage_gb, sms_credits, whatsapp_credits, features, sort_order)
-VALUES
-  (
-    'starter',
-    'Starter',
-    'Perfect for small schools getting started with digital management.',
-    500.00, 5000.00, 200, 20, 5.0, 500, 200,
-    '["students","admissions","finance","attendance","reports"]',
-    1
-  ),
-  (
-    'standard',
-    'Standard',
-    'Ideal for growing schools needing comprehensive management tools.',
-    800.00, 8000.00, 500, 60, 15.0, 1500, 600,
-    '["students","admissions","finance","attendance","academics","exams","reports","communications"]',
-    2
-  ),
-  (
-    'premium',
-    'Premium',
-    'Full-featured plan for established schools with advanced needs.',
-    1200.00, 12000.00, 1500, 150, 40.0, 5000, 2000,
-    '["students","admissions","finance","attendance","academics","exams","reports","communications","payroll","inventory","transport"]',
-    3
-  ),
-  (
-    'enterprise',
-    'Enterprise',
-    'Unlimited capacity and all features for large or multi-campus schools.',
-    2000.00, 20000.00, NULL, NULL, 100.0, 20000, 10000,
-    '["students","admissions","finance","attendance","academics","exams","reports","communications","payroll","inventory","transport","hostel"]',
-    4
-  )
-ON CONFLICT (name) DO NOTHING;
+SELECT * FROM (VALUES
+  ('starter',    'Starter',    'Perfect for small schools getting started with digital management.',         500.00,  5000.00,  200,  20,  5.0,  500,   200,  '["students","admissions","finance","attendance","reports"]'::jsonb,                                                                                                    1),
+  ('standard',   'Standard',   'Ideal for growing schools needing comprehensive management tools.',          800.00,  8000.00,  500,  60,  15.0, 1500,  600,  '["students","admissions","finance","attendance","academics","exams","reports","communications"]'::jsonb,                                                          2),
+  ('premium',    'Premium',    'Full-featured plan for established schools with advanced needs.',           1200.00, 12000.00, 1500, 150,  40.0, 5000,  2000, '["students","admissions","finance","attendance","academics","exams","reports","communications","payroll","inventory","transport"]'::jsonb,                     3),
+  ('enterprise', 'Enterprise', 'Unlimited capacity and all features for large or multi-campus schools.',   2000.00, 20000.00, NULL, NULL, 100.0,20000, 10000,'["students","admissions","finance","attendance","academics","exams","reports","communications","payroll","inventory","transport","hostel"]'::jsonb,            4)
+) AS v(name, display_name, description, price_monthly, price_annual, max_students, max_staff, storage_gb, sms_credits, whatsapp_credits, features, sort_order)
+WHERE NOT EXISTS (SELECT 1 FROM subscription_plans LIMIT 1);
 
 -- Seed a single wallet row if it does not exist
 INSERT INTO platform_wallet (balance, total_income, total_expenses, currency)

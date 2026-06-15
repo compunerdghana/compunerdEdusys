@@ -28,5 +28,6 @@ export default async function SubscriptionsPage({
 
   const { data: subscriptions } = await query;
 
-  return <SubscriptionsClient subscriptions={subscriptions ?? []} activeFilter={status ?? "all"} />;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return <SubscriptionsClient subscriptions={(subscriptions ?? []) as any} activeFilter={status ?? "all"} />;
 }
