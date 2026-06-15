@@ -48,10 +48,17 @@ export async function GET(req: NextRequest) {
     .order("event_date");
 
   if (error) {
-    if (error.message.includes("does not exist")) {
+    const msg = error.message ?? "";
+    if (
+      msg.includes("does not exist") ||
+      msg.includes("relation") ||
+      msg.includes("Could not find") ||
+      msg.includes("schema") ||
+      msg.toLowerCase().includes("school_events")
+    ) {
       return NextResponse.json({ events: [], tableNotReady: true });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
   return NextResponse.json({ events: data ?? [] });
 }
@@ -72,7 +79,13 @@ export async function POST(req: NextRequest) {
     .select("*")
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    const msg = error.message ?? "";
+    if (msg.includes("does not exist") || msg.includes("relation") || msg.includes("Could not find") || msg.includes("schema")) {
+      return NextResponse.json({ error: "TABLE_NOT_READY" }, { status: 422 });
+    }
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
   return NextResponse.json({ ok: true, event: data });
 }
 

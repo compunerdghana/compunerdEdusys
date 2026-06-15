@@ -3,6 +3,7 @@
 import { Bell, Menu } from "lucide-react";
 import { getInitials } from "@/lib/utils";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 interface TopBarProps {
   userName?: string;
@@ -11,6 +12,22 @@ interface TopBarProps {
 }
 
 export function TopBar({ userName = "Admin", schoolName, onMenuClick }: TopBarProps) {
+  const [displayName, setDisplayName] = useState(userName);
+
+  // Listen for name changes from the AccountForm
+  useEffect(() => {
+    setDisplayName(userName);
+  }, [userName]);
+
+  useEffect(() => {
+    function onNameChange(e: Event) {
+      const name = (e as CustomEvent<string>).detail;
+      if (name) setDisplayName(name);
+    }
+    window.addEventListener("user:namechange", onNameChange);
+    return () => window.removeEventListener("user:namechange", onNameChange);
+  }, []);
+
   return (
     <header className="h-16 bg-white border-b border-[var(--border)] flex items-center px-4 md:px-6 gap-4 shrink-0 shadow-sm">
       {/* Hamburger — mobile only */}
@@ -36,10 +53,10 @@ export function TopBar({ userName = "Admin", schoolName, onMenuClick }: TopBarPr
         <Link href="/settings" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity">
           <div className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0 ring-2 ring-transparent hover:ring-[#262262]/30 transition-all"
             style={{ background: "linear-gradient(135deg, #262262, #92278F)" }}>
-            {getInitials(userName)}
+            {getInitials(displayName)}
           </div>
           <div className="hidden md:block">
-            <p className="text-[13px] font-bold text-[var(--text-strong)] leading-tight">{userName}</p>
+            <p className="text-[13px] font-bold text-[var(--text-strong)] leading-tight">{displayName}</p>
             {schoolName && <p className="text-[11px] text-[var(--text-muted)] leading-tight truncate max-w-[120px]">{schoolName}</p>}
           </div>
         </Link>

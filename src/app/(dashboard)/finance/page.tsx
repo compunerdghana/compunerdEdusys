@@ -4,9 +4,10 @@ import { Badge } from "@/components/ui/Badge";
 import { formatCurrency, formatDate, getInitials } from "@/lib/utils";
 import {
   PlusCircle, CreditCard, TrendingUp, TrendingDown, Wallet,
-  ReceiptText, ArrowUpRight, Users,
+  ReceiptText, ArrowUpRight, Users, Printer,
 } from "lucide-react";
 import { FinanceOwingSection } from "./FinanceOwingSection";
+import { ReceiptPrintButton } from "./ReceiptPrintButton";
 
 const BRAND  = "#262262";
 const ACCENT = "#92278F";
@@ -22,7 +23,7 @@ export default async function FinancePage() {
     supabase.from("student_wallets").select("total_billed, total_paid, total_waived").eq("school_id", schoolId),
     supabase.from("student_invoices").select("status").eq("school_id", schoolId),
     supabase.from("payment_receipts")
-      .select("*, students(first_name, last_name, admission_number, classrooms(name))")
+      .select("*, student_id, students(id, first_name, last_name, admission_number, classrooms(name))")
       .eq("school_id", schoolId)
       .order("created_at", { ascending: false })
       .limit(20),
@@ -208,26 +209,34 @@ export default async function FinancePage() {
               </div>
             ) : receipts.map((r: {
               id: string; receipt_number: string; amount: number; payment_method: string;
-              payment_date: string; created_at: string;
+              payment_date: string; created_at: string; student_id: string | null;
+              reference?: string | null; notes?: string | null;
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               students: Record<string, any> | null;
             }) => (
-              <div key={r.id} className="flex items-center gap-3 px-5 py-3 hover:bg-[var(--neutral-50)] transition-colors">
+              <div key={r.id} className="flex items-center gap-3 px-5 py-3 hover:bg-[var(--neutral-50)] transition-colors group">
                 <div className="w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
                   style={{ background: "linear-gradient(135deg,#262262,#92278F)" }}>
                   {r.students ? getInitials(`${r.students.first_name} ${r.students.last_name}`) : "?"}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-semibold text-[var(--text-strong)] truncate">
-                    {r.students ? `${r.students.first_name} ${r.students.last_name}` : "—"}
-                  </p>
+                  {r.students?.id ? (
+                    <Link href={`/students/${r.students.id}`} className="text-[13px] font-semibold text-[var(--text-strong)] truncate hover:text-[#262262] hover:underline block">
+                      {r.students.first_name} {r.students.last_name}
+                    </Link>
+                  ) : (
+                    <p className="text-[13px] font-semibold text-[var(--text-strong)] truncate">—</p>
+                  )}
                   <p className="text-[11px] text-[var(--text-muted)] truncate">
                     {r.receipt_number} · {r.payment_method} · {r.students?.classrooms?.name ?? "—"}
                   </p>
                 </div>
-                <div className="text-right shrink-0">
-                  <p className="text-[14px] font-extrabold text-green-600">{formatCurrency(r.amount)}</p>
-                  <p className="text-[10px] text-[var(--text-muted)]">{formatDate(r.payment_date ?? r.created_at)}</p>
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="text-right">
+                    <p className="text-[14px] font-extrabold text-green-600">{formatCurrency(r.amount)}</p>
+                    <p className="text-[10px] text-[var(--text-muted)]">{formatDate(r.payment_date ?? r.created_at)}</p>
+                  </div>
+                  <ReceiptPrintButton receipt={r} />
                 </div>
               </div>
             ))}

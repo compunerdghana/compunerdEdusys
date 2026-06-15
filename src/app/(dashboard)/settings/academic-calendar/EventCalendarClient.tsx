@@ -129,6 +129,9 @@ export function EventCalendarClient({ schoolId, terms, isHeadmaster }: Props) {
     });
     const json = await res.json();
     setSaving(false);
+    if (json.error === "TABLE_NOT_READY" || res.status === 422) {
+      setTableNotReady(true); setSelectedDate(null); return;
+    }
     if (!res.ok) { setSaveErr(json.error ?? "Failed to save"); return; }
     setEvents(prev => [...prev, json.event]);
     setSelectedDate(null);

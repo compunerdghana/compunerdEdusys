@@ -36,6 +36,8 @@ export function AccountForm({ userId, initialName, initialPhone, role, email }: 
     setSaving(false);
     if (error) { setErr(error.message); return; }
     setSaved(true);
+    // Update TopBar immediately without waiting for server refresh
+    window.dispatchEvent(new CustomEvent("user:namechange", { detail: name.trim() }));
     router.refresh();
     setTimeout(() => setSaved(false), 3000);
   }
