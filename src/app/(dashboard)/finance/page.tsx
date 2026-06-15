@@ -19,7 +19,8 @@ export default async function FinancePage() {
   const schoolId = profile?.school_id;
   const isFinance = ["headmaster","owner","accountant"].includes(profile?.role ?? "");
 
-  const [walletRes, invoiceRes, paymentsRes, recentInvoicesRes, owingRes, classesRes] = await Promise.all([
+  const [schoolRes, walletRes, invoiceRes, paymentsRes, recentInvoicesRes, owingRes, classesRes] = await Promise.all([
+    supabase.from("schools").select("id, name, address, phone, email, logo_url, headmaster_signature_url, motto").eq("id", schoolId!).single(),
     supabase.from("student_wallets").select("total_billed, total_paid, total_waived").eq("school_id", schoolId),
     supabase.from("student_invoices").select("status").eq("school_id", schoolId),
     supabase.from("payment_receipts")
@@ -54,6 +55,7 @@ export default async function FinancePage() {
   const partialCount = invoices.filter(i => i.status === "partial").length;
   const unpaidCount  = invoices.filter(i => i.status === "unpaid").length;
 
+  const school = schoolRes.data;
   const receipts       = paymentsRes.data ?? [];
   const recentInvoices = recentInvoicesRes.data ?? [];
 
@@ -236,7 +238,7 @@ export default async function FinancePage() {
                     <p className="text-[14px] font-extrabold text-green-600">{formatCurrency(r.amount)}</p>
                     <p className="text-[10px] text-[var(--text-muted)]">{formatDate(r.payment_date ?? r.created_at)}</p>
                   </div>
-                  <ReceiptPrintButton receipt={r} />
+                  <ReceiptPrintButton receipt={r} school={school} />
                 </div>
               </div>
             ))}

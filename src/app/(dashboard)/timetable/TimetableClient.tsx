@@ -167,9 +167,10 @@ interface SlotModalProps {
   onSave: (subjectId: string | null, teacherId: string | null) => Promise<void>;
   onClear: () => Promise<void>;
   saving: boolean;
+  error?: string | null;
 }
 
-function SlotModal({ open, onClose, periodName, dayName, slot, subjects, teachers, onSave, onClear, saving }: SlotModalProps) {
+function SlotModal({ open, onClose, periodName, dayName, slot, subjects, teachers, onSave, onClear, saving, error }: SlotModalProps) {
   const [subjectId, setSubjectId] = useState(slot?.subject_id ?? "");
   const [teacherId, setTeacherId] = useState(slot?.teacher_id ?? "");
 
@@ -195,27 +196,20 @@ function SlotModal({ open, onClose, periodName, dayName, slot, subjects, teacher
           value={teacherId}
           onChange={(e) => setTeacherId(e.target.value)}
         />
+        {error && (
+          <div className="text-[12px] text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+            {error}
+          </div>
+        )}
         <div className="flex gap-2 pt-1">
           {slot && (
             <Button variant="danger" size="sm" className="shrink-0" onClick={onClear} loading={saving}>
               Clear
             </Button>
           )}
-          <Button
-            variant="secondary"
-            size="sm"
-            className="flex-1"
-            onClick={onClose}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            className="flex-1"
-            loading={saving}
-            onClick={() => onSave(subjectId || null, teacherId || null)}
-          >
+          <Button variant="secondary" size="sm" className="flex-1" onClick={onClose}>Cancel</Button>
+          <Button variant="primary" size="sm" className="flex-1" loading={saving}
+            onClick={() => onSave(subjectId || null, teacherId || null)}>
             Save
           </Button>
         </div>
@@ -250,6 +244,7 @@ export function TimetableClient({
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [slotModal, setSlotModal] = useState<{ periodId: string; day: number } | null>(null);
   const [savingSlot, setSavingSlot] = useState(false);
+  const [slotError, setSlotError] = useState<string | null>(null);
 
   // ── Fetch periods ──────────────────────────────────────────────────────────
   const fetchPeriods = useCallback(async () => {
@@ -347,6 +342,11 @@ export function TimetableClient({
     });
     const json = await res.json();
     setSavingSlot(false);
+    if (!res.ok || json.error) {
+      setSlotError(json.error ?? "Save failed. Check that the timetable tables exist in your database.");
+      return;
+    }
+    if (json.tableNotReady) { setTableNotReady(true); setSlotModal(null); return; }
     if (json.data) {
       setSlots((prev) => {
         const filtered = prev.filter(
@@ -356,6 +356,7 @@ export function TimetableClient({
       });
     }
     setSlotModal(null);
+    setSlotError(null);
   }
 
   // ── Clear slot ─────────────────────────────────────────────────────────────
@@ -753,7 +754,7 @@ export function TimetableClient({
       {slotModal && (
         <SlotModal
           open={true}
-          onClose={() => setSlotModal(null)}
+          onClose={() => { setSlotModal(null); setSlotError(null); }}
           periodName={activeSlotPeriod?.name ?? ""}
           dayName={DAYS[slotModal.day - 1] ?? ""}
           slot={activeSlot}
@@ -762,6 +763,7 @@ export function TimetableClient({
           onSave={handleSaveSlot}
           onClear={handleClearSlot}
           saving={savingSlot}
+          error={slotError}
         />
       )}
 

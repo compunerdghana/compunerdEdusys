@@ -2,7 +2,6 @@
 
 import React, { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -254,7 +253,6 @@ interface Props {
 
 export function SchoolProfileForm({ school, schoolId }: Props) {
   const router = useRouter();
-  const supabase = createClient();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
@@ -272,17 +270,10 @@ export function SchoolProfileForm({ school, schoolId }: Props) {
   });
   const [logoUrl, setLogoUrl] = useState<string | null>(school?.logo_url ?? null);
   const [sigUrl, setSigUrl] = useState<string | null>(school?.headmaster_signature_url ?? null);
-  const [receiptTemplate, setReceiptTemplate] = useState<number>(() => {
-    if (typeof window !== "undefined" && schoolId) {
-      return Number(localStorage.getItem(`receipt_template_${schoolId}`) ?? "1");
-    }
-    return 1;
-  });
   const sigRef = useRef<HTMLInputElement>(null);
   const [uploadingSig, setUploadingSig] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
-  const [previewTemplate, setPreviewTemplate] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -374,8 +365,6 @@ export function SchoolProfileForm({ school, schoolId }: Props) {
     const json = await res.json();
     setSaving(false);
     if (!res.ok) { setError(json.error ?? "Save failed"); return; }
-    // Save receipt template preference to localStorage
-    if (schoolId) localStorage.setItem(`receipt_template_${schoolId}`, String(receiptTemplate));
     setSuccess(true);
     setIsDirty(false);
     router.refresh();
@@ -508,41 +497,6 @@ export function SchoolProfileForm({ school, schoolId }: Props) {
         </div>
       </Card>
 
-      {/* Receipt Template */}
-      <Card>
-        <p className="text-[15px] font-semibold text-[var(--text-strong)] mb-1">Fee Receipt Template</p>
-        <p className="text-sm text-[var(--text-muted)] mb-4">Choose the receipt style shown after recording a payment. Click <strong>Preview</strong> to see a sample.</p>
-        <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
-          {[
-            { id: 1, name: "Classic Ghana", desc: "Traditional bordered receipt with school header" },
-            { id: 2, name: "Modern Blue",   desc: "Gradient header, clean card-style layout" },
-            { id: 3, name: "GES Official",  desc: "Ghana Education Service official format" },
-            { id: 4, name: "Corporate",     desc: "Color stripe, professional two-column" },
-            { id: 5, name: "Thermal",       desc: "Compact receipt-paper / POS style" },
-          ].map(t => {
-            const active = receiptTemplate === t.id;
-            return (
-              <div key={t.id} className={`rounded-xl border-2 text-left transition-all overflow-hidden ${active ? "border-[#262262] bg-indigo-50" : "border-[var(--border)] hover:border-[var(--ring)]"}`}>
-                <button type="button" onClick={() => setReceiptTemplate(t.id)} className="p-3 w-full text-left">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[13px] font-black mb-2 ${active ? "text-white" : "bg-gray-100 text-gray-500"}`}
-                    style={active ? { background: "linear-gradient(135deg,#262262,#92278F)" } : {}}>
-                    {t.id}
-                  </div>
-                  <p className={`text-[12px] font-bold ${active ? "text-[#262262]" : "text-[var(--text-strong)]"}`}>{t.name}</p>
-                  <p className="text-[11px] text-[var(--text-muted)] mt-0.5 leading-snug">{t.desc}</p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPreviewTemplate(t.id)}
-                  className={`w-full text-[11px] font-semibold py-1.5 border-t transition-colors ${active ? "border-indigo-200 text-[#262262] hover:bg-indigo-100" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-gray-50"}`}
-                >
-                  Preview
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      </Card>
 
       {error && <p className="text-[15px] text-[var(--danger)] bg-[var(--danger-bg)] px-5 py-4 rounded-xl">{error}</p>}
       {success && <p className="text-[15px] text-[var(--success)] bg-[var(--success-bg)] px-5 py-4 rounded-xl">School profile saved successfully.</p>}
@@ -559,15 +513,6 @@ export function SchoolProfileForm({ school, schoolId }: Props) {
         />
       )}
 
-      {/* Receipt preview modal */}
-      {previewTemplate !== null && (
-        <ReceiptPreviewModal
-          templateId={previewTemplate}
-          schoolName={form.name || "School Name"}
-          logoUrl={logoUrl}
-          onClose={() => setPreviewTemplate(null)}
-        />
-      )}
     </form>
   );
 }
