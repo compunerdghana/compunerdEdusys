@@ -1,6 +1,7 @@
 "use client";
 import { useState, useRef, useCallback } from "react";
 import { PhotoCropModal } from "@/components/ui/PhotoCropModal";
+import { uploadAsset } from "@/lib/uploadAsset";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -256,14 +257,13 @@ export function StudentProfile({
     setPendingPhotoFile(null);
     const ext = f?.name.split(".").pop() ?? "jpg";
     const path = `students/${student.id}-photo-${Date.now()}.${ext}`;
-    const preview = URL.createObjectURL(blob);
-    setPhotoPreview(preview);
-    const { error } = await supabase.storage.from("school-assets").upload(path, blob, { upsert: true, contentType: "image/jpeg" });
-    if (!error) {
-      const { data } = supabase.storage.from("school-assets").getPublicUrl(path);
-      await supabase.from("students").update({ photo_url: data.publicUrl }).eq("id", student.id);
-      setPhotoPreview(data.publicUrl);
-    }
+    setPhotoPreview(URL.createObjectURL(blob));
+    try {
+      const file = new File([blob], `photo.${ext}`, { type: "image/jpeg" });
+      const publicUrl = await uploadAsset(file, path);
+      await supabase.from("students").update({ photo_url: publicUrl }).eq("id", student.id);
+      setPhotoPreview(publicUrl);
+    } catch { /* keep local preview */ }
   }, [pendingPhotoFile, student.id, supabase]);
 
   async function saveEdit() {
@@ -409,20 +409,19 @@ export function StudentProfile({
     setUploadingDoc(true);
     const newDocs: DocRow[] = [];
     for (const f of files) {
-      const ext = f.name.split(".").pop();
-      const path = `students/${student.id}/docs/${docType.replace(/\s+/g,"_").toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await supabase.storage.from("school-assets").upload(path, f);
-      if (!error) {
-        const { data: urlData } = supabase.storage.from("school-assets").getPublicUrl(path);
+      try {
+        const ext = f.name.split(".").pop();
+        const path = `students/${student.id}/docs/${docType.replace(/\s+/g,"_").toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const publicUrl = await uploadAsset(f, path);
         const { data } = await supabase.from("student_documents").insert({
           student_id: student.id,
           school_id: student.school_id,
           document_type: docType,
           file_name: f.name,
-          file_url: urlData.publicUrl,
+          file_url: publicUrl,
         }).select().single();
         if (data) newDocs.push(data);
-      }
+      } catch { /* skip failed */ }
     }
     if (newDocs.length) setDocs(d=>[...newDocs,...d]);
     setUploadingDoc(false);

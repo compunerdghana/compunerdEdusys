@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useTransition } from "react";
 import ReactCrop, { centerCrop, makeAspectCrop, type Crop, type PixelCrop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import { X, Check, RotateCcw } from "lucide-react";
@@ -16,6 +16,7 @@ export function PhotoCropModal({ src, onConfirm, onCancel, aspectRatio = 1 }: Pr
   const [crop, setCrop] = useState<Crop>();
   const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
   const [rotation, setRotation] = useState(0);
+  const [, startTransition] = useTransition();
 
   function onImageLoad(e: React.SyntheticEvent<HTMLImageElement>) {
     const { width, height } = e.currentTarget;
@@ -68,7 +69,7 @@ export function PhotoCropModal({ src, onConfirm, onCancel, aspectRatio = 1 }: Pr
           <ReactCrop
             crop={crop}
             onChange={(c) => setCrop(c)}
-            onComplete={(c) => setCompletedCrop(c)}
+            onComplete={(c) => startTransition(() => setCompletedCrop(c))}
             aspect={aspectRatio}
             circularCrop={false}
             keepSelection

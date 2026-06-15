@@ -8,6 +8,7 @@ import {
   Check, X, Building2, Calendar, Shield, Upload, Trash2,
 } from "lucide-react";
 import jsPDF from "jspdf";
+import { uploadAsset } from "@/lib/uploadAsset";
 
 const ROLE_STYLE: Record<string, { bg: string; text: string }> = {
   teacher:    { bg:"#ede9fe", text:"#5b21b6" },
@@ -77,16 +78,14 @@ export function StaffProfileClient({
     const f = e.target.files?.[0];
     if (!f) return;
     setUploadingPhoto(true);
-    const prev = URL.createObjectURL(f);
-    setPhotoPreview(prev);
-    const ext = f.name.split(".").pop();
-    const path = `staff/${profile.id}-photo.${ext}`;
-    const { error } = await supabase.storage.from("school-assets").upload(path, f, { upsert: true });
-    if (!error) {
-      const { data } = supabase.storage.from("school-assets").getPublicUrl(path);
-      await supabase.from("profiles").update({ photo_url: data.publicUrl }).eq("id", profile.id);
-      setPhotoPreview(data.publicUrl);
-    }
+    setPhotoPreview(URL.createObjectURL(f));
+    try {
+      const ext = f.name.split(".").pop();
+      const path = `staff/${profile.id}-photo-${Date.now()}.${ext}`;
+      const publicUrl = await uploadAsset(f, path);
+      await supabase.from("profiles").update({ photo_url: publicUrl }).eq("id", profile.id);
+      setPhotoPreview(publicUrl);
+    } catch { /* keep local preview */ }
     setUploadingPhoto(false);
   }
 
@@ -96,20 +95,19 @@ export function StaffProfileClient({
     setUploadingDoc(true);
     const newDocs: DocRow[] = [];
     for (const f of files) {
-      const ext = f.name.split(".").pop();
-      const path = `staff/${profile.id}/docs/${staffDocType.replace(/\s+/g,"_").toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await supabase.storage.from("school-assets").upload(path, f);
-      if (!error) {
-        const { data: urlData } = supabase.storage.from("school-assets").getPublicUrl(path);
+      try {
+        const ext = f.name.split(".").pop();
+        const path = `staff/${profile.id}/docs/${staffDocType.replace(/\s+/g,"_").toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const publicUrl = await uploadAsset(f, path);
         const { data } = await supabase.from("staff_documents").insert({
           profile_id: profile.id,
           school_id: profile.school_id,
           document_type: staffDocType,
           file_name: f.name,
-          file_url: urlData.publicUrl,
+          file_url: publicUrl,
         }).select().single();
         if (data) newDocs.push(data as DocRow);
-      }
+      } catch { /* skip failed file */ }
     }
     if (newDocs.length) setStaffDocs(d => [...newDocs, ...d]);
     setUploadingDoc(false);

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Upload, School, CheckCircle2, PenLine } from "lucide-react";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
+import { uploadAsset } from "@/lib/uploadAsset";
 
 const LEVELS = [
   { value: "daycare", label: "Day Care" },
@@ -118,24 +119,18 @@ export function SchoolProfileForm({ school, schoolId }: Props) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) { setError("Logo must be under 2 MB."); return; }
-    setUploading(true);
-    setError(null);
-
-    await fetch("/api/admin/setup-storage", { method: "POST" });
-
-    const ext = file.name.split(".").pop();
-    const path = `logos/${schoolId ?? "new"}-${Date.now()}.${ext}`;
-    const { error: upErr } = await supabase.storage.from("school-assets").upload(path, file, { upsert: true });
-    if (upErr) { setError("Upload failed: " + upErr.message); setUploading(false); return; }
-
-    const { data: { publicUrl } } = supabase.storage.from("school-assets").getPublicUrl(path);
-    setLogoUrl(publicUrl);
-
-    if (schoolId) {
-      await supabase.from("schools").update({ logo_url: publicUrl }).eq("id", schoolId);
+    setUploading(true); setError(null);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `logos/${schoolId ?? "new"}-${Date.now()}.${ext}`;
+      const publicUrl = await uploadAsset(file, path);
+      setLogoUrl(publicUrl);
+      if (schoolId) await supabase.from("schools").update({ logo_url: publicUrl }).eq("id", schoolId);
+      setSuccess(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed");
     }
     setUploading(false);
-    setSuccess(true);
   }
 
   async function handleSignatureUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -143,17 +138,19 @@ export function SchoolProfileForm({ school, schoolId }: Props) {
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) { setError("Signature image must be under 2 MB."); return; }
     setUploadingSig(true); setError(null);
-    await fetch("/api/admin/setup-storage", { method: "POST" });
-    const ext = file.name.split(".").pop();
-    const path = `signatures/${schoolId ?? "new"}-sig-${Date.now()}.${ext}`;
-    const { error: upErr } = await supabase.storage.from("school-assets").upload(path, file, { upsert: true });
-    if (upErr) { setError("Upload failed: " + upErr.message); setUploadingSig(false); return; }
-    const { data: { publicUrl } } = supabase.storage.from("school-assets").getPublicUrl(path);
-    setSigUrl(publicUrl);
-    if (schoolId) {
-      await supabase.from("schools").update({ headmaster_signature_url: publicUrl }).eq("id", schoolId);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `signatures/${schoolId ?? "new"}-sig-${Date.now()}.${ext}`;
+      const publicUrl = await uploadAsset(file, path);
+      setSigUrl(publicUrl);
+      if (schoolId) {
+          await supabase.from("schools").update({ headmaster_signature_url: publicUrl }).eq("id", schoolId);
+        }
+      setSuccess(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed");
     }
-    setUploadingSig(false); setSuccess(true);
+    setUploadingSig(false);
   }
 
   async function handleSubmit(e: React.FormEvent) {
