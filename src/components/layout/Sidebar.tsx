@@ -7,6 +7,7 @@ import {
   LayoutDashboard, Users, BookOpen, ClipboardList,
   CreditCard, MessageSquare, Settings,
   GraduationCap, BarChart3, ChevronDown, UserCog, LogOut, CalendarClock,
+  Wallet, Receipt, PiggyBank, Building2, TrendingUp, DollarSign,
 } from "lucide-react";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -27,7 +28,18 @@ const navItems = [
       { href: "/exams/report-card", label: "Report Cards",  icon: GraduationCap },
     ],
   },
-  { href: "/finance",        label: "Finance",        icon: CreditCard },
+  {
+    label: "Finance",
+    icon: CreditCard,
+    children: [
+      { href: "/finance",              label: "Overview",     icon: Wallet },
+      { href: "/finance/expenses",     label: "Expenses",     icon: Receipt },
+      { href: "/finance/income",       label: "Income",       icon: TrendingUp },
+      { href: "/finance/budget",       label: "Budget",       icon: PiggyBank },
+      { href: "/finance/petty-cash",   label: "Petty Cash",   icon: DollarSign },
+      { href: "/finance/bank-accounts",label: "Bank Accounts",icon: Building2 },
+    ],
+  },
   { href: "/communications", label: "Communications", icon: MessageSquare },
   { href: "/reports",        label: "Reports",        icon: BarChart3 },
 ];
@@ -42,8 +54,16 @@ interface SidebarProps {
 export function Sidebar({ userName = "Admin", userRole = "admin", schoolName, schoolLogo }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const academicsActive = ["/academics", "/timetable", "/exams"].some((p) => pathname.startsWith(p));
-  const [academicsOpen, setAcademicsOpen] = useState(academicsActive);
+
+  // Generic open state per group label
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>(() => ({
+    Academics: ["/academics", "/timetable", "/exams"].some((p) => pathname.startsWith(p)),
+    Finance: pathname.startsWith("/finance"),
+  }));
+
+  function toggleMenu(label: string) {
+    setOpenMenus(prev => ({ ...prev, [label]: !prev[label] }));
+  }
 
   async function handleLogout() {
     const supabase = createClient();
@@ -86,30 +106,33 @@ export function Sidebar({ userName = "Admin", userRole = "admin", schoolName, sc
 
         {navItems.map((item) => {
           if ("children" in item) {
+            const childPaths = (item.children ?? []).map(c => c.href);
+            const groupActive = childPaths.some(p => pathname === p || pathname.startsWith(p + "/"));
+            const isOpen = openMenus[item.label] ?? groupActive;
             return (
               <div key={item.label}>
                 <button
-                  onClick={() => setAcademicsOpen((v) => !v)}
+                  onClick={() => toggleMenu(item.label)}
                   className={cn(
                     "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-semibold transition-all",
-                    academicsActive
+                    groupActive
                       ? "bg-white/15 text-white"
                       : "text-white/65 hover:text-white hover:bg-white/8",
                   )}
                 >
                   <span className={cn(
                     "w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all",
-                    academicsActive ? "bg-white/20 shadow-sm" : "bg-white/8",
+                    groupActive ? "bg-white/20 shadow-sm" : "bg-white/8",
                   )}>
                     <item.icon size={15} />
                   </span>
                   <span className="flex-1 text-left">{item.label}</span>
-                  <ChevronDown size={13} className={cn("transition-transform opacity-50", academicsOpen && "rotate-180")} />
+                  <ChevronDown size={13} className={cn("transition-transform opacity-50", isOpen && "rotate-180")} />
                 </button>
-                {academicsOpen && (
+                {isOpen && (
                   <div className="ml-4 mt-1 space-y-0.5 border-l border-white/10 pl-3">
                     {(item.children ?? []).map(({ href, label, icon: Icon }) => {
-                      const active = pathname === href || pathname.startsWith(href);
+                      const active = pathname === href || pathname.startsWith(href + "/");
                       return (
                         <Link key={href} href={href}
                           className={cn(

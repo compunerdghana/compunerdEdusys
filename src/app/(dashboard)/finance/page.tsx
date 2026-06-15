@@ -4,13 +4,41 @@ import { Badge } from "@/components/ui/Badge";
 import { formatCurrency, formatDate, getInitials } from "@/lib/utils";
 import {
   PlusCircle, CreditCard, TrendingUp, TrendingDown, Wallet,
-  ReceiptText, ArrowUpRight, Users, Printer,
+  ReceiptText, ArrowUpRight, Users, Printer, Activity,
+  AlertCircle,
 } from "lucide-react";
 import { FinanceOwingSection } from "./FinanceOwingSection";
 import { ReceiptPrintButton } from "./ReceiptPrintButton";
 
 const BRAND  = "#262262";
 const ACCENT = "#92278F";
+const GRADIENT = "linear-gradient(135deg, #262262, #92278F)";
+
+interface DashboardData {
+  wallet?: {
+    current_balance: number;
+    total_income: number;
+    total_expenses: number;
+  };
+  monthly_income?: number;
+  monthly_expenses?: number;
+  net_position?: number;
+  collection_rate?: number;
+  health_score?: number;
+  pending_approvals?: number;
+  tableNotReady?: boolean;
+}
+
+async function fetchFinanceDashboard(schoolId: string): Promise<DashboardData | null> {
+  try {
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/api/admin/finance/dashboard?schoolId=${schoolId}`,
+      { cache: "no-store" }
+    );
+    if (!res.ok) return null;
+    return res.json();
+  } catch { return null; }
+}
 
 export default async function FinancePage() {
   const supabase = await createClient();
@@ -18,6 +46,8 @@ export default async function FinancePage() {
   const { data: profile } = await supabase.from("profiles").select("school_id, role").eq("id", user!.id).single();
   const schoolId = profile?.school_id;
   const isFinance = ["headmaster","owner","accountant"].includes(profile?.role ?? "");
+
+  const dashboardData = await fetchFinanceDashboard(schoolId!);
 
   const [schoolRes, walletRes, invoiceRes, paymentsRes, recentInvoicesRes, owingRes, classesRes] = await Promise.all([
     supabase.from("schools").select("id, name, address, phone, email, logo_url, headmaster_signature_url, motto").eq("id", schoolId!).single(),
@@ -82,6 +112,81 @@ export default async function FinancePage() {
 
   return (
     <div className="space-y-6 pb-8">
+
+      {/* School Wallet Card */}
+      {dashboardData?.tableNotReady ? (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+          <p className="font-semibold text-amber-800 text-[14px]">Finance Module Setup Required</p>
+          <p className="text-[13px] text-amber-700 mt-1">Run the SQL migration first to enable wallet and expense tracking.</p>
+          <a href="/finance/setup" className="text-[12px] font-semibold text-amber-800 underline mt-2 inline-block">View setup instructions →</a>
+        </div>
+      ) : dashboardData ? (
+        <div className="rounded-2xl border border-[var(--border)] shadow-[0_1px_6px_rgba(0,0,0,0.05)] overflow-hidden bg-white">
+          <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Wallet size={16} style={{ color: BRAND }} />
+              <h3 className="text-[14px] font-bold text-[var(--text-strong)]">School Wallet</h3>
+            </div>
+            <Link href="/finance/wallet" className="text-[12px] font-semibold hover:underline" style={{ color: BRAND }}>
+              View all transactions →
+            </Link>
+          </div>
+          <div className="p-5">
+            <div className="flex flex-wrap gap-6 items-center">
+              {/* Balance */}
+              <div className="min-w-[160px]">
+                <p className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wide">Current Balance</p>
+                <p className="text-[30px] font-extrabold leading-tight mt-0.5" style={{ color: BRAND }}>
+                  {formatCurrency(Number(dashboardData.wallet?.current_balance ?? 0))}
+                </p>
+              </div>
+              {/* Divider */}
+              <div className="hidden sm:block w-px h-12 bg-[var(--border)]" />
+              {/* Stats */}
+              <div className="flex flex-wrap gap-5 flex-1">
+                {[
+                  { label: "Monthly Income", value: formatCurrency(Number(dashboardData.monthly_income ?? 0)), color: "#16A34A" },
+                  { label: "Monthly Expenses", value: formatCurrency(Number(dashboardData.monthly_expenses ?? 0)), color: "#DC2626" },
+                  { label: "Net Position", value: formatCurrency(Number(dashboardData.net_position ?? 0)), color: Number(dashboardData.net_position ?? 0) >= 0 ? "#16A34A" : "#DC2626" },
+                ].map(s => (
+                  <div key={s.label}>
+                    <p className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wide">{s.label}</p>
+                    <p className="text-[18px] font-extrabold mt-0.5" style={{ color: s.color }}>{s.value}</p>
+                  </div>
+                ))}
+              </div>
+              {/* Health Score */}
+              <div className="flex items-center gap-3">
+                {(dashboardData.pending_approvals ?? 0) > 0 && (
+                  <Link href="/finance/expenses?status=pending"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition-colors">
+                    <AlertCircle size={13} />
+                    {dashboardData.pending_approvals} Pending
+                  </Link>
+                )}
+                <div className="relative w-14 h-14 shrink-0">
+                  <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+                    <circle cx="18" cy="18" r="15.9" fill="none" stroke="#F3F4F6" strokeWidth="3" />
+                    <circle cx="18" cy="18" r="15.9" fill="none"
+                      stroke={
+                        (dashboardData.health_score ?? 0) > 70 ? "#16A34A"
+                        : (dashboardData.health_score ?? 0) > 40 ? "#D97706"
+                        : "#DC2626"
+                      }
+                      strokeWidth="3"
+                      strokeDasharray={`${(dashboardData.health_score ?? 0)}, 100`}
+                      strokeLinecap="round" />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <Activity size={10} className="text-[var(--text-muted)]" />
+                    <span className="text-[10px] font-bold text-[var(--text-strong)]">{dashboardData.health_score ?? 0}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* Header */}
       <div className="flex items-center justify-between gap-4">

@@ -4,6 +4,7 @@
  */
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+import { mutateSchoolWallet } from "@/lib/finance/wallet-helper";
 
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -131,7 +132,25 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // ── 6. Also update legacy fee_payments table for backwards compat ──
+    // ── 6. Credit school wallet (non-blocking) ────────────────────────
+    if (receipt?.id) {
+      try {
+        await mutateSchoolWallet({
+          schoolId: school_id,
+          amount: payAmt,
+          type: "credit",
+          category: "student_payment",
+          description: `Student fee payment — ${receiptNumber}`,
+          referenceType: "payment_receipt",
+          referenceId: receipt.id,
+          userId: recorded_by ?? undefined,
+        });
+      } catch (swErr) {
+        console.warn("[billing/record-payment] school wallet credit failed (non-fatal):", swErr);
+      }
+    }
+
+    // ── 8. Also update legacy fee_payments table for backwards compat ──
     if (inv) {
       const { data: fp } = await admin.from("fee_payments")
         .select("*")
@@ -154,7 +173,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── 7. Activity log ────────────────────────────────────────────
+    // ── 9. Activity log ────────────────────────────────────────────
     await admin.from("activity_feed").insert({
       school_id,
       actor_id: recorded_by ?? null,
@@ -166,7 +185,7 @@ export async function POST(req: NextRequest) {
       meta: { receipt_number: receiptNumber, amount: payAmt, invoice_id: inv?.id },
     }).then(() => null, () => null);
 
-    // ── 8. Timeline event ──────────────────────────────────────────
+    // ── 10. Timeline event ──────────────────────────────────────────
     await admin.from("student_timeline").insert({
       student_id,
       school_id,
