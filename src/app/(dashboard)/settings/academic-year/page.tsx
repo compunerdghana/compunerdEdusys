@@ -13,7 +13,7 @@ export default async function AcademicYearPage() {
     .eq("id", user.id)
     .single();
 
-  if (profile?.role !== "headmaster" && profile?.role !== "owner") redirect("/settings");
+  if (profile?.role !== "headmaster" && profile?.role !== "owner" && profile?.role !== "admin") redirect("/settings");
   if (!profile?.school_id) redirect("/settings/school");
 
   const [{ data: years }, { data: terms }] = await Promise.all([

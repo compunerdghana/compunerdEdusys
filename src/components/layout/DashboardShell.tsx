@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
+import { ToastProvider } from "@/components/ui/Toast";
 
 interface Props {
   userName: string;
@@ -20,6 +21,7 @@ export function DashboardShell({ userName, userRole, schoolName, schoolLogo, chi
   useEffect(() => { setSidebarOpen(false); }, [pathname]);
 
   return (
+    <ToastProvider>
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--bg)" }}>
       {/* Overlay — mobile */}
       {sidebarOpen && (
@@ -41,5 +43,6 @@ export function DashboardShell({ userName, userRole, schoolName, schoolLogo, chi
         <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
       </div>
     </div>
+    </ToastProvider>
   );
 }

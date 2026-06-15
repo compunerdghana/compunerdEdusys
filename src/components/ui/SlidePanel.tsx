@@ -30,18 +30,18 @@ export function SlidePanel({ open, onClose, title, subtitle, children, width = "
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={onClose} />
 
-      {/* Panel — slides in from right */}
+      {/* Panel — centered */}
       <div className={cn(
-        "relative ml-auto h-full bg-white shadow-2xl flex flex-col w-full",
+        "relative w-full bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh]",
         widths[width],
-        "animate-in slide-in-from-right duration-300",
+        "animate-in fade-in zoom-in-95 duration-200",
       )}>
         {/* Header */}
-        <div className="flex items-start justify-between gap-4 px-7 py-6 border-b border-[var(--border)] shrink-0"
+        <div className="flex items-start justify-between gap-4 px-7 py-5 border-b border-[var(--border)] shrink-0 rounded-t-2xl"
           style={{ background: "linear-gradient(135deg,#262262,#92278F)" }}>
           <div>
             <h3 className="text-[18px] font-extrabold text-white">{title}</h3>

@@ -41,7 +41,7 @@ export default async function ExpensesPage() {
     .eq("id", user.id)
     .single();
 
-  if (!profile || !["owner", "headmaster", "accountant"].includes(profile.role)) {
+  if (!profile || !["owner", "headmaster", "accountant", "admin"].includes(profile.role)) {
     redirect("/dashboard");
   }
 

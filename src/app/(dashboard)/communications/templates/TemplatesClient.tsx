@@ -5,6 +5,7 @@ import { Plus, FileText, AlertTriangle, Edit2, Trash2, MessageCircle, Smartphone
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { SlidePanel } from "@/components/ui/SlidePanel";
+import { useToast } from "@/components/ui/Toast";
 
 interface Template {
   id: string;
@@ -41,6 +42,7 @@ const CHANNEL_COLORS: Record<string, string> = {
 };
 
 export function TemplatesClient({ schoolId, userId, initialTemplates, tableNotReady }: Props) {
+  const { success, error: toastError } = useToast();
   const [templates, setTemplates] = useState<Template[]>(initialTemplates);
   const [panelOpen, setPanelOpen] = useState(false);
   const [editing, setEditing] = useState<Template | null>(null);
@@ -82,13 +84,16 @@ export function TemplatesClient({ schoolId, userId, initialTemplates, tableNotRe
         }),
       });
       const json = await res.json();
-      if (json.data) {
+      if (json.error) {
+        toastError(json.error.includes("does not exist") ? "Template tables not set up yet. Run the setup migration first." : `Error: ${json.error}`);
+      } else if (json.data) {
         if (editing) {
           setTemplates((prev) => prev.map((t) => t.id === editing.id ? { ...t, ...json.data } : t));
         } else {
           setTemplates((prev) => [json.data, ...prev]);
         }
         setPanelOpen(false);
+        success(editing ? "Template updated!" : "Template created!");
       }
     } finally {
       setSaving(false);
@@ -118,8 +123,8 @@ export function TemplatesClient({ schoolId, userId, initialTemplates, tableNotRe
           <h1 className="text-[22px] font-extrabold text-[var(--text-strong)]">Message Templates</h1>
           <p className="text-[14px] text-[var(--text-muted)] mt-0.5">{templates.length} templates available across all channels</p>
         </div>
-        <button onClick={openNew} disabled={tableNotReady}
-          className="h-10 px-5 rounded-xl text-[13px] font-bold text-white flex items-center gap-2 shadow disabled:opacity-50"
+        <button onClick={openNew}
+          className="h-10 px-5 rounded-xl text-[13px] font-bold text-white flex items-center gap-2 shadow"
           style={{ background: "linear-gradient(135deg, #262262, #92278F)" }}>
           <Plus size={15} /> New Template
         </button>

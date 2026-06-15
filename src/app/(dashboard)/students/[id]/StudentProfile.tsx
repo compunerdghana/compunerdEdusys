@@ -4,6 +4,7 @@ import { PhotoCropModal } from "@/components/ui/PhotoCropModal";
 import { uploadAsset } from "@/lib/uploadAsset";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/ui/Toast";
 import {
   ArrowLeft, User, Users, CreditCard, ClipboardList, BarChart2,
   Phone, Edit3, Save, X, Plus, Trash2, FileDown, Camera,
@@ -106,6 +107,7 @@ export function StudentProfile({
 }: Props) {
   const router = useRouter();
   const supabase = createClient();
+  const { success, error: toastError } = useToast();
 
   const [tab, setTab]         = useState("biodata");
   const [student, setStudent] = useState(initial);
@@ -132,8 +134,8 @@ export function StudentProfile({
   const [confirmDeleteType, setConfirmDeleteType] = useState<"parent"|"doc"|"disc"|"award">("parent");
 
   const canEdit    = ["headmaster","owner","teacher","admin"].includes(viewerRole);
-  const canFinance = ["headmaster","owner","accountant"].includes(viewerRole);
-  const canSensitive = ["headmaster","owner"].includes(viewerRole);
+  const canFinance = ["headmaster","owner","accountant","admin"].includes(viewerRole);
+  const canSensitive = ["headmaster","owner","admin"].includes(viewerRole);
 
   const fullName = [student.first_name, student.middle_name, student.last_name].filter(Boolean).join(" ");
 
@@ -290,7 +292,8 @@ export function StudentProfile({
       admission_year: ef.admission_year.trim() || null,
     }).eq("id", student.id).select("*, classrooms(id,name,level)").single();
     setSaving(false);
-    if (!error && data) {
+    if (error) { toastError(`Save failed: ${error.message}`); return; }
+    if (data) {
       // Fire status-change automation if status changed
       if (ef.status !== student.status) {
         fetch("/api/billing/status-change", {
@@ -304,14 +307,16 @@ export function StudentProfile({
           }),
         }).catch(() => null);
       }
+      success("Student profile saved!");
       setStudent(data); setEditing(false); router.refresh();
     }
   }
 
   async function saveMedical() {
     const payload = { ...mf, student_id: student.id, school_id: student.school_id };
-    const { data } = await supabase.from("student_medical").upsert(payload).select().single();
-    if (data) setMedical(data);
+    const { data, error } = await supabase.from("student_medical").upsert(payload).select().single();
+    if (error) { toastError(`Failed to save medical info: ${error.message}`); return; }
+    if (data) { setMedical(data); success("Medical information saved!"); }
     setEditMedical(false);
   }
 
@@ -336,6 +341,7 @@ export function StudentProfile({
       setParents(p=>[...p,data]);
       setAddingParent(false);
       setPf({ full_name:"",phone:"",relationship:"Father",email:"",occupation:"",employer:"",address:"",digital_address:"" });
+      success("Parent/guardian added!");
       addTimelineEvent("parent", `${pf.full_name} added as ${pf.relationship}`, new Date().toISOString().slice(0,10));
     }
   }
@@ -362,6 +368,7 @@ export function StudentProfile({
       setDiscipline(d=>[data,...d]);
       setAddingDisc(false);
       setDf({ incident_date:"",incident_type:"",description:"",action_taken:"",parent_notified:false });
+      success("Discipline record saved!");
       addTimelineEvent("discipline", `Discipline: ${df.incident_type}`, df.incident_date);
     }
   }
@@ -381,6 +388,7 @@ export function StudentProfile({
       setAwards(a=>[data,...a]);
       setAddingAward(false);
       setAwf({ award_type:"Academic",title:"",description:"",awarded_date:"",awarded_by:"" });
+      success("Award added!");
       if (awf.awarded_date) addTimelineEvent("award", `Award: ${awf.title}`, awf.awarded_date);
     }
   }
@@ -401,6 +409,7 @@ export function StudentProfile({
       setPromotions(p=>[...p,data]);
       setAddingPromo(false);
       setPrf({ academic_year:"",class_id:"",notes:"" });
+      success(`Promoted to ${cls?.name ?? "new class"}!`);
       addTimelineEvent("promotion", `Promoted to ${cls?.name ?? ""}`, new Date().toISOString().slice(0,10));
     }
   }

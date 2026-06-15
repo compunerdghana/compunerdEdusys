@@ -12,7 +12,7 @@ export default async function StaffAttendancePage() {
   if (!profile?.school_id) redirect("/dashboard");
 
   const schoolId = profile.school_id as string;
-  const isAdmin = ["owner", "headmaster", "accountant"].includes(profile.role);
+  const isAdmin = ["owner", "headmaster", "accountant", "admin"].includes(profile.role);
 
   const admin = createAdmin(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

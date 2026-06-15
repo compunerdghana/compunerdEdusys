@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { SlidePanel } from "@/components/ui/SlidePanel";
 import { PlusCircle, BarChart2, AlertTriangle, Target, DollarSign, Pencil } from "lucide-react";
+import { useToast } from "@/components/ui/Toast";
 
 const GRADIENT = "linear-gradient(135deg, #262262, #92278F)";
 const BRAND = "#262262";
@@ -35,6 +36,7 @@ function FormInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
 }
 
 export default function BudgetPage() {
+  const { success, error: toastError } = useToast();
   const [schoolId, setSchoolId] = useState<string | null>(null);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,9 +84,15 @@ export default function BudgetPage() {
     setSubmitting(true);
     const body = { ...form, allocated_amount: parseFloat(form.allocated_amount), school_id: schoolId };
     if (editBudget) {
-      await fetch("/api/admin/finance/budget", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, id: editBudget.id }) });
+      const res = await fetch("/api/admin/finance/budget", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, id: editBudget.id }) });
+      const json = await res.json();
+      if (json.error) { toastError(`Error: ${json.error}`); setSubmitting(false); return; }
+      success("Budget updated!");
     } else {
-      await fetch("/api/admin/finance/budget", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const res = await fetch("/api/admin/finance/budget", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const json = await res.json();
+      if (json.error) { toastError(`Error: ${json.error}`); setSubmitting(false); return; }
+      success("Budget created!");
     }
     setSubmitting(false);
     setShowForm(false);

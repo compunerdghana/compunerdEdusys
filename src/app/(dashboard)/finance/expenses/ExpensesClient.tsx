@@ -52,8 +52,8 @@ export function ExpensesClient({ schoolId, role, initialExpenses, initialCategor
   const [err, setErr] = useState<string | null>(null);
   const [detail, setDetail] = useState<Expense | null>(null);
 
-  const canApprove = ["owner", "headmaster"].includes(role);
-  const canCreate  = ["owner", "headmaster", "accountant"].includes(role);
+  const canApprove = ["owner", "headmaster", "admin"].includes(role);
+  const canCreate  = ["owner", "headmaster", "accountant", "admin"].includes(role);
 
   const now = new Date();
   const thisMonth  = expenses.filter(e => { const d = new Date(e.expense_date); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); });

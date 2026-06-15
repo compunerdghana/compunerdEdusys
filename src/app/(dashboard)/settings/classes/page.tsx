@@ -8,7 +8,7 @@ export default async function ClassesPage() {
   if (!user) redirect("/login");
 
   const { data: profile } = await supabase.from("profiles").select("school_id, role").eq("id", user.id).single();
-  if (profile?.role !== "headmaster" && profile?.role !== "owner") redirect("/settings");
+  if (profile?.role !== "headmaster" && profile?.role !== "owner" && profile?.role !== "admin") redirect("/settings");
   if (!profile?.school_id) redirect("/settings/school");
 
   const [{ data: classes }, { data: teachers }] = await Promise.all([

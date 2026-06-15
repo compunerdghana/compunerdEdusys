@@ -143,7 +143,7 @@ export default async function FinanceSetupPage() {
   const { data: { user } } = await supabase.auth.getUser();
   const { data: profile } = await supabase.from("profiles").select("school_id, role").eq("id", user!.id).single();
 
-  if (!["owner", "headmaster", "accountant"].includes(profile?.role ?? "")) {
+  if (!["owner", "headmaster", "accountant", "admin"].includes(profile?.role ?? "")) {
     redirect("/dashboard");
   }
 

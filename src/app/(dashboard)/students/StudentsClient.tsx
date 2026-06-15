@@ -26,12 +26,25 @@ type StudentRow = Record<string, any> & {
 };
 
 interface ClassRoom { id: string; name: string; level: string }
+
+interface StudentStats {
+  total: number;
+  active: number;
+  male: number;
+  female: number;
+  newThisMonth: number;
+  presentToday: number;
+  absentToday: number;
+  outstandingFees: number;
+}
+
 interface Props {
   students: StudentRow[];
   classes: ClassRoom[];
   schoolId: string;
-  filters: { q?: string; status?: string; class?: string };
+  filters: { q?: string; status?: string; class?: string; view?: string };
   role: string;
+  stats: StudentStats;
 }
 
 function calcAge(dob: string | null) {
@@ -39,14 +52,14 @@ function calcAge(dob: string | null) {
   return Math.floor((Date.now() - new Date(dob).getTime()) / (1000 * 60 * 60 * 24 * 365.25));
 }
 
-export function StudentsClient({ students, classes, schoolId, filters, role }: Props) {
+export function StudentsClient({ students, classes, schoolId, filters, role, stats }: Props) {
   const router = useRouter();
   const supabase = createClient();
   const [admitOpen, setAdmitOpen] = useState(false);
   const [selected, setSelected] = useState<StudentRow | null>(null);
   const [search, setSearch] = useState(filters.q ?? "");
   const [csvUploading, setCsvUploading] = useState(false);
-  const canAdmit = ["headmaster", "owner", "teacher"].includes(role);
+  const canAdmit = ["headmaster", "owner", "teacher", "admin"].includes(role);
 
   function exportCSV() {
     const headers = ["Admission No", "First Name", "Middle Name", "Last Name", "Class", "Gender", "Date of Birth", "Status", "Admission Date"];
@@ -112,8 +125,27 @@ export function StudentsClient({ students, classes, schoolId, filters, role }: P
     ? students.filter((s) => s.class_id === selected.class_id && s.id !== selected.id).slice(0, 6)
     : [];
 
+  const STAT_CARDS = [
+    { label: "Total Students", value: stats.total, sub: `${stats.active} active`, color: "#262262", bg: "#EEF2FF" },
+    { label: "New This Month", value: stats.newThisMonth, sub: "fresh admissions", color: "#7c3aed", bg: "#ede9fe" },
+    { label: "Male", value: stats.male, sub: `${stats.female} female`, color: "#0369a1", bg: "#e0f2fe" },
+    { label: "Present Today", value: stats.presentToday, sub: `${stats.absentToday} absent`, color: "#059669", bg: "#d1fae5" },
+    { label: "Outstanding Fees", value: stats.outstandingFees, sub: "students with balance", color: "#b45309", bg: "#fef3c7" },
+  ];
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
+      {/* Stats cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {STAT_CARDS.map((c) => (
+          <div key={c.label} className="bg-white rounded-2xl border border-[var(--border)] p-4 shadow-sm">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-muted)] mb-1">{c.label}</p>
+            <p className="text-[26px] font-extrabold" style={{ color: c.color }}>{c.value}</p>
+            <p className="text-[11px] text-[var(--text-subtle)] mt-0.5">{c.sub}</p>
+          </div>
+        ))}
+      </div>
+
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>

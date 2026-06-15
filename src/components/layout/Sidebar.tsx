@@ -33,12 +33,12 @@ const navItems = [
       { href: "/staff/exits",       label: "Exits",       icon: UserMinus },
     ],
   },
-  { href: "/attendance",     label: "Attendance",     icon: ClipboardList },
   {
     label: "Academics",
     icon: BookOpen,
     children: [
       { href: "/academics",         label: "Academics",     icon: BookOpen },
+      { href: "/attendance",        label: "Attendance",    icon: ClipboardList },
       { href: "/timetable",         label: "Timetable",     icon: CalendarClock },
       { href: "/exams",             label: "Enter Scores",  icon: GraduationCap },
       { href: "/exams/report-card", label: "Report Cards",  icon: GraduationCap },
@@ -104,7 +104,7 @@ export function Sidebar({ userName = "Admin", userRole = "admin", schoolName, sc
 
   // Generic open state per group label
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>(() => ({
-    Academics: ["/academics", "/timetable", "/exams"].some((p) => pathname.startsWith(p)),
+    Academics: ["/academics", "/timetable", "/exams", "/attendance"].some((p) => pathname.startsWith(p)),
     Finance: pathname.startsWith("/finance"),
     Staff: pathname.startsWith("/staff"),
     Communications: pathname.startsWith("/communications"),

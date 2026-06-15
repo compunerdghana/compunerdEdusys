@@ -10,7 +10,7 @@ export default async function NewStaffPage() {
   const { data: profile } = await supabase.from("profiles")
     .select("school_id, role").eq("id", user.id).single();
   if (!profile?.school_id) redirect("/dashboard");
-  if (!["headmaster","owner"].includes(profile.role)) redirect("/staff");
+  if (!["headmaster","owner","admin"].includes(profile.role)) redirect("/staff");
 
   const [classRes, subRes, staffRes] = await Promise.all([
     supabase.from("classrooms").select("id,name").eq("school_id", profile.school_id).order("name"),

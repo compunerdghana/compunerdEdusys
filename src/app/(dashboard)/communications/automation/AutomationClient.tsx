@@ -5,6 +5,7 @@ import { Zap, Plus, AlertTriangle, ChevronDown, Trash2, ArrowLeft } from "lucide
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { SlidePanel } from "@/components/ui/SlidePanel";
+import { useToast } from "@/components/ui/Toast";
 
 interface Rule {
   id: string;
@@ -45,6 +46,7 @@ const CHANNEL_COLORS: Record<string, string> = {
 };
 
 export function AutomationClient({ schoolId, userId, tableNotReady, initialRules, templates }: Props) {
+  const { success, error: toastError } = useToast();
   const [rules, setRules] = useState<Rule[]>(initialRules);
   const [panelOpen, setPanelOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -88,10 +90,13 @@ export function AutomationClient({ schoolId, userId, tableNotReady, initialRules
         }),
       });
       const json = await res.json();
-      if (json.data) {
+      if (json.error) {
+        toastError(json.error.includes("does not exist") ? "Automation tables not set up yet. Run the communication migration first." : `Error: ${json.error}`);
+      } else if (json.data) {
         setRules((prev) => [json.data, ...prev]);
         setPanelOpen(false);
         setForm({ name: "", description: "", trigger_event: "student_absent", channel: "whatsapp", template_id: "", recipient_type: "parent", delay_minutes: 0 });
+        success("Automation rule created!");
       }
     } finally {
       setSaving(false);

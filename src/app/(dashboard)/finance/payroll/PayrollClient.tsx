@@ -102,7 +102,7 @@ export function PayrollClient({ schoolId, userId, userRole, tableNotReady, initi
     other_deductions: "", payment_method: "bank_transfer", account_number: "", bank_name: "", notes: "",
   });
 
-  const canManage = ["owner", "headmaster", "accountant"].includes(userRole);
+  const canManage = ["owner", "headmaster", "accountant", "admin"].includes(userRole);
 
   async function openRun(run: Run) {
     setSelectedRun(run);

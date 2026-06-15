@@ -34,7 +34,7 @@ export default async function FinancePage() {
   const { data: { user } } = await supabase.auth.getUser();
   const { data: profile } = await supabase.from("profiles").select("school_id, role").eq("id", user!.id).single();
   const schoolId = profile?.school_id as string;
-  const isFinance = ["headmaster","owner","accountant"].includes(profile?.role ?? "");
+  const isFinance = ["headmaster","owner","accountant","admin"].includes(profile?.role ?? "");
 
   // Direct admin queries — no self-fetch
   const admin = createAdmin(
