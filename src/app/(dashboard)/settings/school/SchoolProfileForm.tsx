@@ -125,7 +125,7 @@ export function SchoolProfileForm({ school, schoolId }: Props) {
       const path = `logos/${schoolId ?? "new"}-${Date.now()}.${ext}`;
       const publicUrl = await uploadAsset(file, path);
       setLogoUrl(publicUrl);
-      if (schoolId) await supabase.from("schools").update({ logo_url: publicUrl }).eq("id", schoolId);
+      if (schoolId) await fetch("/api/admin/save-school", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ schoolId, payload: { logo_url: publicUrl } }) });
       setSuccess(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
@@ -143,9 +143,7 @@ export function SchoolProfileForm({ school, schoolId }: Props) {
       const path = `signatures/${schoolId ?? "new"}-sig-${Date.now()}.${ext}`;
       const publicUrl = await uploadAsset(file, path);
       setSigUrl(publicUrl);
-      if (schoolId) {
-          await supabase.from("schools").update({ headmaster_signature_url: publicUrl }).eq("id", schoolId);
-        }
+      if (schoolId) await fetch("/api/admin/save-school", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ schoolId, payload: { headmaster_signature_url: publicUrl } }) });
       setSuccess(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
@@ -178,30 +176,14 @@ export function SchoolProfileForm({ school, schoolId }: Props) {
       currency: form.currency || "GHS",
     };
 
-    let saveErr = null;
-
-    if (schoolId) {
-      const res = await supabase.from("schools").update(basePayload).eq("id", schoolId);
-      if (res.error) { saveErr = res.error; }
-      else {
-        // Try extended columns — silently ignore if columns not added yet
-        await supabase.from("schools").update(extPayload).eq("id", schoolId);
-      }
-    } else {
-      const { data: { user } } = await supabase.auth.getUser();
-      const res = await supabase.from("schools")
-        .insert({ ...basePayload, created_by: user!.id })
-        .select("id").single();
-      saveErr = res.error;
-      if (!saveErr && res.data) {
-        await supabase.from("profiles").update({ school_id: res.data.id }).eq("id", user!.id);
-        // Try extended on newly created school
-        await supabase.from("schools").update(extPayload).eq("id", res.data.id);
-      }
-    }
-
+    const res = await fetch("/api/admin/save-school", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ schoolId: schoolId ?? null, payload: { ...basePayload, ...extPayload } }),
+    });
+    const json = await res.json();
     setSaving(false);
-    if (saveErr) { setError(saveErr.message); return; }
+    if (!res.ok) { setError(json.error ?? "Save failed"); return; }
     // Save receipt template preference to localStorage
     if (schoolId) localStorage.setItem(`receipt_template_${schoolId}`, String(receiptTemplate));
     setSuccess(true);

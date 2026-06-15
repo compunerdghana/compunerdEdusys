@@ -5,9 +5,11 @@ import { createClient } from "@/lib/supabase/client";
 import {
   CalendarDays, Upload, Trash2, FileText, BookOpen, ClipboardList,
   FolderOpen, Plus, Download, Eye, X, CheckCircle2, ChevronLeft, ChevronRight,
+  File, CheckCheck, AlertCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { formatDate } from "@/lib/utils";
+import { uploadAsset } from "@/lib/uploadAsset";
 
 interface Term {
   id: string; name: string; start_date: string; end_date: string;
@@ -130,42 +132,77 @@ export function AcademicCalendarClient({ terms, documents: initialDocs, schoolId
   const [docs, setDocs]           = useState<SchoolDoc[]>(initialDocs);
   const [category, setCategory]   = useState("academic_calendar");
   const [docTitle, setDocTitle]   = useState("");
-  const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting]   = useState<string | null>(null);
-  const [uploadErr, setUploadErr] = useState<string | null>(null);
   const [filterCat, setFilterCat] = useState("all");
   const [showUpload, setShowUpload] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
-  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []);
-    if (!files.length) return;
-    setUploading(true); setUploadErr(null);
+  // Per-file upload state
+  type FileStatus = { file: File; status: "pending" | "uploading" | "done" | "error"; error?: string };
+  const [fileQueue, setFileQueue] = useState<FileStatus[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
 
-    for (const file of files) {
-      if (file.size > 20 * 1024 * 1024) { setUploadErr(`${file.name} exceeds 20 MB limit.`); continue; }
-      const ext = file.name.split(".").pop();
-      const path = `school-docs/${schoolId}/${category}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("school-assets").upload(path, file, { upsert: false });
-      if (upErr) { setUploadErr("Upload failed: " + upErr.message); continue; }
-      const { data: { publicUrl } } = supabase.storage.from("school-assets").getPublicUrl(path);
+  function addFiles(incoming: File[]) {
+    setFileQueue(prev => [
+      ...prev,
+      ...incoming.filter(f => !prev.some(p => p.file.name === f.name)).map(f => ({ file: f, status: "pending" as const })),
+    ]);
+  }
 
-      const { data: row } = await supabase.from("school_documents").insert({
-        school_id: schoolId,
-        category,
-        title: docTitle.trim() || file.name.replace(/\.[^.]+$/, ""),
-        file_name: file.name,
-        file_url: publicUrl,
-        file_size: file.size,
-        mime_type: file.type,
-      }).select("*").single();
+  function removeQueued(name: string) {
+    setFileQueue(prev => prev.filter(f => f.file.name !== name));
+  }
 
-      if (row) setDocs(prev => [row, ...prev]);
+  async function handleUploadQueue() {
+    if (isUploading || fileQueue.every(f => f.status === "done")) return;
+    setIsUploading(true);
+
+    const pending = fileQueue.filter(f => f.status === "pending");
+    for (const item of pending) {
+      const { file } = item;
+      if (file.size > 20 * 1024 * 1024) {
+        setFileQueue(prev => prev.map(f => f.file.name === file.name ? { ...f, status: "error", error: "Exceeds 20 MB limit" } : f));
+        continue;
+      }
+      setFileQueue(prev => prev.map(f => f.file.name === file.name ? { ...f, status: "uploading" } : f));
+      try {
+        const ext = file.name.split(".").pop();
+        const path = `school-docs/${schoolId}/${category}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const publicUrl = await uploadAsset(file, path);
+
+        const { data: row } = await supabase.from("school_documents").insert({
+          school_id: schoolId, category,
+          title: docTitle.trim() || file.name.replace(/\.[^.]+$/, ""),
+          file_name: file.name, file_url: publicUrl, file_size: file.size, mime_type: file.type,
+        }).select("*").single();
+
+        if (row) setDocs(prev => [row, ...prev]);
+        setFileQueue(prev => prev.map(f => f.file.name === file.name ? { ...f, status: "done" } : f));
+      } catch (err) {
+        setFileQueue(prev => prev.map(f => f.file.name === file.name ? { ...f, status: "error", error: String(err) } : f));
+      }
     }
 
-    setUploading(false);
+    setIsUploading(false);
     setDocTitle("");
+  }
+
+  function closeUpload() {
     setShowUpload(false);
+    setFileQueue([]);
+    setDocTitle("");
     if (fileRef.current) fileRef.current.value = "";
+  }
+
+  function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    addFiles(files);
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault(); setIsDragging(false);
+    addFiles(Array.from(e.dataTransfer.files));
   }
 
   async function handleDelete(doc: SchoolDoc) {
@@ -288,8 +325,8 @@ export function AcademicCalendarClient({ terms, documents: initialDocs, schoolId
           {isHeadmaster && showUpload && (
             <div className="bg-white rounded-2xl border border-[var(--border)] p-5 shadow-[0_1px_6px_rgba(0,0,0,0.05)]">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-[14px] font-bold text-[var(--text-strong)]">Upload Document(s)</h3>
-                <button onClick={() => setShowUpload(false)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[var(--neutral-100)]">
+                <h3 className="text-[14px] font-bold text-[var(--text-strong)]">Upload Documents</h3>
+                <button onClick={closeUpload} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[var(--neutral-100)]">
                   <X size={14} className="text-[var(--text-muted)]" />
                 </button>
               </div>
@@ -311,30 +348,69 @@ export function AcademicCalendarClient({ terms, documents: initialDocs, schoolId
                 </div>
                 {/* Title */}
                 <div>
-                  <label className="text-[13px] font-semibold text-[var(--text-strong)] block mb-1.5">Title (optional — defaults to filename)</label>
+                  <label className="text-[13px] font-semibold text-[var(--text-strong)] block mb-1.5">Title (optional)</label>
                   <input value={docTitle} onChange={e => setDocTitle(e.target.value)}
-                    placeholder="e.g. 2025/2026 Academic Calendar"
-                    className="h-10 w-full rounded-xl border border-[var(--border)] bg-white px-3 text-[13px] outline-none focus:border-[var(--ring)]" />
+                    placeholder="Defaults to filename if left blank"
+                    className="h-10 w-full rounded-xl border border-[var(--border)] bg-white px-3 text-[13px] outline-none focus:border-[#262262]" />
                 </div>
-                {uploadErr && <p className="text-[12px] text-red-600 bg-red-50 px-3 py-2 rounded-lg">{uploadErr}</p>}
+
+                {/* Drop zone */}
                 <div
                   onClick={() => fileRef.current?.click()}
-                  className="flex flex-col items-center justify-center gap-3 px-6 py-10 border-2 border-dashed border-[var(--border)] rounded-xl cursor-pointer hover:border-[#262262] hover:bg-[#EEF2FF] transition-colors group">
-                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform" style={{ background: "#EEF2FF" }}>
-                    {uploading ? (
-                      <div className="w-5 h-5 border-2 border-[#262262] border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <Upload size={20} style={{ color: BRAND }} />
-                    )}
+                  onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={onDrop}
+                  className={`flex flex-col items-center justify-center gap-3 px-6 py-8 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${
+                    isDragging ? "border-[#262262] bg-[#EEF2FF]" : "border-[var(--border)] hover:border-[#262262] hover:bg-[#EEF2FF]/50"
+                  }`}>
+                  <div className="w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: "#EEF2FF" }}>
+                    <Upload size={18} style={{ color: BRAND }} />
                   </div>
                   <div className="text-center">
-                    <p className="text-[13px] font-semibold text-[var(--text-strong)]">
-                      {uploading ? "Uploading…" : "Click to select files"}
-                    </p>
-                    <p className="text-[11px] text-[var(--text-muted)] mt-0.5">PDF, Word, Excel, images · Multiple files allowed · Max 20 MB each</p>
+                    <p className="text-[13px] font-semibold text-[var(--text-strong)]">Drop files here or click to browse</p>
+                    <p className="text-[11px] text-[var(--text-muted)] mt-0.5">PDF, Word, Excel, images · Multiple files · Max 20 MB each</p>
                   </div>
                 </div>
-                <input ref={fileRef} type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.png,.jpg,.jpeg,.ppt,.pptx" className="hidden" onChange={handleUpload} />
+                <input ref={fileRef} type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.png,.jpg,.jpeg,.ppt,.pptx" className="hidden" onChange={onFileChange} />
+
+                {/* File queue */}
+                {fileQueue.length > 0 && (
+                  <div className="space-y-2">
+                    {fileQueue.map(({ file, status, error }) => (
+                      <div key={file.name} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--neutral-50)]">
+                        <File size={15} className="text-[var(--text-muted)] shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[12px] font-semibold text-[var(--text-strong)] truncate">{file.name}</p>
+                          {error && <p className="text-[10px] text-red-600">{error}</p>}
+                          {!error && <p className="text-[10px] text-[var(--text-muted)]">{(file.size / 1024 / 1024).toFixed(2)} MB</p>}
+                        </div>
+                        {status === "pending" && (
+                          <button onClick={() => removeQueued(file.name)} className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-[var(--neutral-100)] text-[var(--text-muted)] shrink-0">
+                            <X size={12} />
+                          </button>
+                        )}
+                        {status === "uploading" && <div className="w-4 h-4 border-2 border-[#262262] border-t-transparent rounded-full animate-spin shrink-0" />}
+                        {status === "done" && <CheckCheck size={15} className="text-green-600 shrink-0" />}
+                        {status === "error" && <AlertCircle size={15} className="text-red-500 shrink-0" />}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {fileQueue.length > 0 && (
+                  <button
+                    onClick={handleUploadQueue}
+                    disabled={isUploading || fileQueue.every(f => f.status === "done")}
+                    className="w-full py-2.5 rounded-xl text-[13px] font-bold text-white flex items-center justify-center gap-2 disabled:opacity-50 transition-opacity"
+                    style={{ background: `linear-gradient(135deg, ${BRAND}, ${ACCENT})` }}>
+                    {isUploading
+                      ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Uploading…</>
+                      : fileQueue.every(f => f.status === "done")
+                      ? <><CheckCheck size={14} /> All uploaded</>
+                      : <><Upload size={14} /> Upload {fileQueue.filter(f => f.status === "pending").length} file{fileQueue.filter(f => f.status === "pending").length !== 1 ? "s" : ""}</>
+                    }
+                  </button>
+                )}
               </div>
             </div>
           )}

@@ -68,6 +68,19 @@ export function FeeStructureManager({ schoolId, feeTypes: initial, terms, classe
   const [editingFee, setEditingFee] = useState<FeeType | null>(null);
   const [editForm, setEditForm] = useState({ name: "", amount: "", term_id: "", level: [] as string[], is_mandatory: true });
   const [savingEdit, setSavingEdit] = useState(false);
+  const [autoBilling, setAutoBilling] = useState(() => {
+    if (typeof window !== "undefined") return localStorage.getItem(`auto_billing_${schoolId}`) !== "false";
+    return true;
+  });
+  const [togglingBilling, setTogglingBilling] = useState(false);
+
+  function handleAutoBillingToggle() {
+    const next = !autoBilling;
+    setTogglingBilling(true);
+    setAutoBilling(next);
+    localStorage.setItem(`auto_billing_${schoolId}`, String(next));
+    setTimeout(() => setTogglingBilling(false), 400);
+  }
 
   function toggleLevel(v: string) {
     setForm((f) => ({
@@ -387,12 +400,30 @@ export function FeeStructureManager({ schoolId, feeTypes: initial, terms, classe
 
       {/* ── ERP Fee Structures ──────────────────────────────────── */}
       <div className="border-t border-[var(--border)] pt-6 mt-6">
+        {/* Auto-billing toggle */}
+        <div className="flex items-center justify-between p-4 rounded-2xl border border-[var(--border)] bg-[var(--neutral-50)] mb-5">
+          <div>
+            <p className="text-[14px] font-bold text-[var(--text-strong)]">Auto-Billing</p>
+            <p className="text-[12px] text-[var(--text-muted)] mt-0.5">
+              Automatically generate invoices when a student is enrolled or a new term begins
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleAutoBillingToggle}
+            disabled={togglingBilling}
+            className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors shrink-0 ml-4 ${autoBilling ? "bg-[#262262]" : "bg-[var(--border)]"}`}
+          >
+            <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform ${autoBilling ? "translate-x-6" : "translate-x-1"}`} />
+          </button>
+        </div>
+
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-base font-bold text-[var(--text-strong)] flex items-center gap-2">
-              <Layers size={16} /> Fee Structures (Auto-Billing)
+              <Layers size={16} /> Fee Structures
             </h3>
-            <p className="text-sm text-[var(--text-muted)]">Define fee packages per class. Students are auto-billed on admission.</p>
+            <p className="text-sm text-[var(--text-muted)]">Define fee packages per class. Students are billed on admission.</p>
           </div>
           <div className="flex gap-2">
             <Button size="sm" variant="secondary" loading={runningBilling} onClick={runTermBilling}>

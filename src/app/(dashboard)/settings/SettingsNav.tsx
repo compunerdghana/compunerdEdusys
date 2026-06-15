@@ -3,15 +3,16 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Calendar, BookOpen, LayoutGrid, DollarSign, School, User, LucideIcon } from "lucide-react";
+import { Calendar, BookOpen, LayoutGrid, DollarSign, School, User, LucideIcon, CalendarDays } from "lucide-react";
 
 const nav: { label: string; href: string; icon: LucideIcon; desc: string }[] = [
-  { label: "School Profile",   href: "/settings/school",         icon: School,      desc: "Name, logo, contact" },
-  { label: "Academic Year",    href: "/settings/academic-year",  icon: Calendar,    desc: "Years, terms & dates" },
-  { label: "Classes",          href: "/settings/classes",        icon: LayoutGrid,  desc: "Manage class groups" },
-  { label: "Subjects",         href: "/settings/subjects",       icon: BookOpen,    desc: "Curriculum subjects" },
-  { label: "Fee Structure",    href: "/settings/fees",           icon: DollarSign,  desc: "Fees & auto-billing" },
-  { label: "My Account",       href: "/settings",                icon: User,        desc: "Profile & password" },
+  { label: "School Profile",     href: "/settings/school",              icon: School,       desc: "Name, logo, contact" },
+  { label: "Academic Year",      href: "/settings/academic-year",       icon: Calendar,     desc: "Years, terms & dates" },
+  { label: "Event Calendar",     href: "/settings/academic-calendar",   icon: CalendarDays, desc: "Events & important dates" },
+  { label: "Classes",            href: "/settings/classes",             icon: LayoutGrid,   desc: "Manage class groups" },
+  { label: "Subjects",           href: "/settings/subjects",            icon: BookOpen,     desc: "Curriculum subjects" },
+  { label: "Fee Structure",      href: "/settings/fees",                icon: DollarSign,   desc: "Fees & auto-billing" },
+  { label: "My Account",         href: "/settings",                     icon: User,         desc: "Profile & password" },
 ];
 
 export function SettingsNav({ isHeadmaster }: { isHeadmaster: boolean }) {
