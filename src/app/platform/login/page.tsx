@@ -13,10 +13,19 @@ export default function PlatformLoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Sign out any existing school session so it doesn't interfere
   useEffect(() => {
-    createClient().auth.signOut();
-  }, []);
+    // If already logged in as a platform user, go straight to dashboard
+    (async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const res = await fetch("/api/platform/auth/check");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.isPlatformUser) router.replace("/platform/dashboard");
+      }
+    })();
+  }, [router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
