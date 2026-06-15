@@ -14,7 +14,7 @@ export default async function StaffPage() {
     .neq("id", user!.id)
     .order("full_name");
 
-  const isHeadmaster = profile?.role === "headmaster" || profile?.role === "owner";
+  const isHeadmaster = profile?.role === "headmaster" || profile?.role === "owner" || profile?.role === "admin";
 
   return (
     <StaffClient
