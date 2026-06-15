@@ -30,7 +30,7 @@ export default async function ExpensesPage() {
   const [expensesRes, categoriesRes] = await Promise.all([
     admin
       .from("expenses")
-      .select("*, expense_categories(id, name), creator:profiles!created_by(full_name), approver:profiles!approved_by(full_name)")
+      .select("*, expense_categories(id, name)")
       .eq("school_id", schoolId)
       .order("created_at", { ascending: false })
       .limit(100),
@@ -45,12 +45,27 @@ export default async function ExpensesPage() {
     (expensesRes.error?.code === "42P01" || expensesRes.error?.message?.includes("does not exist")) ||
     (categoriesRes.error?.code === "42P01" || categoriesRes.error?.message?.includes("does not exist"));
 
+  // Fetch creator/approver names from profiles separately
+  let profileMap: Record<string, string> = {};
+  if (!tableNotReady && expensesRes.data && expensesRes.data.length > 0) {
+    const userIds = [...new Set([
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ...expensesRes.data.map((e: any) => e.created_by).filter(Boolean),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ...expensesRes.data.map((e: any) => e.approved_by).filter(Boolean),
+    ])];
+    if (userIds.length > 0) {
+      const { data: profiles } = await admin.from("profiles").select("id, full_name").in("id", userIds);
+      profileMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p.full_name]));
+    }
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const expenses: Expense[] = tableNotReady ? [] : (expensesRes.data ?? []).map((e: any) => ({
     ...e,
     category: e.expense_categories ?? null,
-    created_by_name: e.creator?.full_name ?? null,
-    approved_by_name: e.approver?.full_name ?? null,
+    created_by_name: e.created_by ? (profileMap[e.created_by] ?? null) : null,
+    approved_by_name: e.approved_by ? (profileMap[e.approved_by] ?? null) : null,
   }));
 
   const categories: Category[] = tableNotReady ? [] : (categoriesRes.data ?? []);
