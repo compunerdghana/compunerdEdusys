@@ -6,7 +6,7 @@ import { queueOperation } from "@/lib/offline/db";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { getInitials } from "@/lib/utils";
-import { CheckCircle2, XCircle, Clock, MinusCircle, Save, CheckCircle } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, MinusCircle, Save, CheckCircle, MessageSquare } from "lucide-react";
 import type { AttendanceStatus } from "@/types/database";
 
 interface StudentRow {
@@ -25,6 +25,8 @@ const STATUSES: { value: AttendanceStatus; label: string; color: string; bg: str
   { value: "excused", label: "Excused", color: "var(--text-muted)", bg: "var(--neutral-100)", icon: <MinusCircle size={15} /> },
 ];
 
+const NOTE_STATUSES = new Set<AttendanceStatus>(["excused", "late"]);
+
 const LEVEL_ORDER = ["daycare","nursery","kg","primary","jhs"];
 
 export default function AttendancePage() {
@@ -33,6 +35,8 @@ export default function AttendancePage() {
   const [classId, setClassId] = useState("");
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [attendance, setAttendance] = useState<Record<string, AttendanceStatus>>({});
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [noteOpen, setNoteOpen] = useState<Record<string, boolean>>({});
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -58,7 +62,6 @@ export default function AttendancePage() {
     init();
   }, []);
 
-  // Load students + existing attendance when class or date changes
   useEffect(() => {
     if (!classId) return;
     async function load() {
@@ -67,20 +70,32 @@ export default function AttendancePage() {
           .select("id, first_name, middle_name, last_name, admission_number")
           .eq("class_id", classId).eq("status", "active").order("last_name"),
         supabase.from("attendance_records")
-          .select("student_id, status")
+          .select("student_id, status, note")
           .eq("class_id", classId).eq("date", date),
       ]);
       setStudents(studs ?? []);
       const map: Record<string, AttendanceStatus> = {};
+      const noteMap: Record<string, string> = {};
       (studs ?? []).forEach((s: StudentRow) => { map[s.id] = "present"; });
-      (existing ?? []).forEach((r: { student_id: string; status: AttendanceStatus }) => { map[r.student_id] = r.status; });
+      (existing ?? []).forEach((r: { student_id: string; status: AttendanceStatus; note?: string | null }) => {
+        map[r.student_id] = r.status;
+        if (r.note) noteMap[r.student_id] = r.note;
+      });
       setAttendance(map);
+      setNotes(noteMap);
+      setNoteOpen({});
     }
     load();
   }, [classId, date]);
 
   function mark(studentId: string, status: AttendanceStatus) {
     setAttendance((prev) => ({ ...prev, [studentId]: status }));
+    // Auto-open note box for statuses that require it
+    if (NOTE_STATUSES.has(status)) {
+      setNoteOpen(prev => ({ ...prev, [studentId]: true }));
+    } else {
+      setNoteOpen(prev => ({ ...prev, [studentId]: false }));
+    }
   }
 
   function markAll(status: AttendanceStatus) {
@@ -99,6 +114,7 @@ export default function AttendancePage() {
       class_id: classId,
       date,
       status: attendance[s.id] ?? "present",
+      note: notes[s.id]?.trim() || null,
       recorded_by: userId,
     }));
     if (navigator.onLine) {
@@ -180,36 +196,65 @@ export default function AttendancePage() {
             {students.map((s) => {
               const current = attendance[s.id] ?? "present";
               const cfg = STATUSES.find((x) => x.value === current)!;
+              const needsNote = NOTE_STATUSES.has(current);
+              const isNoteOpen = noteOpen[s.id] || (needsNote && notes[s.id]);
               return (
-                <div key={s.id} className="bg-white border border-[var(--border)] rounded-[12px] p-3 flex items-center gap-3 shadow-[var(--shadow-sm)]">
-                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0"
-                    style={{ background: "var(--gradient-brand)" }}>
-                    {getInitials(`${s.first_name} ${s.last_name}`)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[15px] font-semibold text-[var(--text-strong)] leading-tight truncate">
-                      {s.last_name}, {s.first_name}{s.middle_name ? ` ${s.middle_name[0]}.` : ""}
-                    </p>
-                    <p className="text-xs text-[var(--text-muted)]">{s.admission_number}</p>
-                  </div>
-                  {/* Status buttons */}
-                  <div className="flex gap-1.5 shrink-0">
-                    {STATUSES.map((st) => {
-                      const active = current === st.value;
-                      return (
-                        <button key={st.value} onClick={() => mark(s.id, st.value)}
-                          title={st.label}
-                          className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
+                <div key={s.id} className="bg-white border border-[var(--border)] rounded-[12px] shadow-[var(--shadow-sm)] overflow-hidden">
+                  <div className="p-3 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0"
+                      style={{ background: "var(--gradient-brand)" }}>
+                      {getInitials(`${s.first_name} ${s.last_name}`)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[15px] font-semibold text-[var(--text-strong)] leading-tight truncate">
+                        {s.last_name}, {s.first_name}{s.middle_name ? ` ${s.middle_name[0]}.` : ""}
+                      </p>
+                      <p className="text-xs text-[var(--text-muted)]">{s.admission_number}</p>
+                    </div>
+                    {/* Status buttons */}
+                    <div className="flex gap-1 shrink-0 items-center">
+                      {STATUSES.map((st) => {
+                        const active = current === st.value;
+                        return (
+                          <button key={st.value} onClick={() => mark(s.id, st.value)}
+                            title={st.label}
+                            className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
+                            style={{
+                              background: active ? st.bg : "transparent",
+                              color: active ? st.color : "var(--text-subtle)",
+                              outline: active ? `2px solid ${st.color}` : "none",
+                            }}>
+                            {st.icon}
+                          </button>
+                        );
+                      })}
+                      {/* Note toggle for excused/late */}
+                      {needsNote && (
+                        <button
+                          onClick={() => setNoteOpen(prev => ({ ...prev, [s.id]: !prev[s.id] }))}
+                          title="Add note"
+                          className="w-8 h-8 rounded-full flex items-center justify-center transition-all ml-0.5"
                           style={{
-                            background: active ? st.bg : "transparent",
-                            color: active ? st.color : "var(--text-subtle)",
-                            outline: active ? `2px solid ${st.color}` : "none",
+                            color: notes[s.id] ? "#262262" : "var(--text-subtle)",
+                            background: notes[s.id] ? "#EEF2FF" : "transparent",
                           }}>
-                          {st.icon}
+                          <MessageSquare size={14} />
                         </button>
-                      );
-                    })}
+                      )}
+                    </div>
                   </div>
+                  {/* Note input */}
+                  {needsNote && isNoteOpen && (
+                    <div className="px-3 pb-3 pt-0">
+                      <input
+                        type="text"
+                        value={notes[s.id] ?? ""}
+                        onChange={e => setNotes(prev => ({ ...prev, [s.id]: e.target.value }))}
+                        placeholder={current === "excused" ? "Reason for excusal (e.g. Sick, Family event…)" : "Reason for lateness…"}
+                        className="w-full h-9 rounded-[8px] border border-[var(--border)] px-3 text-[13px] text-[var(--text-strong)] outline-none focus:border-[#262262] bg-[var(--neutral-50)]"
+                      />
+                    </div>
+                  )}
                 </div>
               );
             })}

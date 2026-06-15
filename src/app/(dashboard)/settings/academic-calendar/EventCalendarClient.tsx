@@ -18,6 +18,9 @@ interface SchoolEvent {
   description?: string | null;
   event_date: string;
   color: string;
+  all_day?: boolean | null;
+  start_time?: string | null;
+  end_time?: string | null;
 }
 
 interface Props {
@@ -53,6 +56,9 @@ export function EventCalendarClient({ schoolId, terms, isHeadmaster }: Props) {
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [newColor, setNewColor] = useState(COLORS[0].value);
+  const [newAllDay, setNewAllDay] = useState(true);
+  const [newStartTime, setNewStartTime] = useState("08:00");
+  const [newEndTime, setNewEndTime] = useState("10:00");
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState<string | null>(null);
 
@@ -126,7 +132,16 @@ export function EventCalendarClient({ schoolId, terms, isHeadmaster }: Props) {
     const res = await fetch("/api/admin/school-events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ school_id: schoolId, title: newTitle.trim(), description: newDesc.trim() || null, event_date: selectedDate, color: newColor }),
+      body: JSON.stringify({
+        school_id: schoolId,
+        title: newTitle.trim(),
+        description: newDesc.trim() || null,
+        event_date: selectedDate,
+        color: newColor,
+        all_day: newAllDay,
+        start_time: newAllDay ? null : newStartTime,
+        end_time: newAllDay ? null : newEndTime,
+      }),
     });
     const json = await res.json();
     setSaving(false);
@@ -136,7 +151,7 @@ export function EventCalendarClient({ schoolId, terms, isHeadmaster }: Props) {
     if (!res.ok) { setSaveErr(json.error ?? "Failed to save"); return; }
     setEvents(prev => [...prev, json.event]);
     setSelectedDate(null);
-    setNewTitle(""); setNewDesc(""); setNewColor(COLORS[0].value);
+    setNewTitle(""); setNewDesc(""); setNewColor(COLORS[0].value); setNewAllDay(true); setNewStartTime("08:00"); setNewEndTime("10:00");
   }
 
   async function executeDelete(id: string) {
@@ -171,12 +186,19 @@ export function EventCalendarClient({ schoolId, terms, isHeadmaster }: Props) {
   description TEXT,
   event_date DATE NOT NULL,
   color TEXT DEFAULT '#262262',
+  all_day BOOLEAN DEFAULT TRUE,
+  start_time TIME,
+  end_time TIME,
   created_by UUID REFERENCES auth.users(id),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 ALTER TABLE school_events ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "school_members_read_events" ON school_events FOR SELECT
-  USING (school_id IN (SELECT school_id FROM profiles WHERE id = auth.uid()));`}</pre>
+  USING (school_id IN (SELECT school_id FROM profiles WHERE id = auth.uid()));
+-- If table already exists, add missing columns:
+ALTER TABLE school_events ADD COLUMN IF NOT EXISTS all_day BOOLEAN DEFAULT TRUE;
+ALTER TABLE school_events ADD COLUMN IF NOT EXISTS start_time TIME;
+ALTER TABLE school_events ADD COLUMN IF NOT EXISTS end_time TIME;`}</pre>
             <button onClick={loadEvents} className="mt-2 text-[12px] font-semibold text-amber-800 underline">Retry after running →</button>
           </div>
         </div>
@@ -343,6 +365,8 @@ CREATE POLICY "school_members_read_events" ON school_events FOR SELECT
                           {ev.description && <p className="text-[11px] text-[var(--text-muted)] truncate">{ev.description}</p>}
                           <p className="text-[10px] text-[var(--text-muted)]">
                             {new Date(ev.event_date).toLocaleDateString("en-GH", { weekday: "short", month: "long", day: "numeric" })}
+                            {!ev.all_day && ev.start_time && <> · {ev.start_time}{ev.end_time ? `–${ev.end_time}` : ""}</>}
+                            {ev.all_day && <> · All day</>}
                           </p>
                         </div>
                         {isHeadmaster && (
@@ -395,6 +419,12 @@ CREATE POLICY "school_members_read_events" ON school_events FOR SELECT
                 <div className="w-3 h-3 rounded-full shrink-0 mt-1" style={{ background: ev.color }} />
                 <div className="flex-1 min-w-0">
                   <p className="text-[13px] font-semibold text-[var(--text-strong)]">{ev.title}</p>
+                  {!ev.all_day && ev.start_time && (
+                    <p className="text-[11px] text-[var(--text-muted)] font-medium">
+                      {ev.start_time}{ev.end_time ? ` – ${ev.end_time}` : ""}
+                    </p>
+                  )}
+                  {ev.all_day && <p className="text-[11px] text-[var(--text-muted)]">All day</p>}
                   {ev.description && <p className="text-[12px] text-[var(--text-muted)]">{ev.description}</p>}
                 </div>
                 {isHeadmaster && (
@@ -471,6 +501,34 @@ CREATE POLICY "school_members_read_events" ON school_events FOR SELECT
                   placeholder="Additional details…"
                   className="w-full rounded-xl border border-[var(--border)] bg-white px-3 py-2.5 text-[13px] outline-none focus:border-[#262262] transition-colors resize-none" />
               </div>
+              {/* All-day / time toggle */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-[13px] font-semibold text-[var(--text-strong)]">Timing</label>
+                  <button type="button" onClick={() => setNewAllDay(v => !v)}
+                    className="flex items-center gap-2 text-[12px] font-semibold text-[var(--text-muted)] hover:text-[var(--text-strong)] transition-colors">
+                    <span className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${newAllDay ? "bg-[#262262]" : "bg-gray-200"}`}>
+                      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${newAllDay ? "translate-x-4.5" : "translate-x-0.5"}`} />
+                    </span>
+                    All day
+                  </button>
+                </div>
+                {!newAllDay && (
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <label className="text-[11px] font-semibold text-[var(--text-muted)] block mb-1">Start time</label>
+                      <input type="time" value={newStartTime} onChange={e => setNewStartTime(e.target.value)}
+                        className="h-9 w-full rounded-xl border border-[var(--border)] px-3 text-[13px] outline-none focus:border-[#262262]" />
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-[11px] font-semibold text-[var(--text-muted)] block mb-1">End time</label>
+                      <input type="time" value={newEndTime} onChange={e => setNewEndTime(e.target.value)}
+                        className="h-9 w-full rounded-xl border border-[var(--border)] px-3 text-[13px] outline-none focus:border-[#262262]" />
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label className="text-[13px] font-semibold text-[var(--text-strong)] block mb-2">Colour</label>
                 <div className="flex gap-2">

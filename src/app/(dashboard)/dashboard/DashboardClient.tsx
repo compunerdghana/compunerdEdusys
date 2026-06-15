@@ -18,7 +18,7 @@ import { StatCard } from "@/components/dashboard/StatCard";
 
 interface Profile { id: string; full_name: string; role: string; school_id: string | null }
 interface School  { id: string; name: string; logo_url: string | null; address: string | null }
-interface SchoolEvent { id: string; title: string; event_date: string; color: string | null; description: string | null }
+interface SchoolEvent { id: string; title: string; event_date: string; color: string | null; description: string | null; all_day?: boolean | null; start_time?: string | null; end_time?: string | null; }
 interface Stats {
   totalStudents: number; activeStudents: number; totalStaff: number;
   presentToday: number; absentToday: number; attendanceRate: number;
@@ -42,10 +42,36 @@ function greeting() {
 }
 function firstName(name: string) { return name.split(" ")[0]; }
 
+const DAILY_QUOTES = [
+  { text: "The fear of the LORD is the beginning of wisdom.", ref: "Proverbs 9:10" },
+  { text: "I can do all things through Christ who strengthens me.", ref: "Philippians 4:13" },
+  { text: "Train up a child in the way he should go; even when he is old he will not depart from it.", ref: "Proverbs 22:6" },
+  { text: "Education is the most powerful weapon which you can use to change the world.", ref: "Nelson Mandela" },
+  { text: "For I know the plans I have for you, declares the LORD, plans to prosper you and not to harm you.", ref: "Jeremiah 29:11" },
+  { text: "The function of education is to teach one to think intensively and to think critically.", ref: "Martin Luther King Jr." },
+  { text: "Commit to the LORD whatever you do, and he will establish your plans.", ref: "Proverbs 16:3" },
+  { text: "The mediocre teacher tells. The good teacher explains. The great teacher inspires.", ref: "William Arthur Ward" },
+  { text: "Do not be anxious about anything, but in every situation present your requests to God.", ref: "Philippians 4:6" },
+  { text: "Knowledge is power. Information is liberating. Education is the premise of progress.", ref: "Kofi Annan" },
+  { text: "Trust in the LORD with all your heart and lean not on your own understanding.", ref: "Proverbs 3:5" },
+  { text: "The secret of getting ahead is getting started.", ref: "Mark Twain" },
+  { text: "Be strong and courageous. Do not be afraid; do not be discouraged, for the LORD your God is with you.", ref: "Joshua 1:9" },
+  { text: "An investment in knowledge pays the best interest.", ref: "Benjamin Franklin" },
+];
+
+function getDailyQuote() {
+  const dayOfYear = Math.floor((TODAY.getTime() - new Date(TODAY.getFullYear(), 0, 0).getTime()) / 86400000);
+  return DAILY_QUOTES[dayOfYear % DAILY_QUOTES.length];
+}
+
 /* ─── Mini Calendar ─────────────────────────────────────────────────────── */
 
-function MiniCalendar({ terms }: { terms: { name: string; start_date: string; end_date: string }[] }) {
+function MiniCalendar({ terms, events }: {
+  terms: { name: string; start_date: string; end_date: string }[];
+  events: SchoolEvent[];
+}) {
   const [cur, setCur] = useState(new Date(TODAY.getFullYear(), TODAY.getMonth(), 1));
+  const [tooltip, setTooltip] = useState<{ day: number; titles: string[] } | null>(null);
 
   const year  = cur.getFullYear();
   const month = cur.getMonth();
@@ -62,6 +88,17 @@ function MiniCalendar({ terms }: { terms: { name: string; start_date: string; en
     });
   });
 
+  // Map events by day for this month
+  const eventsByDay = new Map<number, SchoolEvent[]>();
+  events.forEach(ev => {
+    const dt = new Date(ev.event_date);
+    if (dt.getFullYear() === year && dt.getMonth() === month) {
+      const d = dt.getDate();
+      if (!eventsByDay.has(d)) eventsByDay.set(d, []);
+      eventsByDay.get(d)!.push(ev);
+    }
+  });
+
   const offset = (firstDay === 0 ? 6 : firstDay - 1);
   const cells: (number | null)[] = [...Array(offset).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
   while (cells.length % 7 !== 0) cells.push(null);
@@ -71,11 +108,11 @@ function MiniCalendar({ terms }: { terms: { name: string; start_date: string; en
       <div className="flex items-center justify-between mb-5">
         <span className="text-[14px] font-bold text-[var(--text-strong)]">{monthName}</span>
         <div className="flex gap-1">
-          <button onClick={() => setCur(new Date(year, month - 1, 1))}
+          <button onClick={() => { setCur(new Date(year, month - 1, 1)); setTooltip(null); }}
             className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[var(--neutral-100)] transition-colors">
             <ChevronLeft size={14} className="text-[var(--text-muted)]" />
           </button>
-          <button onClick={() => setCur(new Date(year, month + 1, 1))}
+          <button onClick={() => { setCur(new Date(year, month + 1, 1)); setTooltip(null); }}
             className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[var(--neutral-100)] transition-colors">
             <ChevronRight size={14} className="text-[var(--text-muted)]" />
           </button>
@@ -94,14 +131,44 @@ function MiniCalendar({ terms }: { terms: { name: string; start_date: string; en
           const isToday = day === TODAY.getDate() && month === TODAY.getMonth() && year === TODAY.getFullYear();
           const isMarked = markedDays.has(day);
           const isWeekend = (i % 7) >= 5;
+          const dayEvents = eventsByDay.get(day) ?? [];
+          const hasEvents = dayEvents.length > 0;
+          const isSelected = tooltip?.day === day;
+
           return (
-            <div key={i} className="flex flex-col items-center py-0.5">
-              <span className={`w-7 h-7 flex items-center justify-center rounded-full text-[12px] font-medium transition-colors
-                ${isToday ? "text-white font-bold shadow-sm" : isWeekend ? "text-[var(--text-muted)]" : "text-[var(--text-body)] hover:bg-[var(--neutral-100)]"}`}
-                style={isToday ? { background: BRAND } : {}}>
+            <div key={i} className="flex flex-col items-center py-0.5 relative">
+              <button
+                onClick={() => hasEvents ? setTooltip(isSelected ? null : { day, titles: dayEvents.map(e => e.title) }) : undefined}
+                className={`w-7 h-7 flex items-center justify-center rounded-full text-[12px] font-medium transition-colors
+                  ${isToday ? "text-white font-bold shadow-sm" : isWeekend ? "text-[var(--text-muted)]" : "text-[var(--text-body)] hover:bg-[var(--neutral-100)]"}
+                  ${hasEvents && !isToday ? "ring-2 ring-offset-1" : ""}`}
+                style={{
+                  ...(isToday ? { background: BRAND } : {}),
+                  ...(hasEvents && !isToday ? { ringColor: dayEvents[0].color ?? ACCENT } : {}),
+                }}>
                 {day}
-              </span>
-              {isMarked && <span className="w-1 h-1 rounded-full mt-0.5" style={{ background: ACCENT }} />}
+              </button>
+              {/* Event dots */}
+              {hasEvents && (
+                <div className="flex gap-0.5 mt-0.5">
+                  {dayEvents.slice(0, 3).map((ev, ei) => (
+                    <span key={ei} className="w-1 h-1 rounded-full" style={{ background: ev.color ?? ACCENT }} />
+                  ))}
+                </div>
+              )}
+              {isMarked && !hasEvents && <span className="w-1 h-1 rounded-full mt-0.5" style={{ background: ACCENT }} />}
+              {/* Tooltip popup */}
+              {isSelected && (
+                <div className="absolute z-20 bottom-full mb-1 left-1/2 -translate-x-1/2 bg-[#1e1e2e] text-white rounded-lg shadow-xl p-2 min-w-[130px] max-w-[200px]">
+                  {dayEvents.map((ev, ei) => (
+                    <div key={ei} className="flex items-start gap-1.5 text-[11px] leading-snug py-0.5">
+                      <span className="w-2 h-2 rounded-full shrink-0 mt-0.5" style={{ background: ev.color ?? ACCENT }} />
+                      <span>{ev.title}</span>
+                    </div>
+                  ))}
+                  <div className="absolute bottom-[-4px] left-1/2 -translate-x-1/2 w-2 h-2 bg-[#1e1e2e] rotate-45" />
+                </div>
+              )}
             </div>
           );
         })}
@@ -316,6 +383,8 @@ function UpcomingEventsWidget({ events }: { events: SchoolEvent[] }) {
                 <p className={`text-[15px] font-bold truncate ${isSoon ? "text-orange-900" : "text-[var(--text-strong)]"}`}>{ev.title}</p>
                 <p className="text-[13px] text-[var(--text-muted)] mt-0.5">
                   {new Date(ev.event_date).toLocaleDateString("en-GH", { weekday: "short", day: "numeric", month: "short" })}
+                  {!ev.all_day && ev.start_time && <> · {ev.start_time}{ev.end_time ? `–${ev.end_time}` : ""}</>}
+                  {ev.all_day && <> · All day</>}
                 </p>
               </div>
               <span className={`text-[12px] font-bold px-2 py-1 rounded-lg shrink-0 ${
@@ -392,7 +461,7 @@ export function DashboardClient({ profile, school, stats }: Props) {
 
       {/* ── Header ───────────────────────────────────────────────────────── */}
       <div className="rounded-2xl border border-[var(--border)] bg-white shadow-[0_1px_6px_rgba(0,0,0,0.05)] p-5">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-4 min-w-0">
             {/* School logo / initial */}
             <div className="w-12 h-12 rounded-xl shrink-0 flex items-center justify-center text-white font-extrabold text-[18px] shadow-sm"
@@ -403,11 +472,18 @@ export function DashboardClient({ profile, school, stats }: Props) {
             </div>
             <div className="min-w-0">
               <h2 className="text-[18px] font-extrabold text-[var(--text-strong)] truncate">{school.name}</h2>
-              <p className="text-[12px] text-[var(--text-muted)] mt-0.5">
-                {greeting()}, <span className="font-semibold text-[var(--text-body)]">{firstName(profile?.full_name ?? "")}</span>
+              <p className="text-[13px] text-[var(--text-muted)] mt-0.5">
+                {greeting()}, <span className="font-bold text-[var(--text-body)]">{firstName(profile?.full_name ?? "")}</span>!
               </p>
             </div>
           </div>
+          {/* Daily quote */}
+          {(() => { const q = getDailyQuote(); return (
+            <div className="hidden lg:flex flex-col max-w-xs border-l border-[var(--border)] pl-4">
+              <p className="text-[12px] italic text-[var(--text-body)] leading-snug">&ldquo;{q.text}&rdquo;</p>
+              <p className="text-[11px] text-[var(--text-muted)] mt-1 font-semibold">— {q.ref}</p>
+            </div>
+          ); })()}
           <div className="flex items-center gap-3 shrink-0">
             {stats.currentTerm && (
               <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--neutral-50)]">
@@ -649,7 +725,7 @@ export function DashboardClient({ profile, school, stats }: Props) {
             </div>
           </div>
           <p className="text-[11px] text-[var(--text-muted)] mb-4">{stats.totalStudents} students enrolled</p>
-          <MiniCalendar terms={stats.terms} />
+          <MiniCalendar terms={stats.terms} events={stats.events ?? []} />
         </div>
       </div>
 

@@ -68,16 +68,28 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { school_id, title, description, event_date, color } = body;
+  const { school_id, title, description, event_date, color, all_day, start_time, end_time } = body;
   if (!school_id || !title || !event_date) {
     return NextResponse.json({ error: "school_id, title, event_date required" }, { status: 400 });
   }
 
-  const { data, error } = await admin
-    .from("school_events")
-    .insert({ school_id, title, description: description ?? null, event_date, color: color ?? "#262262", created_by: user.id })
-    .select("*")
-    .single();
+  const payload: Record<string, unknown> = {
+    school_id, title, description: description ?? null, event_date,
+    color: color ?? "#262262", created_by: user.id,
+  };
+  // Include time fields only if columns exist (graceful — if they don't, Supabase will error and we strip them)
+  if (all_day !== undefined) payload.all_day = all_day ?? true;
+  if (start_time !== undefined) payload.start_time = start_time ?? null;
+  if (end_time !== undefined) payload.end_time = end_time ?? null;
+
+  let { data, error } = await admin.from("school_events").insert(payload).select("*").single();
+
+  // If time columns don't exist yet, retry without them
+  if (error && (error.message?.includes("start_time") || error.message?.includes("end_time") || error.message?.includes("all_day"))) {
+    delete payload.all_day; delete payload.start_time; delete payload.end_time;
+    const retry = await admin.from("school_events").insert(payload).select("*").single();
+    data = retry.data; error = retry.error;
+  }
 
   if (error) {
     const msg = error.message ?? "";
