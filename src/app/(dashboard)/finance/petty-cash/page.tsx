@@ -38,7 +38,7 @@ export default function PettyCashPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const [newForm, setNewForm] = useState({ account_name: "", opening_amount: "", allocated_to: "", allocation_date: new Date().toISOString().split("T")[0] });
-  const [actionForm, setActionForm] = useState({ amount: "", description: "" });
+  const [actionForm, setActionForm] = useState({ amount: "", description: "", recipient: "", category: "" });
 
   useEffect(() => {
     (async () => {
@@ -83,12 +83,12 @@ export default function PettyCashPage() {
     await fetch("/api/admin/finance/petty-cash/transaction", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ account_id: actionAccount.id, type: actionType, amount: parseFloat(actionForm.amount), description: actionForm.description, school_id: schoolId }),
+      body: JSON.stringify({ account_id: actionAccount.id, type: actionType, amount: parseFloat(actionForm.amount), description: actionForm.description, recipient: actionForm.recipient || null, category: actionForm.category || null, school_id: schoolId }),
     });
     setSubmitting(false);
     setActionAccount(null);
     setActionType(null);
-    setActionForm({ amount: "", description: "" });
+    setActionForm({ amount: "", description: "", recipient: "", category: "" });
     fetchAccounts();
   }
 
@@ -182,11 +182,11 @@ export default function PettyCashPage() {
                 </div>
 
                 <div className="flex gap-2 pt-1 border-t border-[var(--border)]">
-                  <button onClick={() => { setActionAccount(acc); setActionType("expenditure"); setActionForm({ amount: "", description: "" }); }}
+                  <button onClick={() => { setActionAccount(acc); setActionType("expenditure"); setActionForm({ amount: "", description: "", recipient: "", category: "" }); }}
                     className="flex-1 h-9 flex items-center justify-center gap-1.5 rounded-xl border border-red-200 text-[12px] font-semibold text-red-600 hover:bg-red-50 transition-colors">
                     <ArrowUpCircle size={13} /> Spend
                   </button>
-                  <button onClick={() => { setActionAccount(acc); setActionType("replenish"); setActionForm({ amount: "", description: "" }); }}
+                  <button onClick={() => { setActionAccount(acc); setActionType("replenish"); setActionForm({ amount: "", description: "", recipient: "", category: "" }); }}
                     className="flex-1 h-9 flex items-center justify-center gap-1.5 rounded-xl border border-green-200 text-[12px] font-semibold text-green-600 hover:bg-green-50 transition-colors">
                     <ArrowDownCircle size={13} /> Replenish
                   </button>
@@ -243,6 +243,30 @@ export default function PettyCashPage() {
               <FieldLabel>Description *</FieldLabel>
               <FormInput required value={actionForm.description} onChange={e => setActionForm(f => ({ ...f, description: e.target.value }))} placeholder={actionType === "replenish" ? "Reason for replenishment" : "What was purchased"} />
             </div>
+            {actionType === "expenditure" && (
+              <>
+                <div>
+                  <FieldLabel>Paid To / Recipient</FieldLabel>
+                  <FormInput value={actionForm.recipient} onChange={e => setActionForm(f => ({ ...f, recipient: e.target.value }))} placeholder="e.g. Mr. Asante, Market stall, Vendor name" />
+                </div>
+                <div>
+                  <FieldLabel>Category</FieldLabel>
+                  <select value={actionForm.category} onChange={e => setActionForm(f => ({ ...f, category: e.target.value }))}
+                    className="h-11 w-full rounded-xl border border-[var(--border)] bg-white px-4 text-[14px] outline-none focus:border-[#262262] focus:ring-2 focus:ring-[#262262]/10 transition-all">
+                    <option value="">Select category…</option>
+                    <option value="stationery">Stationery & Supplies</option>
+                    <option value="transport">Transport / Fuel</option>
+                    <option value="refreshments">Refreshments / Catering</option>
+                    <option value="maintenance">Maintenance / Repairs</option>
+                    <option value="utilities">Utilities</option>
+                    <option value="postage">Postage / Courier</option>
+                    <option value="medical">Medical / First Aid</option>
+                    <option value="cleaning">Cleaning Supplies</option>
+                    <option value="miscellaneous">Miscellaneous</option>
+                  </select>
+                </div>
+              </>
+            )}
             <div className="flex gap-3 pt-2">
               <button type="button" onClick={() => { setActionAccount(null); setActionType(null); }}
                 className="flex-1 h-11 rounded-xl border border-[var(--border)] text-[14px] font-semibold text-[var(--text-muted)] hover:bg-[var(--neutral-50)] transition-colors">

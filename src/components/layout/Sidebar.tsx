@@ -9,7 +9,7 @@ import {
   GraduationCap, BarChart3, ChevronDown, UserCog, LogOut, CalendarClock,
   Wallet, Receipt, PiggyBank, Building2, TrendingUp, DollarSign,
   Calendar, Award, ArrowRightLeft, UserMinus, Dumbbell,
-  Bell, Send, Smartphone, FileText, Zap, History, Settings2, MessageCircle,
+  Bell, Send, Smartphone, FileText, Zap, History, Settings2, MessageCircle, BadgeDollarSign,
 } from "lucide-react";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -52,6 +52,7 @@ const navItems = [
       { href: "/finance/income",       label: "Income",       icon: TrendingUp },
       { href: "/finance/budget",       label: "Budget",       icon: PiggyBank },
       { href: "/finance/petty-cash",   label: "Petty Cash",   icon: DollarSign },
+      { href: "/finance/payroll",       label: "Payroll",      icon: BadgeDollarSign },
       { href: "/finance/bank-accounts",label: "Bank Accounts",icon: Building2 },
     ],
   },
