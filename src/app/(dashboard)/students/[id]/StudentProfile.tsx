@@ -1074,35 +1074,64 @@ export function StudentProfile({
         {/* ATTENDANCE */}
         {tab==="attendance" && (
           <div className="space-y-5">
-            {/* Stats */}
-            <div className="grid grid-cols-4 gap-4">
+            {/* Hero stats row */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { label:"Attendance Rate", value: attRate!==null?`${attRate}%`:"—", color: attRate!==null&&attRate>=75?"#16a34a":"#dc2626" },
-                { label:"Days Present", value: present, color:"#16a34a" },
-                { label:"Days Absent", value: absent, color:"#dc2626" },
-                { label:"Days Late", value: late, color:"#d97706" },
+                { label:"Attendance Rate", value: attRate!==null?`${attRate}%`:"—", sub:"overall",
+                  color: attRate!==null&&attRate>=75?"#16a34a":"#dc2626",
+                  bg: attRate!==null&&attRate>=75?"#f0fdf4":"#fff1f2",
+                  border: attRate!==null&&attRate>=75?"#bbf7d0":"#fecdd3" },
+                { label:"Days Present",   value: String(present),  sub:`of ${attendance.length}`, color:"#16a34a", bg:"#f0fdf4", border:"#bbf7d0" },
+                { label:"Days Absent",    value: String(absent),   sub:"school days missed",      color:"#dc2626", bg:"#fff1f2", border:"#fecdd3" },
+                { label:"Days Late",      value: String(late),     sub:"late arrivals",           color:"#d97706", bg:"#fffbeb", border:"#fed7aa" },
               ].map(s => (
-                <div key={s.label} className="bg-white rounded-2xl border border-gray-200 p-4 text-center">
-                  <p className="text-xs text-gray-400 mb-1">{s.label}</p>
-                  <p className="text-2xl font-bold" style={{ color: s.color }}>{s.value}</p>
+                <div key={s.label} className="rounded-2xl border p-4" style={{ background:s.bg, borderColor:s.border }}>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide mb-1" style={{ color:s.color, opacity:0.7 }}>{s.label}</p>
+                  <p className="text-[28px] font-black leading-none" style={{ color:s.color }}>{s.value}</p>
+                  <p className="text-[11px] mt-1" style={{ color:s.color, opacity:0.6 }}>{s.sub}</p>
                 </div>
               ))}
             </div>
 
+            {/* Collection progress */}
+            {attendance.length > 0 && (
+              <div className="bg-white rounded-2xl border border-gray-200 p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-gray-800 text-[14px]">Overall Attendance</h3>
+                  <span className="text-[13px] font-bold" style={{ color: attRate!==null&&attRate>=75?"#16a34a":"#dc2626" }}>{attRate ?? 0}%</span>
+                </div>
+                <div className="relative h-3 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="absolute h-full rounded-full transition-all" style={{
+                    width: `${attRate ?? 0}%`,
+                    background: `linear-gradient(90deg, #262262, ${(attRate ?? 0) >= 75 ? "#16a34a" : "#dc2626"})`
+                  }} />
+                </div>
+                <div className="flex justify-between text-[11px] text-gray-400 mt-2">
+                  <span>0%</span>
+                  <span className="text-amber-500 font-semibold">75% target</span>
+                  <span>100%</span>
+                </div>
+                {/* Target marker */}
+                <div className="relative -mt-5 mb-3 pointer-events-none">
+                  <div className="absolute h-5 w-0.5 bg-amber-400" style={{ left: "75%", top: -4 }} />
+                </div>
+              </div>
+            )}
+
             {/* Monthly chart */}
             {monthlyAtt.length > 0 && (
               <div className="bg-white rounded-2xl border border-gray-200 p-5">
-                <h3 className="font-semibold text-gray-800 mb-4">Monthly Attendance</h3>
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={monthlyAtt} barGap={2}>
+                <h3 className="font-semibold text-gray-800 mb-4 text-[14px]">Monthly Breakdown</h3>
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={monthlyAtt} barGap={2} barCategoryGap="30%">
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="month" tick={{fontSize:12}} />
-                    <YAxis tick={{fontSize:12}} />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="present" fill="#262262" name="Present" radius={[3,3,0,0]} />
-                    <Bar dataKey="absent"  fill="#dc2626" name="Absent"  radius={[3,3,0,0]} />
-                    <Bar dataKey="late"    fill="#d97706" name="Late"    radius={[3,3,0,0]} />
+                    <XAxis dataKey="month" tick={{fontSize:11}} axisLine={false} tickLine={false} />
+                    <YAxis tick={{fontSize:11}} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={{ borderRadius:12, border:"none", boxShadow:"0 4px 20px rgba(0,0,0,0.1)", fontSize:12 }} />
+                    <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize:12 }} />
+                    <Bar dataKey="present" fill="#262262" name="Present" radius={[4,4,0,0]} />
+                    <Bar dataKey="absent"  fill="#f87171" name="Absent"  radius={[4,4,0,0]} />
+                    <Bar dataKey="late"    fill="#fbbf24" name="Late"    radius={[4,4,0,0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -1111,29 +1140,29 @@ export function StudentProfile({
             {/* Records table */}
             <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
               <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-                <h3 className="font-semibold text-gray-800">Attendance Records</h3>
-                <span className="text-xs text-gray-400">{attendance.length} records</span>
+                <h3 className="font-semibold text-gray-800 text-[14px]">Attendance Log</h3>
+                <span className="text-[11px] font-semibold px-2.5 py-1 bg-gray-100 rounded-full text-gray-500">{attendance.length} records</span>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead><tr className="bg-gray-50">
+                  <thead><tr className="bg-gray-50 border-b border-gray-100">
                     {["Date","Status","Term"].map(h=>(
-                      <th key={h} className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-gray-400">{h}</th>
+                      <th key={h} className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wide text-gray-400">{h}</th>
                     ))}
                   </tr></thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-gray-50">
                     {attendance.length===0 && (
                       <tr><td colSpan={3} className="px-4 py-10 text-center text-sm text-gray-400">No attendance records.</td></tr>
                     )}
-                    {attendance.slice(0,50).map((a,i) => (
-                      <tr key={i} className="hover:bg-gray-50">
-                        <td className="px-4 py-2.5 text-gray-600">{formatDate(a.date)}</td>
+                    {attendance.slice(0,60).map((a,i) => (
+                      <tr key={i} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-2.5 text-gray-700 font-medium">{formatDate(a.date)}</td>
                         <td className="px-4 py-2.5">
-                          <span className={cn("flex items-center gap-1.5 text-xs font-semibold capitalize",
-                            a.status==="present"?"text-green-600":a.status==="absent"?"text-red-500":"text-amber-600")}>
-                            {a.status==="present" ? <CheckCircle2 className="w-3.5 h-3.5" />
-                              : a.status==="absent" ? <AlertCircle className="w-3.5 h-3.5" />
-                              : <Clock className="w-3.5 h-3.5" />}
+                          <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold capitalize",
+                            a.status==="present"?"bg-green-50 text-green-700":a.status==="absent"?"bg-red-50 text-red-600":"bg-amber-50 text-amber-600")}>
+                            {a.status==="present" ? <CheckCircle2 className="w-3 h-3" />
+                              : a.status==="absent" ? <AlertCircle className="w-3 h-3" />
+                              : <Clock className="w-3 h-3" />}
                             {a.status}
                           </span>
                         </td>

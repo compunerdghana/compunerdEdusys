@@ -181,77 +181,127 @@ export function StaffProfileClient({
     doc.save(`${profile.username ?? profile.full_name}.pdf`);
   }
 
+  function getInitials(name: string) {
+    return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button onClick={() => router.back()} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-              <ChevronLeft className="w-5 h-5 text-gray-600" />
-            </button>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">{profile.full_name}</h1>
-              <p className="text-sm text-gray-500 capitalize">{profile.role?.replace("_"," ")}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={exportPDF}
-              className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              <FileDown className="w-4 h-4" /> Export PDF
-            </button>
-            {isHeadmaster && (
-              <button
-                onClick={() => router.push(`/staff/${profile.id}/edit`)}
-                className="flex items-center gap-2 px-4 py-2 bg-[#262262] text-white rounded-lg text-sm font-medium hover:bg-[#1a1856] transition-colors"
-              >
-                <Pencil className="w-4 h-4" /> Edit
-              </button>
-            )}
-          </div>
+      {/* ── Hero Header ─────────────────────────────────────────── */}
+      <div className="relative overflow-hidden" style={{ background: "linear-gradient(135deg, #3a3596 0%, #5e3b9e 50%, #9e3da0 100%)" }}>
+        {/* Decorative blobs */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div style={{ position:"absolute", top:-50, right:-30, width:200, height:200, borderRadius:"50%", background:"rgba(255,255,255,0.05)" }} />
+          <div style={{ position:"absolute", bottom:-20, left:80, width:140, height:140, borderRadius:"50%", background:"rgba(255,255,255,0.04)" }} />
         </div>
-      </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-6 grid grid-cols-[280px_1fr] gap-6">
-        {/* Left panel */}
-        <div className="space-y-4">
-          {/* Photo + name card */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 text-center">
-            <div className="relative inline-block mb-4">
-              <div className="w-24 h-24 rounded-full bg-gray-100 overflow-hidden mx-auto flex items-center justify-center">
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-4 pb-0">
+          <button onClick={() => router.back()}
+            className="flex items-center gap-1.5 text-[13px] text-white/60 hover:text-white mb-4 transition-colors">
+            <ChevronLeft className="w-4 h-4" /> Back to Staff
+          </button>
+
+          <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 pb-5">
+            {/* Photo */}
+            <div className="relative shrink-0">
+              <div className="w-24 h-24 rounded-2xl overflow-hidden flex items-center justify-center text-white text-3xl font-black shadow-xl ring-4 ring-white/20"
+                style={{ background: "rgba(255,255,255,0.15)", backdropFilter: "blur(8px)" }}>
                 {photoPreview
                   ? <img src={photoPreview} alt={profile.full_name} className="w-full h-full object-cover" />
-                  : <User className="w-10 h-10 text-gray-300" />
+                  : <span>{getInitials(profile.full_name)}</span>
                 }
               </div>
               {canEdit && (
-                <button
-                  onClick={() => photoRef.current?.click()}
-                  disabled={uploadingPhoto}
-                  className="absolute bottom-0 right-0 bg-[#262262] text-white p-1.5 rounded-full hover:bg-[#1a1856] transition-colors"
-                >
-                  <Camera className="w-3 h-3" />
+                <button onClick={() => photoRef.current?.click()} disabled={uploadingPhoto}
+                  className="absolute -bottom-1.5 -right-1.5 bg-white text-[#262262] p-1.5 rounded-full shadow-lg hover:scale-110 transition-transform">
+                  {uploadingPhoto
+                    ? <span className="w-3.5 h-3.5 border-2 border-[#262262] border-t-transparent rounded-full animate-spin block" />
+                    : <Camera className="w-3.5 h-3.5" />}
                 </button>
               )}
               <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
             </div>
-            <h2 className="font-semibold text-gray-900">{profile.full_name}</h2>
-            <p className="text-sm text-gray-500 mt-0.5">@{profile.username}</p>
-            <div className="mt-3 flex justify-center">
-              <span className="px-3 py-1 rounded-full text-xs font-medium capitalize"
-                style={{ background: roleStyle.bg, color: roleStyle.text }}>
-                {profile.role?.replace("_"," ")}
-              </span>
-            </div>
-            {!profile.is_active && (
-              <div className="mt-2 px-3 py-1 bg-red-50 rounded-full text-xs font-medium text-red-600">Inactive</div>
-            )}
-          </div>
 
+            {/* Info */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="text-[26px] font-black text-white leading-tight">{profile.full_name}</h1>
+                <span className="px-2.5 py-1 rounded-full text-[11px] font-bold capitalize"
+                  style={{ background: roleStyle.bg, color: roleStyle.text }}>
+                  {profile.role?.replace("_"," ")}
+                </span>
+                {!profile.is_active && (
+                  <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-red-500/20 text-red-200">Inactive</span>
+                )}
+              </div>
+              <p className="text-[13px] text-white/60 mt-1">@{profile.username}</p>
+              <div className="flex flex-wrap gap-3 mt-3">
+                {(details?.mobile_number ?? profile.phone) && (
+                  <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm rounded-xl px-3 py-1.5">
+                    <Phone className="w-3.5 h-3.5 text-white/60" />
+                    <span className="text-[12px] text-white/80">{details?.mobile_number ?? profile.phone}</span>
+                  </div>
+                )}
+                {details?.department && (
+                  <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm rounded-xl px-3 py-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-white/60" />
+                    <span className="text-[12px] text-white/80">{details.department}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm rounded-xl px-3 py-1.5">
+                  <BookOpen className="w-3.5 h-3.5 text-white/60" />
+                  <span className="text-[11px] text-white/60">Classes</span>
+                  <span className="text-[13px] font-extrabold text-white ml-0.5">{assignedClasses.length}</span>
+                </div>
+                <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm rounded-xl px-3 py-1.5">
+                  <GraduationCap className="w-3.5 h-3.5 text-white/60" />
+                  <span className="text-[11px] text-white/60">Subjects</span>
+                  <span className="text-[13px] font-extrabold text-white ml-0.5">{assignedSubjects.length}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2 shrink-0 pb-0.5">
+              <button onClick={exportPDF}
+                className="flex items-center gap-1.5 px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-[12px] font-semibold transition-colors backdrop-blur-sm">
+                <FileDown className="w-3.5 h-3.5" /> Export PDF
+              </button>
+              {isHeadmaster && (
+                <button onClick={() => router.push(`/staff/${profile.id}/edit`)}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-white text-[#262262] rounded-xl text-[12px] font-bold hover:bg-white/90 transition-colors shadow-lg">
+                  <Pencil className="w-3.5 h-3.5" /> Edit
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 overflow-x-auto scrollbar-hide">
+          <div className="flex gap-0 min-w-max">
+            {SECTION_TABS.map(t => {
+              const Icon = t.icon;
+              return (
+                <button key={t.id} onClick={() => setTab(t.id)}
+                  className={`flex items-center gap-1.5 px-4 py-3 text-[12px] font-semibold border-b-2 whitespace-nowrap transition-all ${
+                    tab === t.id ? "border-white text-white" : "border-transparent text-white/50 hover:text-white/80"
+                  }`}>
+                  <Icon className="w-3.5 h-3.5" />{t.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Content ─────────────────────────────────────────────── */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-5">
+        {/* Left panel */}
+        <div className="space-y-4">
           {/* Quick info */}
           <div className="bg-white rounded-2xl border border-gray-200 p-4 space-y-3">
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Contact & Info</p>
             {(details?.mobile_number ?? profile.phone) && (
               <div className="flex items-center gap-3 text-sm text-gray-700">
                 <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
@@ -323,30 +373,9 @@ export function StaffProfileClient({
           </div>
         </div>
 
-        {/* Right panel with tabs */}
+        {/* Right panel — tab content */}
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-          {/* Tabs */}
-          <div className="flex border-b border-gray-200 overflow-x-auto">
-            {SECTION_TABS.map(t => {
-              const Icon = t.icon;
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => setTab(t.id)}
-                  className={`flex items-center gap-2 px-4 py-3.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-                    tab === t.id
-                      ? "border-[#262262] text-[#262262]"
-                      : "border-transparent text-gray-500 hover:text-gray-700"
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  {t.label}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="p-6">
+          <div className="p-5 sm:p-6">
             {/* Overview */}
             {tab === "overview" && (
               <div className="space-y-6">
