@@ -1,11 +1,12 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   ChevronLeft, User, Phone, Mail, MapPin, Briefcase, BookOpen,
   GraduationCap, CreditCard, FileText, Camera, Pencil, FileDown,
   Check, X, Building2, Calendar, Shield, Upload, Trash2,
+  Clock, Dumbbell,
 } from "lucide-react";
 import jsPDF from "jspdf";
 import { uploadAsset } from "@/lib/uploadAsset";
@@ -26,6 +27,8 @@ const SECTION_TABS = [
   { id:"payroll",   label:"Payroll",          icon:CreditCard },
   { id:"academic",  label:"Academic",         icon:BookOpen },
   { id:"documents", label:"Documents",        icon:FileText },
+  { id:"timeline",  label:"Timeline",         icon:Clock },
+  { id:"training",  label:"Training",         icon:Dumbbell },
 ];
 
 const STAFF_DOC_TYPES = [
@@ -578,6 +581,16 @@ export function StaffProfileClient({
               </div>
             )}
 
+            {/* Timeline */}
+            {tab === "timeline" && (
+              <StaffTimeline profileId={profile.id} schoolId={profile.school_id} />
+            )}
+
+            {/* Training */}
+            {tab === "training" && (
+              <StaffTrainingTab profileId={profile.id} schoolId={profile.school_id} />
+            )}
+
             {/* Documents */}
             {tab === "documents" && (
               <div className="space-y-4">
@@ -668,6 +681,105 @@ function StatBox({ label, value }: { label: string; value: number }) {
     <div className="bg-gray-50 rounded-xl p-4 text-center">
       <p className="text-2xl font-bold text-[#262262]">{value}</p>
       <p className="text-xs text-gray-500 mt-1">{label}</p>
+    </div>
+  );
+}
+
+const EVENT_STYLE: Record<string, { bg: string; color: string }> = {
+  employed:    { bg: "#F0FDF4", color: "#16A34A" },
+  promoted:    { bg: "#EEF2FF", color: "#4338CA" },
+  transferred: { bg: "#FDF4FF", color: "#92278F" },
+  trained:     { bg: "#F5F3FF", color: "#7C3AED" },
+  leave:       { bg: "#FFFBEB", color: "#D97706" },
+  exit:        { bg: "#FEF2F2", color: "#DC2626" },
+  note:        { bg: "#F9FAFB", color: "#6B7280" },
+};
+
+function StaffTimeline({ profileId, schoolId }: { profileId: string; schoolId: string }) {
+  const [events, setEvents] = useState<{ id: string; event_type: string; title: string; description?: string; event_date: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/admin/staff/timeline?profileId=${profileId}&schoolId=${schoolId}`)
+      .then((r) => r.json())
+      .then((j) => { setEvents(j.data ?? []); setLoading(false); });
+  }, [profileId, schoolId]);
+
+  if (loading) return <div className="py-12 text-center text-sm text-gray-400">Loading timeline…</div>;
+  if (events.length === 0) return (
+    <div className="py-16 text-center text-gray-400">
+      <Clock className="w-10 h-10 mx-auto mb-3 opacity-20" />
+      <p className="text-sm">No timeline events yet. Events are added automatically on promotions, transfers, and exits.</p>
+    </div>
+  );
+
+  return (
+    <div className="relative pl-6 space-y-0">
+      <div className="absolute left-2 top-0 bottom-0 w-0.5 bg-gray-100" />
+      {events.map((ev) => {
+        const s = EVENT_STYLE[ev.event_type] ?? EVENT_STYLE.note;
+        return (
+          <div key={ev.id} className="relative pb-6">
+            <div className="absolute -left-4 top-1 w-3 h-3 rounded-full border-2 border-white" style={{ background: s.color }} />
+            <div className="bg-gray-50 rounded-xl p-4">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-[14px] font-bold text-gray-800">{ev.title}</p>
+                  {ev.description && <p className="text-[12px] text-gray-500 mt-0.5">{ev.description}</p>}
+                </div>
+                <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold shrink-0" style={{ background: s.bg, color: s.color }}>
+                  {ev.event_type}
+                </span>
+              </div>
+              <p className="text-[11px] text-gray-400 mt-2">{new Date(ev.event_date).toLocaleDateString("en-GH", { year: "numeric", month: "long", day: "numeric" })}</p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function StaffTrainingTab({ profileId, schoolId }: { profileId: string; schoolId: string }) {
+  const [records, setRecords] = useState<{ id: string; training_type: string; title: string; organizer?: string; start_date: string; end_date?: string; certificate_url?: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/admin/staff/training?profileId=${profileId}&schoolId=${schoolId}`)
+      .then((r) => r.json())
+      .then((j) => { setRecords(j.data ?? []); setLoading(false); });
+  }, [profileId, schoolId]);
+
+  if (loading) return <div className="py-12 text-center text-sm text-gray-400">Loading training records…</div>;
+  if (records.length === 0) return (
+    <div className="py-16 text-center text-gray-400">
+      <Dumbbell className="w-10 h-10 mx-auto mb-3 opacity-20" />
+      <p className="text-sm">No training records. Add from{" "}
+        <a href="/staff/training" className="text-[#262262] underline">Staff → Training</a>.
+      </p>
+    </div>
+  );
+
+  return (
+    <div className="space-y-3">
+      {records.map((r) => (
+        <div key={r.id} className="flex items-start gap-4 p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
+          <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center shrink-0">
+            <Dumbbell className="w-5 h-5 text-purple-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[14px] font-bold text-gray-800">{r.title}</p>
+            <p className="text-[12px] text-gray-500 capitalize">{r.training_type}{r.organizer ? ` · ${r.organizer}` : ""}</p>
+            <p className="text-[11px] text-gray-400 mt-0.5">{new Date(r.start_date).toLocaleDateString("en-GH")}{r.end_date ? ` – ${new Date(r.end_date).toLocaleDateString("en-GH")}` : ""}</p>
+          </div>
+          {r.certificate_url && (
+            <a href={r.certificate_url} target="_blank" rel="noreferrer"
+              className="text-[12px] font-semibold text-[#262262] hover:underline shrink-0">
+              Certificate
+            </a>
+          )}
+        </div>
+      ))}
     </div>
   );
 }

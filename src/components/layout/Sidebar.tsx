@@ -8,6 +8,7 @@ import {
   CreditCard, MessageSquare, Settings,
   GraduationCap, BarChart3, ChevronDown, UserCog, LogOut, CalendarClock,
   Wallet, Receipt, PiggyBank, Building2, TrendingUp, DollarSign,
+  Calendar, Award, ArrowRightLeft, UserMinus, Dumbbell,
 } from "lucide-react";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -16,7 +17,20 @@ import { useRouter } from "next/navigation";
 const navItems = [
   { href: "/dashboard",      label: "Dashboard",     icon: LayoutDashboard },
   { href: "/students",       label: "Students",       icon: Users },
-  { href: "/staff",          label: "Staff",          icon: UserCog },
+  {
+    label: "Staff",
+    icon: UserCog,
+    children: [
+      { href: "/staff/dashboard",   label: "Dashboard",   icon: LayoutDashboard },
+      { href: "/staff",             label: "All Staff",   icon: Users },
+      { href: "/staff/attendance",  label: "Attendance",  icon: ClipboardList },
+      { href: "/staff/leave",       label: "Leave",       icon: Calendar },
+      { href: "/staff/training",    label: "Training",    icon: Dumbbell },
+      { href: "/staff/promotions",  label: "Promotions",  icon: Award },
+      { href: "/staff/transfers",   label: "Transfers",   icon: ArrowRightLeft },
+      { href: "/staff/exits",       label: "Exits",       icon: UserMinus },
+    ],
+  },
   { href: "/attendance",     label: "Attendance",     icon: ClipboardList },
   {
     label: "Academics",
@@ -59,6 +73,7 @@ export function Sidebar({ userName = "Admin", userRole = "admin", schoolName, sc
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>(() => ({
     Academics: ["/academics", "/timetable", "/exams"].some((p) => pathname.startsWith(p)),
     Finance: pathname.startsWith("/finance"),
+    Staff: pathname.startsWith("/staff"),
   }));
 
   function toggleMenu(label: string) {
@@ -152,7 +167,7 @@ export function Sidebar({ userName = "Admin", userRole = "admin", schoolName, sc
             );
           }
 
-          const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
+          const active = pathname === item.href || (item.href !== "/dashboard" && item.href !== "/attendance" && pathname.startsWith(item.href + "/"));
           return (
             <Link key={item.href} href={item.href}
               className={cn(
