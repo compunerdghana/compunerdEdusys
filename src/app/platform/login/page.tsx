@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react";
@@ -12,6 +12,11 @@ export default function PlatformLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Sign out any existing school session so it doesn't interfere
+  useEffect(() => {
+    createClient().auth.signOut();
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
