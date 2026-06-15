@@ -7,11 +7,13 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { isTableMissing } from "@/lib/finance/wallet-helper";
 
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } },
-);
+function getAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}
 
 async function getUser() {
   const supabase = await createServerClient();
@@ -39,12 +41,12 @@ export async function GET(req: NextRequest) {
       pendingApprovalsRes,
       studentWalletsRes,
     ] = await Promise.all([
-      admin.from("school_wallets").select("current_balance,total_income,total_expenses").eq("school_id", schoolId).maybeSingle(),
-      admin.from("income_records").select("amount").eq("school_id", schoolId).gte("income_date", monthStart).lte("income_date", monthEnd),
-      admin.from("payment_receipts").select("amount").eq("school_id", schoolId).gte("payment_date", monthStart).lte("payment_date", monthEnd),
-      admin.from("expenses").select("amount").eq("school_id", schoolId).eq("status", "approved").gte("expense_date", monthStart).lte("expense_date", monthEnd),
-      admin.from("expenses").select("id", { count: "exact", head: true }).eq("school_id", schoolId).eq("status", "pending"),
-      admin.from("student_wallets").select("total_billed,total_paid,current_balance").eq("school_id", schoolId),
+      getAdmin().from("school_wallets").select("current_balance,total_income,total_expenses").eq("school_id", schoolId).maybeSingle(),
+      getAdmin().from("income_records").select("amount").eq("school_id", schoolId).gte("income_date", monthStart).lte("income_date", monthEnd),
+      getAdmin().from("payment_receipts").select("amount").eq("school_id", schoolId).gte("payment_date", monthStart).lte("payment_date", monthEnd),
+      getAdmin().from("expenses").select("amount").eq("school_id", schoolId).eq("status", "approved").gte("expense_date", monthStart).lte("expense_date", monthEnd),
+      getAdmin().from("expenses").select("id", { count: "exact", head: true }).eq("school_id", schoolId).eq("status", "pending"),
+      getAdmin().from("student_wallets").select("total_billed,total_paid,current_balance").eq("school_id", schoolId),
     ]);
 
     if (isTableMissing(walletRes.error)) return NextResponse.json({ tableNotReady: true });

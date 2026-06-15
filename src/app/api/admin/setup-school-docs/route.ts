@@ -1,15 +1,17 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } },
-);
+function getAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}
 
 export async function POST() {
   try {
-    await admin.rpc("exec_sql", {
+    await getAdmin().rpc("exec_sql", {
       sql: `
         CREATE TABLE IF NOT EXISTS school_documents (
           id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -43,7 +45,7 @@ export async function POST() {
     }).then(() => null, () => null);
 
     // Fallback: try direct table creation if rpc not available
-    await admin.from("school_documents").select("id").limit(1);
+    await getAdmin().from("school_documents").select("id").limit(1);
 
     return NextResponse.json({ ok: true });
   } catch (err) {

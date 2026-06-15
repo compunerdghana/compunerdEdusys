@@ -11,7 +11,7 @@ export async function POST() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } },
   );
-  const { error } = await admin.from("student_wallets").select("id").limit(1);
+  const { error } = await getAdmin().from("student_wallets").select("id").limit(1);
   const missing = error?.message?.includes("relation") || error?.message?.includes("does not exist");
   return NextResponse.json({ ok: !missing, sql: missing ? SQL : null });
 }

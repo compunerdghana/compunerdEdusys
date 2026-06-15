@@ -2,11 +2,13 @@ import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } },
-);
+function getAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}
 
 async function getUser() {
   const supabase = await createServerClient();
@@ -79,7 +81,7 @@ export async function POST(req: NextRequest) {
     await deleteQuery.is("term_id", null);
   }
 
-  const { data, error } = await admin
+  const { data, error } = await getAdmin()
     .from("timetable_slots")
     .insert({ school_id, classroom_id, period_id, day_of_week, subject_id: subject_id ?? null, teacher_id: teacher_id ?? null, term_id: term_id ?? null })
     .select("*, subjects(id, name), profiles(id, full_name)")
@@ -99,7 +101,7 @@ export async function DELETE(req: NextRequest) {
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
-  const { error } = await admin.from("timetable_slots").delete().eq("id", id);
+  const { error } = await getAdmin().from("timetable_slots").delete().eq("id", id);
 
   if (error) {
     if (isTableMissing(error)) return NextResponse.json({ tableNotReady: true });

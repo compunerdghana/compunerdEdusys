@@ -7,11 +7,13 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { isTableMissing } from "@/lib/finance/wallet-helper";
 
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } },
-);
+function getAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}
 
 async function getUser() {
   const supabase = await createServerClient();
@@ -34,11 +36,11 @@ export async function GET(req: NextRequest) {
   try {
     if (type === "income_statement") {
       const [incomeRes, feeRes] = await Promise.all([
-        admin.from("income_records").select("type,amount,income_date")
+        getAdmin().from("income_records").select("type,amount,income_date")
           .eq("school_id", schoolId)
           .gte("income_date", from ?? "2000-01-01")
           .lte("income_date", to ?? "2099-12-31"),
-        admin.from("payment_receipts").select("amount,payment_date")
+        getAdmin().from("payment_receipts").select("amount,payment_date")
           .eq("school_id", schoolId)
           .gte("payment_date", from ?? "2000-01-01")
           .lte("payment_date", to ?? "2099-12-31"),
@@ -57,7 +59,7 @@ export async function GET(req: NextRequest) {
     }
 
     if (type === "expense_report") {
-      const { data: expenses, error } = await admin
+      const { data: expenses, error } = await getAdmin()
         .from("expenses")
         .select("amount,expense_date,status,category:expense_categories(name)")
         .eq("school_id", schoolId)
@@ -79,7 +81,7 @@ export async function GET(req: NextRequest) {
     }
 
     if (type === "cashflow") {
-      const { data: transactions, error } = await admin
+      const { data: transactions, error } = await getAdmin()
         .from("school_wallet_transactions")
         .select("type,amount,category,created_at")
         .eq("school_id", schoolId)
@@ -101,7 +103,7 @@ export async function GET(req: NextRequest) {
     }
 
     if (type === "budget_summary") {
-      const { data: budgets, error } = await admin
+      const { data: budgets, error } = await getAdmin()
         .from("budgets")
         .select("*,category:expense_categories(name)")
         .eq("school_id", schoolId);
@@ -111,7 +113,7 @@ export async function GET(req: NextRequest) {
 
       const enriched = await Promise.all(
         (budgets ?? []).map(async (b: Record<string, unknown>) => {
-          const { data: expenses } = await admin
+          const { data: expenses } = await getAdmin()
             .from("expenses")
             .select("amount")
             .eq("school_id", schoolId)

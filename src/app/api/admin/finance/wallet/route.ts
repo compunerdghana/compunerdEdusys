@@ -7,11 +7,13 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { ensureSchoolWallet, isTableMissing, mutateSchoolWallet } from "@/lib/finance/wallet-helper";
 
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } },
-);
+function getAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}
 
 async function getUser() {
   const supabase = await createServerClient();
@@ -26,7 +28,7 @@ export async function GET(req: NextRequest) {
   const schoolId = req.nextUrl.searchParams.get("schoolId");
   if (!schoolId) return NextResponse.json({ error: "schoolId required" }, { status: 400 });
 
-  const { data: wallet, error: wErr } = await admin
+  const { data: wallet, error: wErr } = await getAdmin()
     .from("school_wallets")
     .select("*")
     .eq("school_id", schoolId)
@@ -35,7 +37,7 @@ export async function GET(req: NextRequest) {
   if (isTableMissing(wErr)) return NextResponse.json({ tableNotReady: true });
   if (wErr) return NextResponse.json({ error: wErr.message }, { status: 500 });
 
-  const { data: transactions, error: tErr } = await admin
+  const { data: transactions, error: tErr } = await getAdmin()
     .from("school_wallet_transactions")
     .select("*")
     .eq("school_id", schoolId)
@@ -61,7 +63,7 @@ export async function POST(req: NextRequest) {
       const wallet = await ensureSchoolWallet(schoolId);
 
       // Find payment_receipts not yet synced
-      const { data: receipts, error: rErr } = await admin
+      const { data: receipts, error: rErr } = await getAdmin()
         .from("payment_receipts")
         .select("id, amount, created_at")
         .eq("school_id", schoolId)
@@ -70,7 +72,7 @@ export async function POST(req: NextRequest) {
       if (isTableMissing(rErr)) return NextResponse.json({ tableNotReady: true });
 
       // Find already-synced receipt ids
-      const { data: synced } = await admin
+      const { data: synced } = await getAdmin()
         .from("school_wallet_transactions")
         .select("reference_id")
         .eq("school_id", schoolId)

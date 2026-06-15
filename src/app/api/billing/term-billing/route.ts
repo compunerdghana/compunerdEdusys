@@ -6,11 +6,13 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } },
-);
+function getAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}
 
 export async function POST(req: NextRequest) {
   const { school_id, term_id, actor_id } = await req.json();
@@ -20,17 +22,17 @@ export async function POST(req: NextRequest) {
   let termId = term_id;
   let termName = "";
   if (!termId) {
-    const { data: t } = await admin.from("terms").select("id, name").eq("school_id", school_id).eq("is_current", true).maybeSingle();
+    const { data: t } = await getAdmin().from("terms").select("id, name").eq("school_id", school_id).eq("is_current", true).maybeSingle();
     if (!t) return NextResponse.json({ error: "No active term found" }, { status: 400 });
     termId = t.id;
     termName = t.name;
   } else {
-    const { data: t } = await admin.from("terms").select("name").eq("id", termId).single();
+    const { data: t } = await getAdmin().from("terms").select("name").eq("id", termId).single();
     termName = t?.name ?? "";
   }
 
   // Get all active students
-  const { data: students } = await admin.from("students")
+  const { data: students } = await getAdmin().from("students")
     .select("id, first_name, last_name, class_id, classrooms(id, name, level)")
     .eq("school_id", school_id)
     .eq("status", "active");
@@ -44,7 +46,7 @@ export async function POST(req: NextRequest) {
   for (const student of students) {
     try {
       // Skip if already billed this term
-      const { data: existing } = await admin.from("student_invoices")
+      const { data: existing } = await getAdmin().from("student_invoices")
         .select("id")
         .eq("student_id", student.id)
         .eq("term_id", termId)
@@ -65,7 +67,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Activity log
-  await admin.from("activity_feed").insert({
+  await getAdmin().from("activity_feed").insert({
     school_id,
     actor_id: actor_id ?? null,
     entity_type: "billing",

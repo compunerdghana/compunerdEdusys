@@ -18,7 +18,7 @@ export async function POST(request: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
       { auth: { autoRefreshToken: false, persistSession: false } },
     );
-    await admin.from("fee_payments").update({
+    await getAdmin().from("fee_payments").update({
       payment_status: "paid",
       balance: 0,
       hubtel_transaction_id: TransactionId ?? null,

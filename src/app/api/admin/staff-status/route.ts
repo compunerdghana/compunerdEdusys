@@ -2,11 +2,13 @@ import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } },
-);
+function getAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}
 
 export async function POST(req: NextRequest) {
   const supabase = await createServerClient();
@@ -17,7 +19,7 @@ export async function POST(req: NextRequest) {
   if (!profile_id || !status) return NextResponse.json({ error: "Missing fields" }, { status: 400 });
 
   // Update employment_status in staff_details
-  const { error } = await admin
+  const { error } = await getAdmin()
     .from("staff_details")
     .update({ employment_status: status })
     .eq("profile_id", profile_id);
@@ -26,7 +28,7 @@ export async function POST(req: NextRequest) {
 
   // Log status change if staff_status_logs table exists
   if (note) {
-    await admin.from("staff_status_logs").insert({
+    await getAdmin().from("staff_status_logs").insert({
       profile_id,
       status,
       note,

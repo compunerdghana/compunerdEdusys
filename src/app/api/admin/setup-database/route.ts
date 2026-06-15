@@ -27,7 +27,7 @@ export async function POST() {
   // ── exam_scores ──────────────────────────────────────────────────────────────
   // 1. Create table if absent (we can't run DDL via JS client, so we attempt an
   //    insert and detect "relation does not exist" to surface a clear message).
-  const probe = await admin.from("exam_scores").select("id").limit(1);
+  const probe = await getAdmin().from("exam_scores").select("id").limit(1);
   const tableExists = !probe.error || !probe.error.message.includes("relation");
 
   if (!tableExists) {
@@ -46,7 +46,7 @@ export async function POST() {
     ];
 
     for (const [col] of colChecks) {
-      const r = await admin.from("exam_scores").select(col).limit(1);
+      const r = await getAdmin().from("exam_scores").select(col).limit(1);
       if (r.error?.message.includes(`column exam_scores.${col} does not exist`) ||
           r.error?.message.includes(`Could not find the '${col}'`)) {
         errors.push(`exam_scores is missing column "${col}". Add it via SQL.`);
@@ -54,7 +54,7 @@ export async function POST() {
     }
 
     // students.photo_url
-    const sp = await admin.from("students").select("photo_url").limit(1);
+    const sp = await getAdmin().from("students").select("photo_url").limit(1);
     if (sp.error?.message.includes("photo_url")) {
       errors.push('students is missing column "photo_url". Add it via SQL.');
     }

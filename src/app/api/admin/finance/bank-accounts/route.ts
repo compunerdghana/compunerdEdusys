@@ -9,11 +9,13 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { isTableMissing } from "@/lib/finance/wallet-helper";
 
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } },
-);
+function getAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}
 
 async function getUser() {
   const supabase = await createServerClient();
@@ -28,7 +30,7 @@ export async function GET(req: NextRequest) {
   const schoolId = req.nextUrl.searchParams.get("schoolId");
   if (!schoolId) return NextResponse.json({ error: "schoolId required" }, { status: 400 });
 
-  const { data, error } = await admin
+  const { data, error } = await getAdmin()
     .from("school_bank_accounts")
     .select("*")
     .eq("school_id", schoolId)
@@ -49,7 +51,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "school_id, account_name, bank required" }, { status: 400 });
   }
 
-  const { data, error } = await admin.from("school_bank_accounts").insert({
+  const { data, error } = await getAdmin().from("school_bank_accounts").insert({
     school_id,
     account_name,
     account_number: account_number ?? null,
@@ -81,7 +83,7 @@ export async function PUT(req: NextRequest) {
   if (branch !== undefined) updates.branch = branch;
   if (account_type !== undefined) updates.account_type = account_type;
 
-  const { data, error } = await admin.from("school_bank_accounts").update(updates).eq("id", id).select("*").single();
+  const { data, error } = await getAdmin().from("school_bank_accounts").update(updates).eq("id", id).select("*").single();
 
   if (isTableMissing(error)) return NextResponse.json({ tableNotReady: true });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -96,7 +98,7 @@ export async function DELETE(req: NextRequest) {
   const { id } = await req.json();
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
-  const { data, error } = await admin
+  const { data, error } = await getAdmin()
     .from("school_bank_accounts")
     .update({ is_active: false })
     .eq("id", id)

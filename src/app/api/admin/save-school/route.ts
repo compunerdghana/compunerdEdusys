@@ -2,11 +2,13 @@ import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } },
-);
+function getAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,14 +24,14 @@ export async function POST(req: NextRequest) {
     }
 
     if (schoolId) {
-      const { error } = await admin.from("schools").update(payload).eq("id", schoolId);
+      const { error } = await getAdmin().from("schools").update(payload).eq("id", schoolId);
       if (error) {
         const isSchemaErr = /column|schema|Could not find/i.test(error.message);
         if (isSchemaErr) {
           // Some columns may not exist yet — retry with guaranteed-safe subset
           const SAFE = new Set(["name","motto","address","phone","email","logo_url","headmaster_signature_url","currency"]);
           const safe = Object.fromEntries(Object.entries(payload).filter(([k]) => SAFE.has(k)));
-          const { error: e2 } = await admin.from("schools").update(safe).eq("id", schoolId);
+          const { error: e2 } = await getAdmin().from("schools").update(safe).eq("id", schoolId);
           if (e2) return NextResponse.json({ error: e2.message }, { status: 500 });
         } else {
           return NextResponse.json({ error: error.message }, { status: 500 });
@@ -37,13 +39,13 @@ export async function POST(req: NextRequest) {
       }
       return NextResponse.json({ ok: true });
     } else {
-      const { data, error } = await admin
+      const { data, error } = await getAdmin()
         .from("schools")
         .insert({ ...payload, created_by: user.id })
         .select("id")
         .single();
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      await admin.from("profiles").update({ school_id: data.id }).eq("id", user.id);
+      await getAdmin().from("profiles").update({ school_id: data.id }).eq("id", user.id);
       return NextResponse.json({ ok: true, schoolId: data.id });
     }
   } catch (err) {

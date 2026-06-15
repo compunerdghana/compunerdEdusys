@@ -12,11 +12,13 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } },
-);
+function getAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,7 +26,7 @@ export async function POST(req: NextRequest) {
     if (!student_id) return NextResponse.json({ error: "student_id required" }, { status: 400 });
 
     // ── 1. Fetch student + class info ──────────────────────────────
-    const { data: student, error: sErr } = await admin
+    const { data: student, error: sErr } = await getAdmin()
       .from("students")
       .select("*, classrooms(id, name, level)")
       .eq("id", student_id)
@@ -35,7 +37,7 @@ export async function POST(req: NextRequest) {
     const results: string[] = [];
 
     // ── 2. Create wallet (idempotent) ──────────────────────────────
-    const { data: existingWallet } = await admin
+    const { data: existingWallet } = await getAdmin()
       .from("student_wallets")
       .select("id")
       .eq("student_id", student_id)
@@ -44,7 +46,7 @@ export async function POST(req: NextRequest) {
     let walletId: string;
     if (!existingWallet) {
       const walletNumber = `WLT-${Date.now().toString().slice(-6)}`;
-      const { data: w } = await admin.from("student_wallets").insert({
+      const { data: w } = await getAdmin().from("student_wallets").insert({
         school_id: schoolId,
         student_id,
         wallet_number: walletNumber,
@@ -62,7 +64,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 3. Find current term ───────────────────────────────────────
-    const { data: currentTerm } = await admin
+    const { data: currentTerm } = await getAdmin()
       .from("terms")
       .select("id, name")
       .eq("school_id", schoolId)
@@ -77,7 +79,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 4. Check if invoice already exists for this term ──────────
-    const { data: existingInvoice } = await admin
+    const { data: existingInvoice } = await getAdmin()
       .from("student_invoices")
       .select("id")
       .eq("student_id", student_id)
@@ -96,7 +98,7 @@ export async function POST(req: NextRequest) {
     let feeStructure = null;
 
     if (student.class_id) {
-      const { data } = await admin
+      const { data } = await getAdmin()
         .from("fee_structures")
         .select("*, fee_structure_items(*)")
         .eq("school_id", schoolId)
@@ -107,7 +109,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!feeStructure && classObj?.level) {
-      const { data } = await admin
+      const { data } = await getAdmin()
         .from("fee_structures")
         .select("*, fee_structure_items(*)")
         .eq("school_id", schoolId)
@@ -134,7 +136,7 @@ export async function POST(req: NextRequest) {
     const invoiceSeq = Date.now(); // fallback unique
     const invoiceNumber = `INV-${new Date().getFullYear()}-${String(invoiceSeq).slice(-6)}`;
 
-    const { data: invoice } = await admin.from("student_invoices").insert({
+    const { data: invoice } = await getAdmin().from("student_invoices").insert({
       invoice_number: invoiceNumber,
       school_id: schoolId,
       student_id,
@@ -154,7 +156,7 @@ export async function POST(req: NextRequest) {
     } else {
       // Insert invoice lines
       if (items.length > 0) {
-        await admin.from("student_invoice_lines").insert(
+        await getAdmin().from("student_invoice_lines").insert(
           items.map((item, idx) => ({
             invoice_id: invoice.id,
             school_id: schoolId,
@@ -169,7 +171,7 @@ export async function POST(req: NextRequest) {
 
       // ── 7. Debit wallet ──────────────────────────────────────────
       if (totalAmount > 0) {
-        await admin.from("wallet_transactions").insert({
+        await getAdmin().from("wallet_transactions").insert({
           wallet_id: walletId,
           school_id: schoolId,
           student_id,
@@ -181,8 +183,8 @@ export async function POST(req: NextRequest) {
           recorded_by: actor_id ?? null,
         });
 
-        const { data: wallet } = await admin.from("student_wallets").select("total_billed").eq("id", walletId).single();
-        await admin.from("student_wallets").update({
+        const { data: wallet } = await getAdmin().from("student_wallets").select("total_billed").eq("id", walletId).single();
+        await getAdmin().from("student_wallets").update({
           total_billed: (Number(wallet?.total_billed) || 0) + totalAmount,
           current_balance: -totalAmount,
           updated_at: new Date().toISOString(),
@@ -201,7 +203,7 @@ export async function POST(req: NextRequest) {
     );
 
     // ── 9. Timeline event ──────────────────────────────────────────
-    await admin.from("student_timeline").upsert({
+    await getAdmin().from("student_timeline").upsert({
       student_id,
       school_id: schoolId,
       event_type: "admission",
@@ -230,7 +232,7 @@ async function logActivity(
   schoolId: string, actorId: string | null, entityType: string, entityId: string,
   title: string, description?: string, meta?: Record<string, unknown>
 ) {
-  await admin.from("activity_feed").insert({
+  await getAdmin().from("activity_feed").insert({
     school_id: schoolId,
     actor_id: actorId ?? null,
     entity_type: entityType,

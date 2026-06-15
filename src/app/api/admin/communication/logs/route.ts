@@ -19,8 +19,7 @@ export async function GET(req: NextRequest) {
 
   if (!schoolId) return NextResponse.json({ error: "Missing schoolId" }, { status: 400 });
 
-  const admin = getAdmin();
-  let q = admin.from("communication_logs")
+  let q = getAdmin().from("communication_logs")
     .select("id, channel, recipient_type, recipient_ref, subject, body, status, provider, sent_by, recipient_count, error_message, sent_at, metadata")
     .eq("school_id", schoolId)
     .order("sent_at", { ascending: false })
@@ -43,8 +42,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
-  const admin = getAdmin();
-  const { data, error } = await admin.from("communication_logs").insert({
+  const { data, error } = await getAdmin().from("communication_logs").insert({
     school_id, channel, recipient_type: recipient_type || "individual",
     recipient_id: recipient_id || null,
     recipient_ref: recipient_ref || null,

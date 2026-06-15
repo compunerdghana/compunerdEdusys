@@ -22,11 +22,13 @@ import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } },
-);
+function getAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}
 
 async function getUser() {
   const supabase = await createServerClient();
@@ -41,7 +43,7 @@ export async function GET(req: NextRequest) {
   const schoolId = req.nextUrl.searchParams.get("schoolId");
   if (!schoolId) return NextResponse.json({ error: "schoolId required" }, { status: 400 });
 
-  const { data, error } = await admin
+  const { data, error } = await getAdmin()
     .from("school_events")
     .select("*")
     .eq("school_id", schoolId)
@@ -82,12 +84,12 @@ export async function POST(req: NextRequest) {
   if (start_time !== undefined) payload.start_time = start_time ?? null;
   if (end_time !== undefined) payload.end_time = end_time ?? null;
 
-  let { data, error } = await admin.from("school_events").insert(payload).select("*").single();
+  let { data, error } = await getAdmin().from("school_events").insert(payload).select("*").single();
 
   // If time columns don't exist yet, retry without them
   if (error && (error.message?.includes("start_time") || error.message?.includes("end_time") || error.message?.includes("all_day"))) {
     delete payload.all_day; delete payload.start_time; delete payload.end_time;
-    const retry = await admin.from("school_events").insert(payload).select("*").single();
+    const retry = await getAdmin().from("school_events").insert(payload).select("*").single();
     data = retry.data; error = retry.error;
   }
 
@@ -108,7 +110,7 @@ export async function DELETE(req: NextRequest) {
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
-  const { error } = await admin.from("school_events").delete().eq("id", id);
+  const { error } = await getAdmin().from("school_events").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }

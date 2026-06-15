@@ -7,11 +7,13 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } },
-);
+function getAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}
 
 const BUCKET = "school-assets";
 
@@ -30,18 +32,18 @@ export async function POST(req: NextRequest) {
     }
 
     // Ensure bucket exists (idempotent)
-    await admin.storage.createBucket(BUCKET, { public: true }).catch(() => null);
+    await getAdmin().storage.createBucket(BUCKET, { public: true }).catch(() => null);
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    const { error } = await admin.storage
+    const { error } = await getAdmin().storage
       .from(BUCKET)
       .upload(path, buffer, { contentType: file.type, upsert: true });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    const { data } = admin.storage.from(BUCKET).getPublicUrl(path);
+    const { data } = getAdmin().storage.from(BUCKET).getPublicUrl(path);
     return NextResponse.json({ ok: true, publicUrl: data.publicUrl });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });

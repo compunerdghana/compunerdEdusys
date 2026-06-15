@@ -7,11 +7,13 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { isTableMissing, mutateSchoolWallet } from "@/lib/finance/wallet-helper";
 
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } },
-);
+function getAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}
 
 async function getUser() {
   const supabase = await createServerClient();
@@ -26,7 +28,7 @@ export async function GET(req: NextRequest) {
   const schoolId = req.nextUrl.searchParams.get("schoolId");
   if (!schoolId) return NextResponse.json({ error: "schoolId required" }, { status: 400 });
 
-  const { data, error } = await admin
+  const { data, error } = await getAdmin()
     .from("income_records")
     .select("*")
     .eq("school_id", schoolId)
@@ -65,7 +67,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Insert income record
-    const { data, error } = await admin.from("income_records").insert({
+    const { data, error } = await getAdmin().from("income_records").insert({
       school_id,
       income_date,
       type,

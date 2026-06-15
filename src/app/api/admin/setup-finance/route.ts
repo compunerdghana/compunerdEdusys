@@ -6,11 +6,13 @@ import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } },
-);
+function getAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}
 
 export const FINANCE_MIGRATION_SQL = `
 -- ════════════════════════════════════════════════════════════════
@@ -221,9 +223,9 @@ CREATE POLICY IF NOT EXISTS "school_read_audit" ON finance_audit_log FOR SELECT
 export async function GET() {
   // Check which tables already exist
   const checks = await Promise.all([
-    admin.from("school_wallets").select("id").limit(1),
-    admin.from("expenses").select("id").limit(1),
-    admin.from("income_records").select("id").limit(1),
+    getAdmin().from("school_wallets").select("id").limit(1),
+    getAdmin().from("expenses").select("id").limit(1),
+    getAdmin().from("income_records").select("id").limit(1),
   ]);
 
   const walletReady  = !checks[0].error;

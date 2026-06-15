@@ -6,11 +6,13 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { mutateSchoolWallet } from "@/lib/finance/wallet-helper";
 
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } },
-);
+function getAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -28,11 +30,11 @@ export async function POST(req: NextRequest) {
     // ── 1. Get or find invoice ─────────────────────────────────────
     let inv = null;
     if (invoice_id) {
-      const { data } = await admin.from("student_invoices").select("*").eq("id", invoice_id).single();
+      const { data } = await getAdmin().from("student_invoices").select("*").eq("id", invoice_id).single();
       inv = data;
     } else {
       // Find latest unpaid invoice for student
-      const { data } = await admin.from("student_invoices")
+      const { data } = await getAdmin().from("student_invoices")
         .select("*")
         .eq("student_id", student_id)
         .in("status", ["unpaid", "partial"])
@@ -46,7 +48,7 @@ export async function POST(req: NextRequest) {
     const receiptNumber = `RCP-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
 
     // ── 3. Create receipt ──────────────────────────────────────────
-    const { data: receipt } = await admin.from("payment_receipts").insert({
+    const { data: receipt } = await getAdmin().from("payment_receipts").insert({
       receipt_number: receiptNumber,
       school_id,
       student_id,
@@ -64,7 +66,7 @@ export async function POST(req: NextRequest) {
       const newPaid = Number(inv.amount_paid) + payAmt;
       const newBalance = Math.max(0, Number(inv.total_amount) - Number(inv.amount_waived) - Number(inv.amount_discounted) - newPaid);
       const newStatus = newBalance <= 0 ? "paid" : newPaid > 0 ? "partial" : "unpaid";
-      await admin.from("student_invoices").update({
+      await getAdmin().from("student_invoices").update({
         amount_paid: newPaid,
         balance: newBalance,
         status: newStatus,
@@ -73,7 +75,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 5. Update wallet (create if not exists) ────────────────────
-    let { data: wallet } = await admin.from("student_wallets")
+    let { data: wallet } = await getAdmin().from("student_wallets")
       .select("*")
       .eq("student_id", student_id)
       .maybeSingle();
@@ -81,7 +83,7 @@ export async function POST(req: NextRequest) {
     if (!wallet) {
       // Auto-create wallet so payments always get credited
       const walletNum = `W-${Date.now().toString().slice(-8)}`;
-      const { data: created } = await admin.from("student_wallets").insert({
+      const { data: created } = await getAdmin().from("student_wallets").insert({
         student_id,
         school_id,
         wallet_number: walletNum,
@@ -94,7 +96,7 @@ export async function POST(req: NextRequest) {
       wallet = created;
 
       if (wallet) {
-        await admin.from("wallet_transactions").insert({
+        await getAdmin().from("wallet_transactions").insert({
           wallet_id: wallet.id,
           school_id,
           student_id,
@@ -111,13 +113,13 @@ export async function POST(req: NextRequest) {
     } else {
       const newTotalPaid = Number(wallet.total_paid) + payAmt;
       const newBalance = Number(wallet.total_billed) - newTotalPaid - Number(wallet.total_waived) - Number(wallet.total_discounts ?? 0);
-      await admin.from("student_wallets").update({
+      await getAdmin().from("student_wallets").update({
         total_paid: newTotalPaid,
         current_balance: -newBalance,
         updated_at: new Date().toISOString(),
       }).eq("id", wallet.id);
 
-      await admin.from("wallet_transactions").insert({
+      await getAdmin().from("wallet_transactions").insert({
         wallet_id: wallet.id,
         school_id,
         student_id,
@@ -152,7 +154,7 @@ export async function POST(req: NextRequest) {
 
     // ── 8. Also update legacy fee_payments table for backwards compat ──
     if (inv) {
-      const { data: fp } = await admin.from("fee_payments")
+      const { data: fp } = await getAdmin().from("fee_payments")
         .select("*")
         .eq("student_id", student_id)
         .limit(1)
@@ -160,7 +162,7 @@ export async function POST(req: NextRequest) {
       if (fp) {
         const newPaid = Number(fp.amount_paid) + payAmt;
         const newBalance = Math.max(0, Number(fp.amount_due) - newPaid);
-        await admin.from("fee_payments").update({
+        await getAdmin().from("fee_payments").update({
           amount_paid: newPaid,
           balance: newBalance,
           payment_status: newBalance <= 0 ? "paid" : newPaid > 0 ? "partial" : "unpaid",
@@ -174,7 +176,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 9. Activity log ────────────────────────────────────────────
-    await admin.from("activity_feed").insert({
+    await getAdmin().from("activity_feed").insert({
       school_id,
       actor_id: recorded_by ?? null,
       entity_type: "payment",
@@ -186,7 +188,7 @@ export async function POST(req: NextRequest) {
     }).then(() => null, () => null);
 
     // ── 10. Timeline event ──────────────────────────────────────────
-    await admin.from("student_timeline").insert({
+    await getAdmin().from("student_timeline").insert({
       student_id,
       school_id,
       event_type: "payment",

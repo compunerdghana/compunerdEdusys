@@ -8,11 +8,13 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { isTableMissing, mutateSchoolWallet } from "@/lib/finance/wallet-helper";
 
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } },
-);
+function getAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}
 
 async function getUser() {
   const supabase = await createServerClient();
@@ -25,7 +27,7 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   // Role check
-  const { data: profile, error: pErr } = await admin
+  const { data: profile, error: pErr } = await getAdmin()
     .from("profiles")
     .select("role")
     .eq("id", user.id)
@@ -41,7 +43,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "expense_id and action required" }, { status: 400 });
   }
 
-  const { data: expense, error: eErr } = await admin
+  const { data: expense, error: eErr } = await getAdmin()
     .from("expenses")
     .select("*")
     .eq("id", expense_id)
@@ -68,7 +70,7 @@ export async function POST(req: NextRequest) {
         userId: user.id,
       });
 
-      const { error: upErr } = await admin.from("expenses").update({
+      const { error: upErr } = await getAdmin().from("expenses").update({
         status: "approved",
         approved_by: user.id,
         approved_at: new Date().toISOString(),
@@ -79,7 +81,7 @@ export async function POST(req: NextRequest) {
       if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
 
       // Audit log
-      await admin.from("finance_audit_log").insert({
+      await getAdmin().from("finance_audit_log").insert({
         school_id: expense.school_id,
         user_id: user.id,
         action: "expense_approved",
@@ -98,7 +100,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === "reject") {
-    const { error: upErr } = await admin.from("expenses").update({
+    const { error: upErr } = await getAdmin().from("expenses").update({
       status: "rejected",
       rejection_reason: reason ?? null,
       updated_at: new Date().toISOString(),
@@ -107,7 +109,7 @@ export async function POST(req: NextRequest) {
     if (isTableMissing(upErr)) return NextResponse.json({ tableNotReady: true });
     if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
 
-    await admin.from("finance_audit_log").insert({
+    await getAdmin().from("finance_audit_log").insert({
       school_id: expense.school_id,
       user_id: user.id,
       action: "expense_rejected",
@@ -121,7 +123,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === "request_changes") {
-    const { error: upErr } = await admin.from("expenses").update({
+    const { error: upErr } = await getAdmin().from("expenses").update({
       status: "changes_requested",
       rejection_reason: reason ?? null,
       updated_at: new Date().toISOString(),

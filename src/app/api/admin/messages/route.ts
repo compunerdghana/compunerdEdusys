@@ -2,11 +2,13 @@ import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } },
-);
+function getAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}
 
 async function getUser() {
   const supabase = await createServerClient();
@@ -68,7 +70,7 @@ export async function POST(req: NextRequest) {
 
   const { school_id, sender_id, title, body: msgBody, type, target_type, target_id } = body;
 
-  const { data, error } = await admin
+  const { data, error } = await getAdmin()
     .from("messages")
     .insert({
       school_id,
@@ -96,7 +98,7 @@ export async function DELETE(req: NextRequest) {
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
-  const { error } = await admin.from("messages").delete().eq("id", id);
+  const { error } = await getAdmin().from("messages").delete().eq("id", id);
 
   if (error) {
     if (isTableMissing(error)) return NextResponse.json({ tableNotReady: true });

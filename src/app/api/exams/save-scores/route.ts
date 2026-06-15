@@ -28,14 +28,14 @@ export async function POST(request: Request) {
   );
 
   // Delete existing scores — chain properly (Supabase builder is immutable)
-  let delQuery = admin.from("exam_scores").delete().eq("student_id", student_id);
+  let delQuery = getAdmin().from("exam_scores").delete().eq("student_id", student_id);
   if (class_id) delQuery = delQuery.eq("class_id", class_id);
   if (term_id)  delQuery = delQuery.eq("term_id", term_id);
   const { error: delErr } = await delQuery;
 
   // If delete failed because class_id/term_id columns don't exist, wipe by student only
   if (delErr) {
-    await admin.from("exam_scores").delete().eq("student_id", student_id);
+    await getAdmin().from("exam_scores").delete().eq("student_id", student_id);
   }
 
   if (!scores.length) return NextResponse.json({ ok: true });
@@ -71,8 +71,8 @@ export async function POST(request: Request) {
   let lastError = "";
   for (const payload of payloads) {
     // Re-delete before each attempt to avoid duplicate key errors
-    await admin.from("exam_scores").delete().eq("student_id", student_id);
-    const { error } = await admin.from("exam_scores").insert(payload);
+    await getAdmin().from("exam_scores").delete().eq("student_id", student_id);
+    const { error } = await getAdmin().from("exam_scores").insert(payload);
     if (!error) return NextResponse.json({ ok: true });
     lastError = error.message;
     // Only retry on "column does not exist" errors

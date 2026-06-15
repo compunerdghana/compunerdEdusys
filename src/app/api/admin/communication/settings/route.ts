@@ -13,8 +13,7 @@ export async function GET(req: NextRequest) {
   const schoolId = new URL(req.url).searchParams.get("schoolId");
   if (!schoolId) return NextResponse.json({ error: "Missing schoolId" }, { status: 400 });
 
-  const admin = getAdmin();
-  const { data, error } = await admin.from("communication_settings")
+  const { data, error } = await getAdmin().from("communication_settings")
     .select("*").eq("school_id", schoolId).maybeSingle();
 
   if (error?.code === "42P01") return NextResponse.json({ data: null, tableNotReady: true });
@@ -27,8 +26,7 @@ export async function POST(req: NextRequest) {
   const { school_id, ...settings } = body;
   if (!school_id) return NextResponse.json({ error: "Missing school_id" }, { status: 400 });
 
-  const admin = getAdmin();
-  const { data, error } = await admin.from("communication_settings")
+  const { data, error } = await getAdmin().from("communication_settings")
     .upsert({ school_id, ...settings, updated_at: new Date().toISOString() }, { onConflict: "school_id" })
     .select().single();
 

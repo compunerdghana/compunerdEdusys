@@ -5,22 +5,24 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } },
-);
+function getAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}
 
 export async function GET(req: NextRequest) {
   const schoolId = req.nextUrl.searchParams.get("school_id");
   if (!schoolId) return NextResponse.json({ error: "school_id required" }, { status: 400 });
 
   const [walletsRes, invoicesRes, waiversRes, discountsRes, activityRes] = await Promise.all([
-    admin.from("student_wallets").select("total_billed,total_paid,total_waived,total_discounts,outstanding_balance").eq("school_id", schoolId),
-    admin.from("student_invoices").select("total_amount,amount_paid,amount_waived,balance,status").eq("school_id", schoolId),
-    admin.from("fee_waivers").select("amount").eq("school_id", schoolId),
-    admin.from("fee_discounts").select("amount").eq("school_id", schoolId),
-    admin.from("activity_feed").select("*").eq("school_id", schoolId).order("created_at", { ascending: false }).limit(20),
+    getAdmin().from("student_wallets").select("total_billed,total_paid,total_waived,total_discounts,outstanding_balance").eq("school_id", schoolId),
+    getAdmin().from("student_invoices").select("total_amount,amount_paid,amount_waived,balance,status").eq("school_id", schoolId),
+    getAdmin().from("fee_waivers").select("amount").eq("school_id", schoolId),
+    getAdmin().from("fee_discounts").select("amount").eq("school_id", schoolId),
+    getAdmin().from("activity_feed").select("*").eq("school_id", schoolId).order("created_at", { ascending: false }).limit(20),
   ]);
 
   const wallets = walletsRes.data ?? [];

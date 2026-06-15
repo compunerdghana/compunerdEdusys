@@ -6,11 +6,13 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } },
-);
+function getAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}
 
 const FREEZE_STATUSES = ["graduated", "transfer out", "withdrawn", "expelled", "deceased"];
 
@@ -22,14 +24,14 @@ export async function POST(req: NextRequest) {
 
   if (FREEZE_STATUSES.includes(new_status)) {
     // Deactivate wallet (stop future billing)
-    await admin.from("student_wallets")
+    await getAdmin().from("student_wallets")
       .update({ is_active: false, updated_at: new Date().toISOString() })
       .eq("student_id", student_id);
     actions.push("Wallet deactivated — future billing stopped");
 
     // Cancel any open invoices beyond current if graduated/withdrawn
     if (["graduated", "withdrawn", "expelled", "deceased"].includes(new_status)) {
-      const { data: openInvoices } = await admin.from("student_invoices")
+      const { data: openInvoices } = await getAdmin().from("student_invoices")
         .select("id, balance")
         .eq("student_id", student_id)
         .in("status", ["unpaid"]);
@@ -38,7 +40,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Log timeline event
-    await admin.from("student_timeline").insert({
+    await getAdmin().from("student_timeline").insert({
       student_id,
       school_id,
       event_type: new_status.replace(" ", "_"),
@@ -50,7 +52,7 @@ export async function POST(req: NextRequest) {
 
   if (new_status === "graduated") {
     // Add to alumni note via timeline
-    await admin.from("student_timeline").insert({
+    await getAdmin().from("student_timeline").insert({
       student_id,
       school_id,
       event_type: "graduated",
@@ -63,14 +65,14 @@ export async function POST(req: NextRequest) {
 
   if (new_status === "active" && FREEZE_STATUSES.includes(old_status ?? "")) {
     // Re-activate wallet if reinstated
-    await admin.from("student_wallets")
+    await getAdmin().from("student_wallets")
       .update({ is_active: true, updated_at: new Date().toISOString() })
       .eq("student_id", student_id);
     actions.push("Wallet reactivated");
   }
 
   // Activity log
-  await admin.from("activity_feed").insert({
+  await getAdmin().from("activity_feed").insert({
     school_id,
     actor_id: actor_id ?? null,
     entity_type: "student",
@@ -82,7 +84,7 @@ export async function POST(req: NextRequest) {
   }).then(() => null, () => null);
 
   // Audit log
-  await admin.from("audit_logs").insert({
+  await getAdmin().from("audit_logs").insert({
     school_id,
     actor_id: actor_id ?? null,
     action: "student_status_change",

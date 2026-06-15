@@ -7,11 +7,13 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { isTableMissing } from "@/lib/finance/wallet-helper";
 
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } },
-);
+function getAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}
 
 async function getUser() {
   const supabase = await createServerClient();
@@ -60,7 +62,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "school_id, expense_date, title, amount required" }, { status: 400 });
   }
 
-  const { data, error } = await admin.from("expenses").insert({
+  const { data, error } = await getAdmin().from("expenses").insert({
     school_id,
     expense_date,
     category_id: category_id ?? null,

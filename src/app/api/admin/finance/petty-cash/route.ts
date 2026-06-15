@@ -8,11 +8,13 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { isTableMissing } from "@/lib/finance/wallet-helper";
 
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } },
-);
+function getAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}
 
 async function getUser() {
   const supabase = await createServerClient();
@@ -27,7 +29,7 @@ export async function GET(req: NextRequest) {
   const schoolId = req.nextUrl.searchParams.get("schoolId");
   if (!schoolId) return NextResponse.json({ error: "schoolId required" }, { status: 400 });
 
-  const { data, error } = await admin
+  const { data, error } = await getAdmin()
     .from("petty_cash_accounts")
     .select("*")
     .eq("school_id", schoolId)
@@ -50,7 +52,7 @@ export async function POST(req: NextRequest) {
 
   const amt = Number(opening_amount ?? 0);
 
-  const { data, error } = await admin.from("petty_cash_accounts").insert({
+  const { data, error } = await getAdmin().from("petty_cash_accounts").insert({
     school_id,
     name,
     opening_amount: amt,
@@ -79,7 +81,7 @@ export async function PUT(req: NextRequest) {
   if (allocated_to !== undefined) updates.allocated_to = allocated_to;
   if (allocation_date !== undefined) updates.allocation_date = allocation_date;
 
-  const { data, error } = await admin.from("petty_cash_accounts").update(updates).eq("id", id).select("*").single();
+  const { data, error } = await getAdmin().from("petty_cash_accounts").update(updates).eq("id", id).select("*").single();
 
   if (isTableMissing(error)) return NextResponse.json({ tableNotReady: true });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

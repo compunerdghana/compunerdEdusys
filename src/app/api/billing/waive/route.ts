@@ -7,11 +7,13 @@ import { createClient as serverClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } },
-);
+function getAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}
 
 export async function POST(req: NextRequest) {
   const supabase = await serverClient();
@@ -28,7 +30,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "invoice_id, waiver_type and reason are required" }, { status: 400 });
   }
 
-  const { data: inv } = await admin.from("student_invoices").select("*").eq("id", invoice_id).single();
+  const { data: inv } = await getAdmin().from("student_invoices").select("*").eq("id", invoice_id).single();
   if (!inv) return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
 
   // Calculate waiver amount
@@ -39,7 +41,7 @@ export async function POST(req: NextRequest) {
   waiveAmt = Math.min(waiveAmt, Number(inv.balance));
 
   // Record waiver
-  await admin.from("fee_waivers").insert({
+  await getAdmin().from("fee_waivers").insert({
     school_id: inv.school_id,
     student_id: inv.student_id,
     invoice_id,
@@ -56,7 +58,7 @@ export async function POST(req: NextRequest) {
   const newWaived = Number(inv.amount_waived) + waiveAmt;
   const newBalance = Math.max(0, Number(inv.total_amount) - Number(inv.amount_paid) - newWaived - Number(inv.amount_discounted));
   const newStatus = newBalance <= 0 ? "paid" : Number(inv.amount_paid) > 0 ? "partial" : "unpaid";
-  await admin.from("student_invoices").update({
+  await getAdmin().from("student_invoices").update({
     amount_waived: newWaived,
     balance: newBalance,
     status: newStatus,
@@ -64,15 +66,15 @@ export async function POST(req: NextRequest) {
   }).eq("id", invoice_id);
 
   // Update wallet
-  const { data: wallet } = await admin.from("student_wallets").select("*").eq("student_id", inv.student_id).maybeSingle();
+  const { data: wallet } = await getAdmin().from("student_wallets").select("*").eq("student_id", inv.student_id).maybeSingle();
   if (wallet) {
     const newTotalWaived = Number(wallet.total_waived) + waiveAmt;
-    await admin.from("student_wallets").update({
+    await getAdmin().from("student_wallets").update({
       total_waived: newTotalWaived,
       updated_at: new Date().toISOString(),
     }).eq("id", wallet.id);
 
-    await admin.from("wallet_transactions").insert({
+    await getAdmin().from("wallet_transactions").insert({
       wallet_id: wallet.id,
       school_id: inv.school_id,
       student_id: inv.student_id,
@@ -86,7 +88,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Activity log
-  await admin.from("activity_feed").insert({
+  await getAdmin().from("activity_feed").insert({
     school_id: inv.school_id,
     actor_id: user.id,
     entity_type: "waiver",
@@ -98,7 +100,7 @@ export async function POST(req: NextRequest) {
   }).then(() => null, () => null);
 
   // Audit log
-  await admin.from("audit_logs").insert({
+  await getAdmin().from("audit_logs").insert({
     school_id: inv.school_id,
     actor_id: user.id,
     action: "waiver_applied",

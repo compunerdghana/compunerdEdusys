@@ -13,8 +13,7 @@ export async function GET(req: NextRequest) {
   const schoolId = new URL(req.url).searchParams.get("schoolId");
   if (!schoolId) return NextResponse.json({ error: "Missing schoolId" }, { status: 400 });
 
-  const admin = getAdmin();
-  const { data, error } = await admin.from("automation_rules")
+  const { data, error } = await getAdmin().from("automation_rules")
     .select("*, communication_templates(name, channel)")
     .eq("school_id", schoolId)
     .order("created_at", { ascending: false });
@@ -32,8 +31,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
-  const admin = getAdmin();
-  const { data, error } = await admin.from("automation_rules").insert({
+  const { data, error } = await getAdmin().from("automation_rules").insert({
     school_id, name, description: description || null,
     trigger_event, trigger_filter: trigger_filter || {},
     channel, template_id: template_id || null,
@@ -52,8 +50,7 @@ export async function PATCH(req: NextRequest) {
   const { id, is_active, ...rest } = await req.json();
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
 
-  const admin = getAdmin();
-  const { data, error } = await admin.from("automation_rules")
+  const { data, error } = await getAdmin().from("automation_rules")
     .update({ ...(is_active !== undefined ? { is_active } : {}), ...rest })
     .eq("id", id).select().single();
 
@@ -63,8 +60,7 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   const { id } = await req.json();
-  const admin = getAdmin();
-  const { error } = await admin.from("automation_rules").delete().eq("id", id);
+  const { error } = await getAdmin().from("automation_rules").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }

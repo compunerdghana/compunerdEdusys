@@ -8,11 +8,13 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { isTableMissing } from "@/lib/finance/wallet-helper";
 
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } },
-);
+function getAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}
 
 async function getUser() {
   const supabase = await createServerClient();
@@ -27,7 +29,7 @@ export async function GET(req: NextRequest) {
   const schoolId = req.nextUrl.searchParams.get("schoolId");
   if (!schoolId) return NextResponse.json({ error: "schoolId required" }, { status: 400 });
 
-  const { data: budgets, error } = await admin
+  const { data: budgets, error } = await getAdmin()
     .from("budgets")
     .select(`*, category:expense_categories(id,name)`)
     .eq("school_id", schoolId)
@@ -41,7 +43,7 @@ export async function GET(req: NextRequest) {
     (budgets ?? []).map(async (budget: Record<string, unknown>) => {
       if (!budget.category_id) return { ...budget, computed_used: 0 };
 
-      const { data: expenses } = await admin
+      const { data: expenses } = await getAdmin()
         .from("expenses")
         .select("amount")
         .eq("school_id", schoolId)
@@ -67,7 +69,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "school_id, name, period_start, period_end, allocated_amount required" }, { status: 400 });
   }
 
-  const { data, error } = await admin.from("budgets").insert({
+  const { data, error } = await getAdmin().from("budgets").insert({
     school_id,
     name,
     category_id: category_id ?? null,
@@ -96,7 +98,7 @@ export async function PUT(req: NextRequest) {
   if (period_start !== undefined) updates.period_start = period_start;
   if (period_end !== undefined) updates.period_end = period_end;
 
-  const { data, error } = await admin.from("budgets").update(updates).eq("id", id).select("*").single();
+  const { data, error } = await getAdmin().from("budgets").update(updates).eq("id", id).select("*").single();
 
   if (isTableMissing(error)) return NextResponse.json({ tableNotReady: true });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
