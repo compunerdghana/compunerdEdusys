@@ -313,12 +313,12 @@ function UpcomingEventsWidget({ events }: { events: SchoolEvent[] }) {
             <div key={ev.id} className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${isSoon ? "bg-orange-50 border border-orange-100" : "hover:bg-[var(--neutral-50)]"}`}>
               <div className="w-2.5 h-2.5 rounded-full shrink-0 mt-0.5" style={{ background: dotColor }} />
               <div className="flex-1 min-w-0">
-                <p className={`text-[13px] font-semibold truncate ${isSoon ? "text-orange-900" : "text-[var(--text-strong)]"}`}>{ev.title}</p>
-                <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                <p className={`text-[15px] font-bold truncate ${isSoon ? "text-orange-900" : "text-[var(--text-strong)]"}`}>{ev.title}</p>
+                <p className="text-[13px] text-[var(--text-muted)] mt-0.5">
                   {new Date(ev.event_date).toLocaleDateString("en-GH", { weekday: "short", day: "numeric", month: "short" })}
                 </p>
               </div>
-              <span className={`text-[10px] font-bold px-2 py-1 rounded-lg shrink-0 ${
+              <span className={`text-[12px] font-bold px-2 py-1 rounded-lg shrink-0 ${
                 isToday ? "bg-red-100 text-red-700" :
                 isTomorrow ? "bg-orange-100 text-orange-700" :
                 isSoon ? "bg-yellow-100 text-yellow-700" :

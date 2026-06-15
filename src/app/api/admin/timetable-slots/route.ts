@@ -65,13 +65,23 @@ export async function POST(req: NextRequest) {
     term_id?: string | null;
   };
 
-  // Upsert by unique constraint
+  // NULL term_id breaks ON CONFLICT matching, so we DELETE the existing slot then INSERT
+  const deleteQuery = admin
+    .from("timetable_slots")
+    .delete()
+    .eq("classroom_id", classroom_id)
+    .eq("period_id", period_id)
+    .eq("day_of_week", day_of_week);
+
+  if (term_id) {
+    await deleteQuery.eq("term_id", term_id);
+  } else {
+    await deleteQuery.is("term_id", null);
+  }
+
   const { data, error } = await admin
     .from("timetable_slots")
-    .upsert(
-      { school_id, classroom_id, period_id, day_of_week, subject_id: subject_id ?? null, teacher_id: teacher_id ?? null, term_id: term_id ?? null },
-      { onConflict: "classroom_id,period_id,day_of_week,term_id" },
-    )
+    .insert({ school_id, classroom_id, period_id, day_of_week, subject_id: subject_id ?? null, teacher_id: teacher_id ?? null, term_id: term_id ?? null })
     .select("*, subjects(id, name), profiles(id, full_name)")
     .single();
 

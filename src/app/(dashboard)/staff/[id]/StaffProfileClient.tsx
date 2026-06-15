@@ -71,6 +71,12 @@ export function StaffProfileClient({
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const docRef = useRef<HTMLInputElement>(null);
 
+  // Status management
+  const [staffStatus, setStaffStatus] = useState<string>(details?.employment_status ?? "active");
+  const [statusNote, setStatusNote] = useState("");
+  const [savingStatus, setSavingStatus] = useState(false);
+  const [statusChanged, setStatusChanged] = useState(false);
+
   const canEdit = isHeadmaster || isSelf;
   const roleStyle = ROLE_STYLE[profile.role] ?? { bg:"#f3f4f6", text:"#374151" };
 
@@ -92,21 +98,29 @@ export function StaffProfileClient({
   async function uploadStaffDoc(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     if (!files.length) return;
+    const allowed = ["pdf","doc","docx","jpg","jpeg","xls","xlsx"];
+    const validFiles = files.filter(f => allowed.includes(f.name.split(".").pop()?.toLowerCase() ?? ""));
+    if (!validFiles.length) { alert("Only PDF, Word, JPG, JPEG, Excel files are allowed."); return; }
     setUploadingDoc(true);
     const newDocs: DocRow[] = [];
-    for (const f of files) {
+    for (const f of validFiles) {
       try {
         const ext = f.name.split(".").pop();
         const path = `staff/${profile.id}/docs/${staffDocType.replace(/\s+/g,"_").toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
         const publicUrl = await uploadAsset(f, path);
-        const { data } = await supabase.from("staff_documents").insert({
-          profile_id: profile.id,
-          school_id: profile.school_id,
-          document_type: staffDocType,
-          file_name: f.name,
-          file_url: publicUrl,
-        }).select().single();
-        if (data) newDocs.push(data as DocRow);
+        const res = await fetch("/api/admin/staff-documents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            profile_id: profile.id,
+            school_id: profile.school_id,
+            document_type: staffDocType,
+            file_name: f.name,
+            file_url: publicUrl,
+          }),
+        });
+        const json = await res.json();
+        if (json.data) newDocs.push(json.data as DocRow);
       } catch { /* skip failed file */ }
     }
     if (newDocs.length) setStaffDocs(d => [...newDocs, ...d]);
@@ -115,7 +129,7 @@ export function StaffProfileClient({
   }
 
   async function deleteStaffDoc(id: string) {
-    await supabase.from("staff_documents").delete().eq("id", id);
+    await fetch(`/api/admin/staff-documents?id=${id}`, { method: "DELETE" });
     setStaffDocs(d => d.filter(x => x.id !== id));
   }
 
@@ -125,6 +139,18 @@ export function StaffProfileClient({
     setBio(bioText);
     setEditingBio(false);
     setSavingBio(false);
+  }
+
+  async function saveStatus() {
+    setSavingStatus(true);
+    await fetch("/api/admin/staff-status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ profile_id: profile.id, status: staffStatus, note: statusNote }),
+    });
+    setSavingStatus(false);
+    setStatusChanged(false);
+    setStatusNote("");
   }
 
   function exportPDF() {
@@ -435,16 +461,54 @@ export function StaffProfileClient({
 
             {/* Employment */}
             {tab === "employment" && (
-              <InfoCard title="Employment Details">
-                <InfoRow label="Employment Type" value={details?.employment_type?.replace(/_/g," ")} />
-                <InfoRow label="Staff Category" value={details?.staff_category} />
-                <InfoRow label="Status" value={details?.employment_status} />
-                <InfoRow label="Date Employed" value={details?.date_employed} />
-                <InfoRow label="Date Confirmed" value={details?.date_confirmed} />
-                <InfoRow label="Department" value={details?.department} />
-                <InfoRow label="Designation" value={details?.designation} />
-                <InfoRow label="Branch / Campus" value={details?.branch} />
-              </InfoCard>
+              <div className="space-y-4">
+                <InfoCard title="Employment Details">
+                  <InfoRow label="Employment Type" value={details?.employment_type?.replace(/_/g," ")} />
+                  <InfoRow label="Staff Category" value={details?.staff_category} />
+                  <InfoRow label="Date Employed" value={details?.date_employed} />
+                  <InfoRow label="Date Confirmed" value={details?.date_confirmed} />
+                  <InfoRow label="Department" value={details?.department} />
+                  <InfoRow label="Designation" value={details?.designation} />
+                  <InfoRow label="Branch / Campus" value={details?.branch} />
+                </InfoCard>
+
+                {/* Status Management — headmaster only */}
+                {isHeadmaster && (
+                  <div className="border border-gray-100 rounded-xl p-4 space-y-3">
+                    <h3 className="text-sm font-semibold text-gray-700 pb-2 border-b border-gray-100">Employment Status</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {["active","leave","suspension","study_leave","secondment","retired","dismissed","resigned"].map(s => (
+                        <button key={s} onClick={() => { setStaffStatus(s); setStatusChanged(true); }}
+                          className={`px-3 py-1.5 rounded-full text-xs font-semibold capitalize transition-colors border ${
+                            staffStatus === s
+                              ? s === "active" ? "bg-green-100 text-green-700 border-green-300"
+                                : s === "suspension" || s === "dismissed" ? "bg-red-100 text-red-700 border-red-300"
+                                : "bg-amber-100 text-amber-700 border-amber-300"
+                              : "bg-gray-50 text-gray-500 border-gray-200 hover:border-gray-300"
+                          }`}>
+                          {s.replace(/_/g, " ")}
+                        </button>
+                      ))}
+                    </div>
+                    {statusChanged && (
+                      <>
+                        <textarea
+                          value={statusNote}
+                          onChange={e => setStatusNote(e.target.value)}
+                          placeholder="Add a note (reason, duration, reference…)"
+                          rows={3}
+                          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#262262] resize-none"
+                        />
+                        <button onClick={saveStatus} disabled={savingStatus}
+                          className="flex items-center gap-2 px-4 py-2 bg-[#262262] text-white rounded-xl text-sm font-semibold hover:bg-[#1a1856] disabled:opacity-50 transition-colors">
+                          {savingStatus ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Check className="w-4 h-4" />}
+                          Save Status
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Qualifications */}
@@ -532,7 +596,7 @@ export function StaffProfileClient({
                       <Upload className="w-4 h-4" />
                       {uploadingDoc ? "Uploading…" : "Upload Files"}
                     </button>
-                    <input ref={docRef} type="file" multiple className="hidden" onChange={uploadStaffDoc} />
+                    <input ref={docRef} type="file" multiple className="hidden" accept=".pdf,.doc,.docx,.jpg,.jpeg,.xls,.xlsx" onChange={uploadStaffDoc} />
                   </div>
                 )}
                 {canEdit && (

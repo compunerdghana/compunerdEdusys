@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { Plus, Trash2, CheckCircle2, Circle, Layers, ChevronDown, ChevronRight, Play, AlertCircle } from "lucide-react";
+import { Plus, Trash2, CheckCircle2, Circle, Layers, ChevronDown, ChevronRight, Play, AlertCircle, Pencil } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 const LEVELS = [
@@ -62,6 +62,15 @@ export function FeeStructureManager({ schoolId, terms, classes, structures: init
   const [runningBilling, setRunningBilling] = useState(false);
   const [billingMsg, setBillingMsg] = useState<string | null>(null);
 
+  // Edit state
+  const [editingStructId, setEditingStructId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<{
+    name: string; class_id: string; level: string; term_id: string; is_active: boolean;
+    items: { id?: string; name: string; amount: string; is_mandatory: boolean }[];
+  } | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editErr, setEditErr] = useState<string | null>(null);
+
   function handleAutoBillingToggle() {
     const next = !autoBilling;
     setTogglingBilling(true);
@@ -114,6 +123,59 @@ export function FeeStructureManager({ schoolId, terms, classes, structures: init
     const data = await res.json();
     setRunningBilling(false);
     setBillingMsg(`Done: ${data.processed} invoices generated, ${data.skipped} already billed.`);
+  }
+
+  function openEdit(s: FeeStructure) {
+    setEditingStructId(s.id);
+    setEditForm({
+      name: s.name,
+      class_id: s.class_id ?? "",
+      level: s.level ?? "",
+      term_id: s.term_id ?? "",
+      is_active: s.is_active,
+      items: s.items.map(i => ({ id: i.id, name: i.name, amount: String(i.amount), is_mandatory: i.is_mandatory })),
+    });
+    setEditErr(null);
+  }
+
+  async function saveEditStructure(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editForm || !editingStructId) return;
+    setSavingEdit(true); setEditErr(null);
+
+    const { error: structErr2 } = await supabase.from("fee_structures").update({
+      name: editForm.name.trim(),
+      class_id: editForm.class_id || null,
+      level: editForm.level || null,
+      term_id: editForm.term_id || null,
+      is_active: editForm.is_active,
+    }).eq("id", editingStructId);
+
+    if (structErr2) { setSavingEdit(false); setEditErr(structErr2.message); return; }
+
+    // Delete existing items and re-insert
+    await supabase.from("fee_structure_items").delete().eq("fee_structure_id", editingStructId);
+    const itemRows = editForm.items.filter(i => i.name.trim()).map((item, idx) => ({
+      fee_structure_id: editingStructId, school_id: schoolId,
+      name: item.name.trim(), amount: parseFloat(item.amount) || 0,
+      is_mandatory: item.is_mandatory, sort_order: idx,
+    }));
+    const { data: savedItems } = await supabase.from("fee_structure_items").insert(itemRows).select();
+
+    setStructures(prev => prev.map(s => s.id === editingStructId
+      ? { ...s, name: editForm.name.trim(), class_id: editForm.class_id || null, level: editForm.level || null,
+          term_id: editForm.term_id || null, is_active: editForm.is_active, items: savedItems ?? [] }
+      : s
+    ));
+    setEditingStructId(null); setEditForm(null);
+    setSavingEdit(false);
+    router.refresh();
+  }
+
+  async function deleteStructure(id: string) {
+    await supabase.from("fee_structure_items").delete().eq("fee_structure_id", id);
+    await supabase.from("fee_structures").delete().eq("id", id);
+    setStructures(prev => prev.filter(s => s.id !== id));
   }
 
   return (
@@ -283,8 +345,88 @@ export function FeeStructureManager({ schoolId, terms, classes, structures: init
                   <div className={`w-3 h-3 bg-white rounded-full shadow transition-transform mt-0.5 ${s.is_active ? "translate-x-4 ml-0.5" : "ml-0.5"}`} />
                 </div>
               </button>
-              {isOpen && (
+              {isOpen && editingStructId === s.id && editForm ? (
+                <div className="border-t border-[var(--border)] px-4 py-4">
+                  <p className="text-sm font-semibold text-[var(--text-strong)] mb-3">Edit Fee Structure</p>
+                  <form onSubmit={saveEditStructure} className="space-y-3">
+                    <Input label="Structure Name *" value={editForm.name}
+                      onChange={e => setEditForm(f => f ? { ...f, name: e.target.value } : f)} required />
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs font-semibold text-[var(--text-strong)] block mb-1">Class</label>
+                        <select value={editForm.class_id}
+                          onChange={e => setEditForm(f => f ? { ...f, class_id: e.target.value } : f)}
+                          className="h-9 w-full rounded-[8px] border border-[var(--border)] bg-white px-3 text-sm outline-none focus:border-[var(--ring)]">
+                          <option value="">All classes in level</option>
+                          {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-[var(--text-strong)] block mb-1">Level</label>
+                        <select value={editForm.level}
+                          onChange={e => setEditForm(f => f ? { ...f, level: e.target.value } : f)}
+                          className="h-9 w-full rounded-[8px] border border-[var(--border)] bg-white px-3 text-sm outline-none focus:border-[var(--ring)]">
+                          <option value="">Select level</option>
+                          {LEVELS.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-[var(--text-strong)] block mb-1">Term</label>
+                      <select value={editForm.term_id}
+                        onChange={e => setEditForm(f => f ? { ...f, term_id: e.target.value } : f)}
+                        className="h-9 w-full rounded-[8px] border border-[var(--border)] bg-white px-3 text-sm outline-none focus:border-[var(--ring)]">
+                        <option value="">All terms</option>
+                        {terms.map(t => <option key={t.id} value={t.id}>{Array.isArray(t.academic_years) ? t.academic_years[0]?.name : t.academic_years?.name} — {t.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-semibold text-[var(--text-strong)]">Fee Items</p>
+                        <button type="button" onClick={() => setEditForm(f => f ? { ...f, items: [...f.items, { name: "", amount: "0", is_mandatory: true }] } : f)}
+                          className="text-xs text-[var(--brand)] font-semibold hover:underline flex items-center gap-1">
+                          <Plus size={11} /> Add item
+                        </button>
+                      </div>
+                      <div className="space-y-2">
+                        {editForm.items.map((item, i) => (
+                          <div key={i} className="grid grid-cols-[1fr_100px_auto_auto] gap-2 items-center">
+                            <input value={item.name} onChange={e => setEditForm(f => f ? { ...f, items: f.items.map((x, idx) => idx === i ? { ...x, name: e.target.value } : x) } : f)}
+                              placeholder="Fee name" className="h-8 rounded-[8px] border border-[var(--border)] px-2 text-sm outline-none focus:border-[var(--ring)]" />
+                            <input value={item.amount} onChange={e => setEditForm(f => f ? { ...f, items: f.items.map((x, idx) => idx === i ? { ...x, amount: e.target.value } : x) } : f)}
+                              type="number" min="0" step="0.01" className="h-8 rounded-[8px] border border-[var(--border)] px-2 text-sm font-mono outline-none focus:border-[var(--ring)]" />
+                            <button type="button" onClick={() => setEditForm(f => f ? { ...f, items: f.items.map((x, idx) => idx === i ? { ...x, is_mandatory: !x.is_mandatory } : x) } : f)}>
+                              {item.is_mandatory ? <CheckCircle2 size={15} className="text-[var(--success)]" /> : <Circle size={15} className="text-[var(--text-muted)]" />}
+                            </button>
+                            <button type="button" onClick={() => setEditForm(f => f ? { ...f, items: f.items.filter((_, idx) => idx !== i) } : f)}>
+                              <Trash2 size={13} className="text-[var(--text-subtle)] hover:text-[var(--danger)]" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-right text-xs font-bold text-[var(--success)] mt-1">
+                        Total: {formatCurrency(editForm.items.reduce((s, i) => s + (parseFloat(i.amount) || 0), 0))}
+                      </p>
+                    </div>
+                    {editErr && <div className="flex items-center gap-2 p-2 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs"><AlertCircle size={12} />{editErr}</div>}
+                    <div className="flex gap-2">
+                      <Button type="submit" size="sm" loading={savingEdit}>Save Changes</Button>
+                      <Button type="button" size="sm" variant="secondary" onClick={() => { setEditingStructId(null); setEditForm(null); }}>Cancel</Button>
+                      <button type="button" onClick={() => { if (confirm("Delete this fee structure?")) deleteStructure(s.id); }}
+                        className="ml-auto text-xs text-red-400 hover:text-red-600 font-semibold flex items-center gap-1">
+                        <Trash2 size={12} /> Delete
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              ) : isOpen && (
                 <div className="border-t border-[var(--border)] px-4 py-3">
+                  <div className="flex justify-end mb-2">
+                    <button onClick={() => openEdit(s)}
+                      className="flex items-center gap-1 text-xs text-[var(--brand)] font-semibold hover:underline">
+                      <Pencil size={11} /> Edit structure
+                    </button>
+                  </div>
                   <table className="w-full text-sm">
                     <thead><tr>
                       <th className="text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)] pb-2">Item</th>

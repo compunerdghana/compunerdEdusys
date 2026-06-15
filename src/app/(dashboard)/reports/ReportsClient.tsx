@@ -234,6 +234,11 @@ export function ReportsClient({
   const totalBilled = wallets.reduce((a, w) => a + Number(w.total_billed ?? 0), 0);
   const totalPaid   = wallets.reduce((a, w) => a + Number(w.total_paid ?? 0), 0);
   const collectionRate = totalBilled > 0 ? Math.round((totalPaid / totalBilled) * 100) : 0;
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const presentToday = attendanceRecords.filter(
+    (r) => r.status?.toLowerCase() === "present" && r.date?.slice(0, 10) === todayStr,
+  ).length;
   const presentTotal = Object.values(attendanceMap).reduce((a, v) => a + v.present, 0);
   const totalDays    = Object.values(attendanceMap).reduce((a, v) => a + v.present + v.absent + v.late, 0);
   const attendanceRate = totalDays > 0 ? Math.round((presentTotal / totalDays) * 100) : 0;
@@ -650,7 +655,18 @@ export function ReportsClient({
               ))}
             </select>
           </div>
-          <p className="text-[12px] text-[var(--text-muted)]">Click a student to print their report card</p>
+          <p className="text-[12px] text-[var(--text-muted)]">Click Print to generate a student report card</p>
+        </div>
+
+        {/* Search bar */}
+        <div className="relative max-w-xs w-full">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+          <Input
+            placeholder="Search students…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-8"
+          />
         </div>
 
         {filteredStudents.length === 0 ? (
@@ -662,10 +678,9 @@ export function ReportsClient({
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             {filteredStudents.map((s) => (
-              <button
+              <div
                 key={s.id}
-                onClick={() => printReportCard(s)}
-                className="group text-left bg-white border border-[var(--border)] rounded-2xl p-4 hover:border-[#262262]/40 hover:shadow-md transition-all"
+                className="group bg-white border border-[var(--border)] rounded-2xl p-4 hover:border-[#262262]/40 hover:shadow-md transition-all"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-[#262262]/8 flex items-center justify-center shrink-0 group-hover:bg-[#262262]/15 transition-colors">
@@ -677,9 +692,23 @@ export function ReportsClient({
                     <p className="text-[13px] font-semibold text-[var(--text-strong)] truncate">{fullName(s)}</p>
                     <p className="text-[11px] text-[var(--text-muted)]">{s.classrooms?.name ?? "—"} · {s.admission_number ?? "No ID"}</p>
                   </div>
-                  <Printer size={13} className="text-[var(--text-muted)] group-hover:text-[#262262] transition-colors shrink-0" />
                 </div>
-              </button>
+                <div className="flex items-center gap-2 mt-3">
+                  <button
+                    onClick={() => printReportCard(s)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold border border-[var(--border)] bg-white hover:bg-[var(--neutral-50)] text-[var(--text-strong)] transition-colors"
+                  >
+                    <Printer size={12} /> Print
+                  </button>
+                  <a
+                    href={`/students/${s.id}`}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold text-white transition-colors hover:opacity-90"
+                    style={{ background: "#262262" }}
+                  >
+                    View Profile
+                  </a>
+                </div>
+              </div>
             ))}
           </div>
         )}
@@ -769,6 +798,50 @@ export function ReportsClient({
         <p className="text-[13px] text-[var(--text-muted)] mt-0.5">
           Generate and print reports for your school.
         </p>
+      </div>
+
+      {/* Stat widgets row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          {
+            label: "Total Students",
+            value: students.length.toLocaleString(),
+            icon: Users,
+            color: "#262262",
+            bg: "#26226212",
+          },
+          {
+            label: "Total Staff",
+            value: staff.length.toLocaleString(),
+            icon: Users,
+            color: "#92278F",
+            bg: "#92278F12",
+          },
+          {
+            label: "Collection Rate",
+            value: `${collectionRate}%`,
+            icon: CreditCard,
+            color: collectionRate >= 70 ? "#16A34A" : "#D97706",
+            bg: collectionRate >= 70 ? "#16A34A12" : "#D9770612",
+          },
+          {
+            label: "Present Today",
+            value: presentToday.toLocaleString(),
+            icon: CalendarCheck,
+            color: "#0891B2",
+            bg: "#0891B212",
+          },
+        ].map(({ label, value, icon: Icon, color, bg }) => (
+          <div key={label} className="bg-white rounded-2xl border border-[var(--border)] p-4 shadow-[0_1px_4px_rgba(0,0,0,0.04)] flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: bg }}>
+              <Icon size={18} style={{ color }} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">{label}</p>
+              <p className="text-[20px] font-extrabold leading-tight" style={{ color }}>{value}</p>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Class selector */}

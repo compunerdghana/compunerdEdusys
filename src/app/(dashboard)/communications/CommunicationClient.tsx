@@ -9,7 +9,7 @@ import { Modal } from "@/components/ui/Modal";
 import {
   MessageSquare, Megaphone, FileText, Smartphone, Inbox,
   AlertTriangle, X, Check, Send, Trash2, Users, User,
-  GraduationCap, UserCog, ChevronDown,
+  GraduationCap, UserCog, ChevronDown, Share2,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -140,38 +140,54 @@ function targetLabel(msg: Message): string {
 // ─── Message Card ─────────────────────────────────────────────────────────────
 
 function MessageCard({
-  msg, onView, onDelete, canDelete,
+  msg, onView, onDelete, canDelete, showWhatsApp,
 }: {
   msg: Message;
   onView: (msg: Message) => void;
   onDelete: (id: string) => void;
   canDelete: boolean;
+  showWhatsApp?: boolean;
 }) {
+  function handleWhatsApp(e: React.MouseEvent) {
+    e.stopPropagation();
+    const text = encodeURIComponent(`${msg.title}\n\n${msg.body}`);
+    window.open(`https://wa.me/?text=${text}`, "_blank", "noopener,noreferrer");
+  }
+
   return (
     <div
-      className="rounded-xl border border-[var(--border)] bg-white px-4 py-3.5 flex items-start gap-3 hover:border-[#262262]/20 hover:shadow-sm transition-all cursor-pointer group"
+      className="rounded-xl border border-[var(--border)] bg-white px-4 py-4 flex items-start gap-3 hover:border-[#262262]/20 hover:shadow-sm transition-all cursor-pointer group"
       onClick={() => onView(msg)}
     >
-      <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5", typeColor(msg.type))}>
+      <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5", typeColor(msg.type))}>
         {typeIcon(msg.type)}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
-          <p className="text-[14px] font-semibold text-[var(--text-strong)] truncate leading-tight">{msg.title}</p>
-          <span className="text-[11px] text-[var(--text-muted)] shrink-0 mt-0.5">{timeAgo(msg.sent_at)}</span>
+          <p className="text-[15px] font-semibold text-[var(--text-strong)] truncate leading-tight">{msg.title}</p>
+          <span className="text-[12px] text-[var(--text-muted)] shrink-0 mt-0.5">{timeAgo(msg.sent_at)}</span>
         </div>
-        <p className="text-[12px] text-[var(--text-muted)] mt-0.5 line-clamp-2 leading-relaxed">{msg.body}</p>
-        <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+        <p className="text-[13px] text-[var(--text-muted)] mt-1 line-clamp-2 leading-relaxed">{msg.body}</p>
+        <div className="flex items-center gap-3 mt-2 flex-wrap">
           {msg.sender?.full_name && (
-            <span className="text-[11px] text-[var(--text-muted)] flex items-center gap-1">
-              <User size={10} />
+            <span className="text-[12px] text-[var(--text-muted)] flex items-center gap-1">
+              <User size={11} />
               {msg.sender.full_name}
             </span>
           )}
-          <span className="text-[11px] text-[var(--text-muted)] flex items-center gap-1">
-            <Users size={10} />
+          <span className="text-[12px] text-[var(--text-muted)] flex items-center gap-1">
+            <Users size={11} />
             {targetLabel(msg)}
           </span>
+          {showWhatsApp && (
+            <button
+              onClick={handleWhatsApp}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[12px] font-semibold text-white transition-all hover:opacity-90 shrink-0"
+              style={{ background: "#25D366" }}
+            >
+              <Share2 size={11} /> Share via WhatsApp
+            </button>
+          )}
         </div>
       </div>
       {canDelete && (
@@ -179,7 +195,7 @@ function MessageCard({
           onClick={(e) => { e.stopPropagation(); onDelete(msg.id); }}
           className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-red-50 hover:text-red-600 transition-all opacity-0 group-hover:opacity-100 shrink-0 mt-0.5"
         >
-          <Trash2 size={12} />
+          <Trash2 size={13} />
         </button>
       )}
     </div>
@@ -248,8 +264,8 @@ function ComposePanel({
     : "SMS Blast";
 
   return (
-    <div className="rounded-2xl border-2 border-dashed border-[#262262]/20 p-4 space-y-3 bg-[#262262]/[0.015]">
-      <p className="text-[13px] font-semibold text-[var(--text-strong)]">Compose {typeLabel}</p>
+    <div className="rounded-2xl border-2 border-dashed border-[#262262]/20 p-6 space-y-4 bg-[#262262]/[0.015]">
+      <p className="text-[15px] font-semibold text-[var(--text-strong)]">Compose {typeLabel}</p>
 
       <Input
         label="Title"
@@ -259,15 +275,15 @@ function ComposePanel({
         disabled={tableNotReady}
       />
 
-      <div className="space-y-1">
-        <label className="block text-[12px] font-medium text-[var(--text-muted)]">Message</label>
+      <div className="space-y-1.5">
+        <label className="block text-[13px] font-medium text-[var(--text-muted)]">Message</label>
         <textarea
-          rows={4}
+          rows={5}
           placeholder="Write your message here…"
           value={body}
           onChange={(e) => setBody(e.target.value)}
           disabled={tableNotReady}
-          className="w-full rounded-xl border border-[var(--border)] px-3 py-2.5 text-[13px] text-[var(--text-strong)] placeholder:text-[var(--text-muted)] bg-white resize-none focus:outline-none focus:ring-2 focus:ring-[#262262]/20 focus:border-[#262262]/40 transition disabled:opacity-50"
+          className="w-full rounded-xl border border-[var(--border)] px-4 py-3 text-[14px] text-[var(--text-strong)] placeholder:text-[var(--text-muted)] bg-white resize-none focus:outline-none focus:ring-2 focus:ring-[#262262]/20 focus:border-[#262262]/40 transition disabled:opacity-50"
         />
       </div>
 
@@ -364,6 +380,7 @@ function MessageList({
   onView,
   onDelete,
   canDelete,
+  showWhatsApp,
 }: {
   messages: Message[];
   loading: boolean;
@@ -373,9 +390,10 @@ function MessageList({
   onView: (msg: Message) => void;
   onDelete: (id: string) => void;
   canDelete: boolean;
+  showWhatsApp?: boolean;
 }) {
   if (loading) {
-    return <div className="text-sm text-[var(--text-muted)] py-8 text-center">Loading…</div>;
+    return <div className="text-[14px] text-[var(--text-muted)] py-8 text-center">Loading…</div>;
   }
   if (messages.length === 0) {
     return (
@@ -383,15 +401,15 @@ function MessageList({
         <div className="w-10 h-10 rounded-2xl bg-[var(--neutral-100)] flex items-center justify-center text-[var(--text-muted)]">
           {emptyIcon}
         </div>
-        <p className="font-semibold text-[var(--text-strong)] text-[14px]">{emptyLabel}</p>
-        <p className="text-[13px] text-[var(--text-muted)] max-w-xs">{emptyHint}</p>
+        <p className="font-semibold text-[var(--text-strong)] text-[15px]">{emptyLabel}</p>
+        <p className="text-[14px] text-[var(--text-muted)] max-w-xs">{emptyHint}</p>
       </div>
     );
   }
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       {messages.map((msg) => (
-        <MessageCard key={msg.id} msg={msg} onView={onView} onDelete={onDelete} canDelete={canDelete} />
+        <MessageCard key={msg.id} msg={msg} onView={onView} onDelete={onDelete} canDelete={canDelete} showWhatsApp={showWhatsApp} />
       ))}
     </div>
   );
@@ -480,8 +498,8 @@ export function CommunicationClient({ schoolId, userId, userRole, isAdmin, class
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-[20px] font-extrabold text-[var(--text-strong)]">Communications</h2>
-          <p className="text-[13px] text-[var(--text-muted)] mt-0.5">Send announcements, notices, and messages to your school community.</p>
+          <h2 className="text-[22px] font-extrabold text-[var(--text-strong)]">Communications</h2>
+          <p className="text-[14px] text-[var(--text-muted)] mt-0.5">Send announcements, notices, and messages to your school community.</p>
         </div>
         <div className="flex items-center gap-2 text-[12px] text-[var(--text-muted)] bg-white border border-[var(--border)] rounded-xl px-3 py-1.5">
           <span className="capitalize font-medium text-[var(--text-body)]">{userRole.replace("_", " ")}</span>
@@ -503,7 +521,7 @@ export function CommunicationClient({ schoolId, userId, userRole, isAdmin, class
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-3 text-[13px] font-semibold border-b-2 -mb-px transition-colors shrink-0",
+                "flex items-center gap-1.5 px-3 py-3 text-[14px] font-semibold border-b-2 -mb-px transition-colors shrink-0",
                 activeTab === tab.id
                   ? "border-[#262262] text-[#262262]"
                   : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-strong)]",
@@ -555,6 +573,7 @@ export function CommunicationClient({ schoolId, userId, userRole, isAdmin, class
             onView={setViewingMsg}
             onDelete={handleDelete}
             canDelete={isAdmin}
+            showWhatsApp={activeTab === "announcements"}
           />
         </div>
       </div>
