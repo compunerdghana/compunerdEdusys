@@ -6,7 +6,6 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
 import {
   PlusCircle, Search, Receipt, CheckCircle2, XCircle,
   Clock, AlertCircle, Ban, Loader2, ChevronRight,
@@ -147,14 +146,16 @@ export function ExpensesClient({ schoolId, role, initialExpenses, initialCategor
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
           <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search expenses…" className="pl-8 h-9 text-[13px]" />
         </div>
-        <Select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="h-9 text-[13px] min-w-[140px]">
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+          className="h-9 px-3 rounded-xl border border-[var(--border)] bg-white text-[13px] text-[var(--text-strong)] outline-none min-w-[140px] cursor-pointer">
           <option value="all">All Statuses</option>
           {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-        </Select>
-        <Select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="h-9 text-[13px] min-w-[150px]">
+        </select>
+        <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}
+          className="h-9 px-3 rounded-xl border border-[var(--border)] bg-white text-[13px] text-[var(--text-strong)] outline-none min-w-[150px] cursor-pointer">
           <option value="all">All Categories</option>
           {initialCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </Select>
+        </select>
       </div>
 
       {/* Table */}
@@ -221,7 +222,7 @@ export function ExpensesClient({ schoolId, role, initialExpenses, initialCategor
 
       {/* Approval Modal */}
       {modal && (
-        <Modal onClose={() => setModal(null)} title={modal.action === "approve" ? "Approve Expense" : "Reject Expense"}>
+        <Modal open={true} onClose={() => setModal(null)} title={modal.action === "approve" ? "Approve Expense" : "Reject Expense"}>
           <div className="space-y-4">
             <div className="bg-[var(--neutral-50)] rounded-xl p-4">
               <p className="font-semibold text-[var(--text-strong)]">{modal.expense.title}</p>
@@ -251,7 +252,7 @@ export function ExpensesClient({ schoolId, role, initialExpenses, initialCategor
 
       {/* Detail Modal */}
       {detail && (
-        <Modal onClose={() => setDetail(null)} title="Expense Details">
+        <Modal open={true} onClose={() => setDetail(null)} title="Expense Details">
           <div className="space-y-3 text-[13px]">
             {([
               ["Title",          detail.title],
