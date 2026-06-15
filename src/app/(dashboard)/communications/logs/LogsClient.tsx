@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { History, AlertTriangle, CheckCircle, XCircle, Clock, MessageCircle, Smartphone, Mail, Bell, Filter } from "lucide-react";
+import { History, AlertTriangle, CheckCircle, XCircle, Clock, MessageCircle, Smartphone, Mail, Bell, Filter, ArrowLeft } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 interface Log {
@@ -59,6 +60,9 @@ export function LogsClient({ initialLogs, tableNotReady }: { initialLogs: Log[];
 
   return (
     <div className="flex flex-col gap-6 p-6 max-w-[1100px] mx-auto">
+      <Link href="/communications/dashboard" className="flex items-center gap-1.5 text-[13px] font-semibold text-[var(--text-muted)] hover:text-[var(--text-strong)] transition-colors w-fit">
+        <ArrowLeft size={14} /> Back to Communications
+      </Link>
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-[var(--neutral-100)]">
           <History size={20} className="text-[var(--text-muted)]" />

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Settings2, AlertTriangle, CheckCircle, Save, MessageCircle, Smartphone, Mail } from "lucide-react";
+import { Settings2, AlertTriangle, CheckCircle, Save, MessageCircle, Smartphone, Mail, ArrowLeft } from "lucide-react";
+import Link from "next/link";
 
 interface Settings {
   whatsapp_enabled: boolean;
@@ -83,6 +84,9 @@ export function CommSettingsClient({ schoolId, initialSettings, tableNotReady }:
 
   return (
     <div className="flex flex-col gap-6 p-6 max-w-[800px] mx-auto">
+      <Link href="/communications/dashboard" className="flex items-center gap-1.5 text-[13px] font-semibold text-[var(--text-muted)] hover:text-[var(--text-strong)] transition-colors w-fit">
+        <ArrowLeft size={14} /> Back to Communications
+      </Link>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-[var(--neutral-100)]">

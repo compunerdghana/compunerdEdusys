@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { MessageCircle, AlertTriangle, Send, Users, User, School, ChevronDown } from "lucide-react";
+import { MessageCircle, AlertTriangle, Send, Users, User, School, ChevronDown, ArrowLeft } from "lucide-react";
+import Link from "next/link";
 
 interface Template { id: string; name: string; body: string; variables: string[]; }
 interface ClassItem { id: string; name: string; level?: string; }
@@ -75,6 +76,9 @@ export function WhatsAppClient({ schoolId, userId, tableNotReady, whatsappEnable
 
   return (
     <div className="flex flex-col gap-6 p-6 max-w-[900px] mx-auto">
+      <Link href="/communications/dashboard" className="flex items-center gap-1.5 text-[13px] font-semibold text-[var(--text-muted)] hover:text-[var(--text-strong)] transition-colors w-fit">
+        <ArrowLeft size={14} /> Back to Communications
+      </Link>
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "#25D36618" }}>
           <MessageCircle size={20} className="text-[#25D366]" />

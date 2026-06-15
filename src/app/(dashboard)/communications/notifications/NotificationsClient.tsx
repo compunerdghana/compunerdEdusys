@@ -2,8 +2,9 @@
 
 import { useState, useMemo } from "react";
 import {
-  Bell, Check, CheckCircle, AlertTriangle, AlertCircle, Info, X, Filter,
+  Bell, Check, CheckCircle, AlertTriangle, AlertCircle, Info, X, Filter, ArrowLeft,
 } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 
@@ -105,6 +106,9 @@ export function NotificationsClient({ userId, initialNotifications, tableNotRead
 
   return (
     <div className="flex flex-col gap-6 p-6 max-w-[900px] mx-auto">
+      <Link href="/communications/dashboard" className="flex items-center gap-1.5 text-[13px] font-semibold text-[var(--text-muted)] hover:text-[var(--text-strong)] transition-colors w-fit">
+        <ArrowLeft size={14} /> Back to Communications
+      </Link>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

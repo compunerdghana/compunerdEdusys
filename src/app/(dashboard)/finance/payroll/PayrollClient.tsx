@@ -33,8 +33,9 @@ interface StaffMember {
   staff_details?: any;
 }
 
-interface Record {
+interface PayrollRecord {
   id: string;
+  payroll_run_id?: string;
   profile_id: string;
   basic_salary: number;
   allowances: number;
@@ -80,11 +81,11 @@ function fmt(n: number) { return `GHS ${Number(n ?? 0).toLocaleString("en-GH", {
 export function PayrollClient({ schoolId, userId, userRole, tableNotReady, initialRuns, staffList }: Props) {
   const [runs, setRuns] = useState<Run[]>(initialRuns);
   const [selectedRun, setSelectedRun] = useState<Run | null>(null);
-  const [records, setRecords] = useState<Record[]>([]);
+  const [records, setRecords] = useState<PayrollRecord[]>([]);
   const [loadingRecords, setLoadingRecords] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [editRecord, setEditRecord] = useState<Record | null>(null);
+  const [editRecord, setEditRecord] = useState<PayrollRecord | null>(null);
   const [editPanel, setEditPanel] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -144,7 +145,7 @@ export function PayrollClient({ schoolId, userId, userRole, tableNotReady, initi
     }
   }
 
-  function openEditRecord(r: Record) {
+  function openEditRecord(r: PayrollRecord) {
     setEditRecord(r);
     setEditForm({
       basic_salary: String(r.basic_salary),

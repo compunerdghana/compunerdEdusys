@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Plus, FileText, AlertTriangle, Edit2, Trash2, MessageCircle, Smartphone, Mail, Bell } from "lucide-react";
+import { Plus, FileText, AlertTriangle, Edit2, Trash2, MessageCircle, Smartphone, Mail, Bell, ArrowLeft } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { SlidePanel } from "@/components/ui/SlidePanel";
 
@@ -109,6 +110,9 @@ export function TemplatesClient({ schoolId, userId, initialTemplates, tableNotRe
 
   return (
     <div className="flex flex-col gap-6 p-6 max-w-[1100px] mx-auto">
+      <Link href="/communications/dashboard" className="flex items-center gap-1.5 text-[13px] font-semibold text-[var(--text-muted)] hover:text-[var(--text-strong)] transition-colors w-fit">
+        <ArrowLeft size={14} /> Back to Communications
+      </Link>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-[22px] font-extrabold text-[var(--text-strong)]">Message Templates</h1>

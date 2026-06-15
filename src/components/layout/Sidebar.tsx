@@ -10,6 +10,7 @@ import {
   Wallet, Receipt, PiggyBank, Building2, TrendingUp, DollarSign,
   Calendar, Award, ArrowRightLeft, UserMinus, Dumbbell,
   Bell, Send, Smartphone, FileText, Zap, History, Settings2, MessageCircle, BadgeDollarSign,
+  AlertCircle, UserCheck,
 } from "lucide-react";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -71,7 +72,23 @@ const navItems = [
       { href: "/communications/settings",      label: "Settings",     icon: Settings2 },
     ],
   },
-  { href: "/reports",        label: "Reports",        icon: BarChart3 },
+  {
+    label: "Reports",
+    icon: BarChart3,
+    children: [
+      { href: "/reports",                    label: "Dashboard",       icon: LayoutDashboard },
+      { href: "/reports?tab=students",       label: "Student Reports", icon: Users },
+      { href: "/reports?tab=attendance",     label: "Attendance",      icon: CalendarClock },
+      { href: "/reports?tab=finance",        label: "Fee Collection",  icon: CreditCard },
+      { href: "/reports?tab=outstanding",    label: "Outstanding Fees",icon: AlertCircle },
+      { href: "/reports?tab=staff",          label: "Staff Reports",   icon: UserCheck },
+      { href: "/reports?tab=payroll",        label: "Payroll Report",  icon: BadgeDollarSign },
+      { href: "/reports?tab=exams",          label: "Exam Results",    icon: GraduationCap },
+      { href: "/reports?tab=analytics",      label: "Analytics",       icon: TrendingUp },
+      { href: "/reports?tab=comms",          label: "Communications",  icon: MessageSquare },
+      { href: "/reports?tab=reportcards",    label: "Report Cards",    icon: FileText },
+    ],
+  },
 ];
 
 interface SidebarProps {
@@ -91,6 +108,7 @@ export function Sidebar({ userName = "Admin", userRole = "admin", schoolName, sc
     Finance: pathname.startsWith("/finance"),
     Staff: pathname.startsWith("/staff"),
     Communications: pathname.startsWith("/communications"),
+    Reports: pathname.startsWith("/reports"),
   }));
 
   function toggleMenu(label: string) {

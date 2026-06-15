@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Zap, Plus, AlertTriangle, ChevronDown, Trash2 } from "lucide-react";
+import { Zap, Plus, AlertTriangle, ChevronDown, Trash2, ArrowLeft } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { SlidePanel } from "@/components/ui/SlidePanel";
 
@@ -101,6 +102,9 @@ export function AutomationClient({ schoolId, userId, tableNotReady, initialRules
 
   return (
     <div className="flex flex-col gap-6 p-6 max-w-[1000px] mx-auto">
+      <Link href="/communications/dashboard" className="flex items-center gap-1.5 text-[13px] font-semibold text-[var(--text-muted)] hover:text-[var(--text-strong)] transition-colors w-fit">
+        <ArrowLeft size={14} /> Back to Communications
+      </Link>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-purple-50">
