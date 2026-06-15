@@ -1,39 +1,110 @@
-import { Card } from "@/components/ui/Card";
-import { FileText, BarChart3, Users, CreditCard } from "lucide-react";
-import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+import { ReportsClient } from "./ReportsClient";
 
-const reportLinks = [
-  { href: "/reports/attendance", label: "Attendance report", desc: "Daily and monthly attendance summary by class", icon: Users },
-  { href: "/reports/academic", label: "Academic performance", desc: "Subject averages, class positions, honour rolls", icon: BarChart3 },
-  { href: "/reports/finance", label: "Financial statement", desc: "Fee collections, outstanding balances, receipts", icon: CreditCard },
-  { href: "/exams/report-card", label: "Generate report cards", desc: "Print or download terminal report cards", icon: FileText },
-];
+export default async function ReportsPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
-export default function ReportsPage() {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("school_id, role, full_name")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile?.school_id) redirect("/settings/school");
+  const schoolId = profile.school_id;
+
+  // Parallel fetches — graceful fallback on any error
+  const [
+    schoolRes,
+    classesRes,
+    studentsRes,
+    termsRes,
+    currentTermRes,
+    staffRes,
+    walletsRes,
+    receiptsRes,
+    attendanceRes,
+  ] = await Promise.all([
+    supabase
+      .from("schools")
+      .select("id, name, address, logo_url, headmaster_signature_url, motto")
+      .eq("id", schoolId)
+      .single(),
+    supabase
+      .from("classrooms")
+      .select("id, name, level")
+      .eq("school_id", schoolId)
+      .order("level")
+      .order("name"),
+    supabase
+      .from("students")
+      .select("id, admission_number, first_name, last_name, gender, status, class_id, classrooms!inner(id, name, level)")
+      .eq("school_id", schoolId)
+      .order("last_name"),
+    supabase
+      .from("terms")
+      .select("id, name, start_date, end_date, is_current")
+      .eq("school_id", schoolId)
+      .order("start_date", { ascending: false }),
+    supabase
+      .from("terms")
+      .select("id, name")
+      .eq("school_id", schoolId)
+      .eq("is_current", true)
+      .single(),
+    supabase
+      .from("profiles")
+      .select("id, full_name, role")
+      .eq("school_id", schoolId)
+      .neq("role", "student"),
+    supabase
+      .from("student_wallets")
+      .select("student_id, total_billed, total_paid, total_waived")
+      .eq("school_id", schoolId),
+    supabase
+      .from("payment_receipts")
+      .select("id, student_id, amount, created_at")
+      .eq("school_id", schoolId)
+      .order("created_at", { ascending: false })
+      .limit(500),
+    // attendance_records may not exist — catch gracefully below
+    supabase
+      .from("attendance_records")
+      .select("student_id, status, date")
+      .eq("school_id", schoolId),
+  ]);
+
+  const school = schoolRes.data ?? null;
+  const classes = classesRes.data ?? [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const students = (studentsRes.data ?? []).map((s: any) => ({
+    ...s,
+    classrooms: Array.isArray(s.classrooms) ? s.classrooms[0] ?? null : s.classrooms,
+  }));
+  const terms = termsRes.data ?? [];
+  const currentTermId = currentTermRes.data?.id ?? null;
+  const staff = staffRes.data ?? [];
+  const wallets = walletsRes.data ?? [];
+  const receipts = receiptsRes.data ?? [];
+  // If attendance table doesn't exist, error is set — use empty array
+  const attendanceRecords = attendanceRes.error ? [] : (attendanceRes.data ?? []);
+
   return (
-    <div className="space-y-5">
-      <div>
-        <h2 className="text-xl font-bold text-[var(--text-strong)]">Reports</h2>
-        <p className="text-sm text-[var(--text-muted)]">Generate and download school reports</p>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {reportLinks.map(({ href, label, desc, icon: Icon }) => (
-          <Link key={href} href={href}>
-            <Card className="hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5 transition-all cursor-pointer h-full">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[var(--brand-subtle)] flex items-center justify-center shrink-0">
-                  <Icon size={18} className="text-[var(--brand)]" />
-                </div>
-                <div>
-                  <p className="font-semibold text-[var(--text-strong)]">{label}</p>
-                  <p className="text-sm text-[var(--text-muted)] mt-0.5">{desc}</p>
-                </div>
-              </div>
-            </Card>
-          </Link>
-        ))}
-      </div>
-    </div>
+    <ReportsClient
+      school={school}
+      classes={classes}
+      students={students}
+      terms={terms}
+      currentTermId={currentTermId}
+      staff={staff}
+      wallets={wallets}
+      receipts={receipts}
+      attendanceRecords={attendanceRecords}
+    />
   );
 }
