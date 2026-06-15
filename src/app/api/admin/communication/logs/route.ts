@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } },
-);
+function getAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -17,6 +19,7 @@ export async function GET(req: NextRequest) {
 
   if (!schoolId) return NextResponse.json({ error: "Missing schoolId" }, { status: 400 });
 
+  const admin = getAdmin();
   let q = admin.from("communication_logs")
     .select("id, channel, recipient_type, recipient_ref, subject, body, status, provider, sent_by, recipient_count, error_message, sent_at, metadata")
     .eq("school_id", schoolId)
@@ -40,6 +43,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
+  const admin = getAdmin();
   const { data, error } = await admin.from("communication_logs").insert({
     school_id, channel, recipient_type: recipient_type || "individual",
     recipient_id: recipient_id || null,

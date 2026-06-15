@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } },
-);
+function getAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -14,6 +16,7 @@ export async function GET(req: NextRequest) {
 
   if (!schoolId) return NextResponse.json({ error: "Missing schoolId" }, { status: 400 });
 
+  const admin = getAdmin();
   let q = admin.from("communication_templates")
     .select("id, name, channel, category, subject, body, variables, is_system, is_active, created_at")
     .or(`school_id.eq.${schoolId},is_system.eq.true`)
@@ -37,6 +40,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
+  const admin = getAdmin();
   const { data, error } = await admin.from("communication_templates").insert({
     school_id, channel, category: category || "general", name,
     subject: subject || null,
@@ -56,6 +60,7 @@ export async function PATCH(req: NextRequest) {
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
 
   const { body: bodyText, ...rest } = updates;
+  const admin = getAdmin();
   const { data, error } = await admin.from("communication_templates")
     .update({ ...rest, ...(bodyText ? { body: bodyText } : {}) })
     .eq("id", id)
@@ -67,6 +72,7 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   const { id } = await req.json();
+  const admin = getAdmin();
   const { error } = await admin.from("communication_templates")
     .update({ is_active: false }).eq("id", id).eq("is_system", false);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

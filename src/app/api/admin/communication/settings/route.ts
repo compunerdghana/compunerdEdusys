@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } },
-);
+function getAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}
 
 export async function GET(req: NextRequest) {
   const schoolId = new URL(req.url).searchParams.get("schoolId");
   if (!schoolId) return NextResponse.json({ error: "Missing schoolId" }, { status: 400 });
 
+  const admin = getAdmin();
   const { data, error } = await admin.from("communication_settings")
     .select("*").eq("school_id", schoolId).maybeSingle();
 
@@ -24,6 +27,7 @@ export async function POST(req: NextRequest) {
   const { school_id, ...settings } = body;
   if (!school_id) return NextResponse.json({ error: "Missing school_id" }, { status: 400 });
 
+  const admin = getAdmin();
   const { data, error } = await admin.from("communication_settings")
     .upsert({ school_id, ...settings, updated_at: new Date().toISOString() }, { onConflict: "school_id" })
     .select().single();
