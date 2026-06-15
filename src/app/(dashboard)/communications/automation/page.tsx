@@ -30,7 +30,7 @@ export default async function AutomationPage() {
       .eq("is_active", true),
   ]);
 
-  const tableNotReady = rulesRes.error?.code === "42P01" || !!rulesRes.error?.message?.includes("does not exist");
+  const tableNotReady = !!(rulesRes.error?.code === "42P01" || rulesRes.error?.message?.includes("does not exist"));
 
   return (
     <AutomationClient

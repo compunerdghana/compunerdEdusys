@@ -55,7 +55,7 @@ export default async function StaffDashboardPage() {
   const isMissing = (e: { code?: string; message?: string } | null) =>
     e?.code === "42P01" || e?.message?.includes("does not exist");
 
-  const tableNotReady = isMissing(detailsRes.error);
+  const tableNotReady = !!isMissing(detailsRes.error);
 
   const allStaff = allStaffRes.data ?? [];
   const details = detailsRes.data ?? [];

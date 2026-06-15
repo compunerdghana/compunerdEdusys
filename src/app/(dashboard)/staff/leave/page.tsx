@@ -31,7 +31,7 @@ export default async function StaffLeavePage() {
     admin.from("profiles").select("id, full_name").eq("school_id", schoolId).neq("role", "parent").order("full_name"),
   ]);
 
-  const tableNotReady = isMissing(requestsRes.error) || isMissing(typesRes.error);
+  const tableNotReady = !!(isMissing(requestsRes.error) || isMissing(typesRes.error));
 
   const staffMap = Object.fromEntries((staffRes.data ?? []).map((s) => [s.id, s.full_name]));
 

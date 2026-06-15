@@ -26,7 +26,7 @@ export default async function TemplatesPage() {
     .order("is_system", { ascending: false })
     .order("name");
 
-  const tableNotReady = error?.code === "42P01" || !!error?.message?.includes("does not exist");
+  const tableNotReady = !!(error?.code === "42P01" || error?.message?.includes("does not exist"));
 
   return (
     <TemplatesClient

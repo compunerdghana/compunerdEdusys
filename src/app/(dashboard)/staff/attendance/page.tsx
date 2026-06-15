@@ -39,7 +39,7 @@ export default async function StaffAttendancePage() {
       .eq("date", today),
   ]);
 
-  const tableNotReady = isMissing(todayAttRes.error);
+  const tableNotReady = !!isMissing(todayAttRes.error);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const staff = (staffRes.data ?? []).map((s: any) => ({

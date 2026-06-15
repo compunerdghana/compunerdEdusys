@@ -28,7 +28,7 @@ export default async function StaffTrainingPage() {
     admin.from("profiles").select("id, full_name").eq("school_id", schoolId).neq("role", "parent").order("full_name"),
   ]);
 
-  const tableNotReady = isMissing(trainingRes.error);
+  const tableNotReady = !!isMissing(trainingRes.error);
   const staffMap = Object.fromEntries((staffRes.data ?? []).map((s) => [s.id, s.full_name]));
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

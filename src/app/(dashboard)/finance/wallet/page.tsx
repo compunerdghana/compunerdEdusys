@@ -51,7 +51,7 @@ export default async function WalletPage() {
   const isTableMissing = (e: { code?: string; message?: string } | null) =>
     e?.code === "42P01" || e?.message?.includes("does not exist");
 
-  const tableNotReady = isTableMissing(walletRes.error) || isTableMissing(txRes.error);
+  const tableNotReady = !!(isTableMissing(walletRes.error) || isTableMissing(txRes.error));
   const wallet = walletRes.data as WalletData | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const transactions: WalletTransaction[] = tableNotReady ? [] : (txRes.data ?? []).map((t: any) => ({

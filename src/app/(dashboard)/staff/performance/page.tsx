@@ -32,7 +32,7 @@ export default async function PerformancePage() {
     admin.from("profiles").select("id, full_name, role").eq("school_id", schoolId).neq("role", "parent").order("full_name"),
   ]);
 
-  const tableNotReady = isMissing(perfRes.error);
+  const tableNotReady = !!isMissing(perfRes.error);
   const staffMap = Object.fromEntries((staffRes.data ?? []).map((s) => [s.id, s.full_name]));
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

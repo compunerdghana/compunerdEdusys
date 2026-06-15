@@ -15,7 +15,7 @@ interface Rule {
   is_active: boolean;
   delay_minutes: number;
   created_at: string;
-  communication_templates?: { name: string } | null;
+  communication_templates?: { name: string } | { name: string }[] | null;
 }
 
 interface Template { id: string; name: string; channel: string; }

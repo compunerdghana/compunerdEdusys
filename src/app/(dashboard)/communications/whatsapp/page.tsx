@@ -33,7 +33,7 @@ export default async function WhatsAppPage() {
       .eq("school_id", schoolId).eq("role", "parent").eq("is_active", true),
   ]);
 
-  const tableNotReady = settingsRes.error?.code === "42P01" || !!settingsRes.error?.message?.includes("does not exist");
+  const tableNotReady = !!(settingsRes.error?.code === "42P01" || settingsRes.error?.message?.includes("does not exist"));
 
   return (
     <WhatsAppClient

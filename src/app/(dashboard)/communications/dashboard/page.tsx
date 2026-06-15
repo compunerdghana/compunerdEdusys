@@ -43,7 +43,7 @@ export default async function CommunicationsDashboardPage() {
   const isMissing = (e: { code?: string; message?: string } | null) =>
     e?.code === "42P01" || e?.message?.includes("does not exist");
 
-  const tableNotReady = isMissing(logsRes.error) || isMissing(unreadRes.error);
+  const tableNotReady = !!(isMissing(logsRes.error) || isMissing(unreadRes.error));
 
   const logs = logsRes.data ?? [];
   const todaySent = logs.reduce((s, l) => s + (l.recipient_count ?? 1), 0);

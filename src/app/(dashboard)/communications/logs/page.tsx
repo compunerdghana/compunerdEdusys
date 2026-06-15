@@ -25,7 +25,7 @@ export default async function LogsPage() {
     .order("sent_at", { ascending: false })
     .limit(100);
 
-  const tableNotReady = error?.code === "42P01" || !!error?.message?.includes("does not exist");
+  const tableNotReady = !!(error?.code === "42P01" || error?.message?.includes("does not exist"));
 
   return (
     <LogsClient

@@ -22,7 +22,7 @@ export default async function CommSettingsPage() {
   const { data, error } = await admin.from("communication_settings")
     .select("*").eq("school_id", schoolId).maybeSingle();
 
-  const tableNotReady = error?.code === "42P01" || !!error?.message?.includes("does not exist");
+  const tableNotReady = !!(error?.code === "42P01" || error?.message?.includes("does not exist"));
 
   return (
     <CommSettingsClient
