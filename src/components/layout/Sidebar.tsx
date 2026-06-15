@@ -22,6 +22,7 @@ const navItems = [
     icon: BookOpen,
     children: [
       { href: "/academics", label: "Academics", icon: BookOpen },
+      { href: "/academic-calendar", label: "Academic Calendar", icon: Calendar },
       { href: "/timetable", label: "Timetable", icon: Calendar },
       { href: "/exams", label: "Enter Scores", icon: GraduationCap },
       { href: "/exams/report-card", label: "Report Cards", icon: GraduationCap },

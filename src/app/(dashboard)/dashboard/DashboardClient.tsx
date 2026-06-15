@@ -441,17 +441,15 @@ export function DashboardClient({ profile, school, stats }: Props) {
             <AttendanceRing rate={stats.attendanceRate} present={stats.presentToday} absent={stats.absentToday} />
           </div>
 
-          {/* Upcoming Events */}
+          {/* Academic Calendar */}
           <div className="bg-white rounded-2xl border border-[var(--border)] p-5 shadow-[0_1px_6px_rgba(0,0,0,0.05)] flex flex-col">
             <div className="flex items-center justify-between mb-3">
               <p className="text-[14px] font-bold text-[var(--text-strong)]">Term Calendar</p>
-              {isHeadmaster && (
-                <Link href="/settings/academic-year"
-                  className="flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-lg"
-                  style={{ background: `${BRAND}10`, color: BRAND }}>
-                  <Plus size={11} /> Add
-                </Link>
-              )}
+              <Link href="/academic-calendar"
+                className="flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-lg"
+                style={{ background: `${BRAND}10`, color: BRAND }}>
+                <Plus size={11} /> View All
+              </Link>
             </div>
 
             <div className="flex-1 space-y-1">
@@ -459,15 +457,24 @@ export function DashboardClient({ profile, school, stats }: Props) {
                 <div className="flex flex-col items-center justify-center h-24 gap-1">
                   <CalendarDays size={22} className="text-[var(--text-muted)] opacity-40" />
                   <p className="text-[12px] text-[var(--text-muted)]">No terms set up</p>
+                  {isHeadmaster && (
+                    <Link href="/settings/academic-year" className="text-[11px] font-semibold" style={{ color: BRAND }}>
+                      Set up academic year →
+                    </Link>
+                  )}
                 </div>
               ) : (
-                stats.terms.slice(0, 3).map((t, i) => <EventCard key={t.id} term={t} index={i} />)
+                stats.terms.slice(0, 3).map((t, i) => (
+                  <Link key={t.id} href="/academic-calendar">
+                    <EventCard term={t} index={i} />
+                  </Link>
+                ))
               )}
             </div>
 
             {stats.terms.length > 3 && (
-              <Link href="/settings/academic-year" className="text-[11px] font-semibold mt-2 block" style={{ color: BRAND }}>
-                +{stats.terms.length - 3} more events →
+              <Link href="/academic-calendar" className="text-[11px] font-semibold mt-2 block" style={{ color: BRAND }}>
+                +{stats.terms.length - 3} more → View calendar
               </Link>
             )}
           </div>

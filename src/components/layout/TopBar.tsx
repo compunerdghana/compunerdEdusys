@@ -2,6 +2,7 @@
 
 import { Bell, Menu } from "lucide-react";
 import { getInitials } from "@/lib/utils";
+import Link from "next/link";
 
 interface TopBarProps {
   userName?: string;
@@ -31,9 +32,9 @@ export function TopBar({ userName = "Admin", schoolName, onMenuClick }: TopBarPr
         {/* Divider */}
         <div className="w-px h-6 bg-[var(--border)] mx-1" />
 
-        {/* User */}
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0"
+        {/* User avatar — links to personal settings */}
+        <Link href="/settings" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity">
+          <div className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0 ring-2 ring-transparent hover:ring-[#262262]/30 transition-all"
             style={{ background: "linear-gradient(135deg, #262262, #92278F)" }}>
             {getInitials(userName)}
           </div>
@@ -41,7 +42,7 @@ export function TopBar({ userName = "Admin", schoolName, onMenuClick }: TopBarPr
             <p className="text-[13px] font-bold text-[var(--text-strong)] leading-tight">{userName}</p>
             {schoolName && <p className="text-[11px] text-[var(--text-muted)] leading-tight truncate max-w-[120px]">{schoolName}</p>}
           </div>
-        </div>
+        </Link>
       </div>
     </header>
   );

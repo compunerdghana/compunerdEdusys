@@ -6,8 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { Upload, School, CheckCircle2 } from "lucide-react";
-import Image from "next/image";
+import { Upload, School, CheckCircle2, PenLine } from "lucide-react";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 
 const LEVELS = [
@@ -64,6 +63,7 @@ interface SchoolData {
   levels?: string[] | null;
   ges_code?: string | null;
   logo_url?: string | null;
+  headmaster_signature_url?: string | null;
 }
 
 interface Props {
@@ -90,6 +90,9 @@ export function SchoolProfileForm({ school, schoolId }: Props) {
     levels: school?.levels ?? [] as string[],
   });
   const [logoUrl, setLogoUrl] = useState<string | null>(school?.logo_url ?? null);
+  const [sigUrl, setSigUrl] = useState<string | null>(school?.headmaster_signature_url ?? null);
+  const sigRef = useRef<HTMLInputElement>(null);
+  const [uploadingSig, setUploadingSig] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -127,6 +130,24 @@ export function SchoolProfileForm({ school, schoolId }: Props) {
     }
     setUploading(false);
     setSuccess(true);
+  }
+
+  async function handleSignatureUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { setError("Signature image must be under 2 MB."); return; }
+    setUploadingSig(true); setError(null);
+    await fetch("/api/admin/setup-storage", { method: "POST" });
+    const ext = file.name.split(".").pop();
+    const path = `signatures/${schoolId ?? "new"}-sig-${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage.from("school-assets").upload(path, file, { upsert: true });
+    if (upErr) { setError("Upload failed: " + upErr.message); setUploadingSig(false); return; }
+    const { data: { publicUrl } } = supabase.storage.from("school-assets").getPublicUrl(path);
+    setSigUrl(publicUrl);
+    if (schoolId) {
+      await supabase.from("schools").update({ headmaster_signature_url: publicUrl }).eq("id", schoolId);
+    }
+    setUploadingSig(false); setSuccess(true);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -196,7 +217,8 @@ export function SchoolProfileForm({ school, schoolId }: Props) {
         <div className="flex items-center gap-5">
           <div className="w-20 h-20 rounded-2xl border-2 border-dashed border-[var(--border)] flex items-center justify-center overflow-hidden bg-[var(--neutral-50)] shrink-0">
             {logoUrl
-              ? <Image src={logoUrl} alt="School logo" width={80} height={80} className="w-full h-full object-contain" />
+              // eslint-disable-next-line @next/next/no-img-element
+              ? <img src={logoUrl} alt="School logo" className="w-full h-full object-contain" />
               : <School size={28} className="text-[var(--text-subtle)]" />
             }
           </div>
@@ -208,6 +230,31 @@ export function SchoolProfileForm({ school, schoolId }: Props) {
             <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleLogoUpload} />
             <Button type="button" size="sm" variant="secondary" loading={uploading} onClick={() => fileRef.current?.click()}>
               <Upload size={14} /> {logoUrl ? "Change logo" : "Upload logo"}
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      {/* Headmaster signature */}
+      <Card>
+        <p className="text-[15px] font-semibold text-[var(--text-strong)] mb-1">Headmaster signature</p>
+        <p className="text-sm text-[var(--text-muted)] mb-4">Printed on report cards. Upload a clear image of the signature on a white background.</p>
+        <div className="flex items-center gap-5">
+          <div className="w-40 h-16 rounded-xl border-2 border-dashed border-[var(--border)] flex items-center justify-center overflow-hidden bg-[var(--neutral-50)] shrink-0">
+            {sigUrl
+              // eslint-disable-next-line @next/next/no-img-element
+              ? <img src={sigUrl} alt="Signature" className="w-full h-full object-contain p-1" />
+              : <PenLine size={22} className="text-[var(--text-subtle)]" />
+            }
+          </div>
+          <div>
+            <p className="text-[15px] font-medium text-[var(--text-body)] mb-1">
+              {sigUrl ? "Signature uploaded ✓" : "No signature uploaded yet"}
+            </p>
+            <p className="text-sm text-[var(--text-muted)] mb-3">PNG with transparent or white background, max 2 MB.</p>
+            <input ref={sigRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleSignatureUpload} />
+            <Button type="button" size="sm" variant="secondary" loading={uploadingSig} onClick={() => sigRef.current?.click()}>
+              <Upload size={14} /> {sigUrl ? "Change signature" : "Upload signature"}
             </Button>
           </div>
         </div>
