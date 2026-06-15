@@ -59,6 +59,7 @@ export function EventCalendarClient({ schoolId, terms, isHeadmaster }: Props) {
   // Day detail panel
   const [detailDate, setDetailDate] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [confirmDeleteEvent, setConfirmDeleteEvent] = useState<SchoolEvent | null>(null);
 
   const year = cur.getFullYear();
   const month = cur.getMonth();
@@ -138,11 +139,14 @@ export function EventCalendarClient({ schoolId, terms, isHeadmaster }: Props) {
     setNewTitle(""); setNewDesc(""); setNewColor(COLORS[0].value);
   }
 
-  async function handleDelete(id: string) {
+  async function executeDelete(id: string) {
     setDeleting(id);
+    setConfirmDeleteEvent(null);
     await fetch(`/api/admin/school-events?id=${id}`, { method: "DELETE" });
     setEvents(prev => prev.filter(e => e.id !== id));
     setDeleting(null);
+    // Also close detail panel if event was there
+    setDetailDate(prev => prev);
   }
 
   const detailEvents = detailDate ? (eventsByDate.get(detailDate) ?? []) : [];
@@ -342,7 +346,7 @@ CREATE POLICY "school_members_read_events" ON school_events FOR SELECT
                           </p>
                         </div>
                         {isHeadmaster && (
-                          <button onClick={() => handleDelete(ev.id)} disabled={deleting === ev.id}
+                          <button onClick={() => setConfirmDeleteEvent(ev)} disabled={deleting === ev.id}
                             className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-all disabled:opacity-40 shrink-0">
                             {deleting === ev.id
                               ? <div className="w-3 h-3 border border-red-400 border-t-transparent rounded-full animate-spin" />
@@ -394,7 +398,7 @@ CREATE POLICY "school_members_read_events" ON school_events FOR SELECT
                   {ev.description && <p className="text-[12px] text-[var(--text-muted)]">{ev.description}</p>}
                 </div>
                 {isHeadmaster && (
-                  <button onClick={() => handleDelete(ev.id)} disabled={deleting === ev.id}
+                  <button onClick={() => setConfirmDeleteEvent(ev)} disabled={deleting === ev.id}
                     className="opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-all disabled:opacity-40">
                     {deleting === ev.id
                       ? <div className="w-3.5 h-3.5 border border-red-400 border-t-transparent rounded-full animate-spin" />
@@ -403,6 +407,36 @@ CREATE POLICY "school_members_read_events" ON school_events FOR SELECT
                 )}
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Delete event confirmation */}
+      {confirmDeleteEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                <AlertTriangle size={18} className="text-red-600" />
+              </div>
+              <div>
+                <p className="text-[15px] font-bold text-[var(--text-strong)]">Delete event?</p>
+                <p className="text-[13px] text-[var(--text-muted)] mt-0.5 truncate max-w-[220px]">{confirmDeleteEvent.title}</p>
+              </div>
+            </div>
+            <p className="text-[13px] text-[var(--text-muted)] mb-5">
+              {new Date(confirmDeleteEvent.event_date).toLocaleDateString("en-GH", { weekday: "long", month: "long", day: "numeric" })} · This cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmDeleteEvent(null)}
+                className="flex-1 py-2.5 rounded-xl border border-[var(--border)] text-[13px] font-semibold text-[var(--text-muted)] hover:bg-[var(--neutral-50)] transition-colors">
+                Cancel
+              </button>
+              <button onClick={() => executeDelete(confirmDeleteEvent.id)}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-[13px] font-bold hover:bg-red-700 transition-colors">
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       )}

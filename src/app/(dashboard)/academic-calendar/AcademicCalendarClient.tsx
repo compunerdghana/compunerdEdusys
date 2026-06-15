@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   CalendarDays, Upload, Trash2, FileText, BookOpen, ClipboardList,
@@ -141,6 +141,17 @@ export function AcademicCalendarClient({ terms, documents: initialDocs, schoolId
   type FileStatus = { file: File; status: "pending" | "uploading" | "done" | "error"; error?: string };
   const [fileQueue, setFileQueue] = useState<FileStatus[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<SchoolDoc | null>(null);
+
+  // Warn before leaving if files are queued/uploading
+  useEffect(() => {
+    const hasPending = fileQueue.some(f => f.status === "pending" || f.status === "uploading");
+    const handler = (e: BeforeUnloadEvent) => {
+      if (hasPending) { e.preventDefault(); e.returnValue = ""; }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [fileQueue]);
 
   function addFiles(incoming: File[]) {
     setFileQueue(prev => [
@@ -206,9 +217,15 @@ export function AcademicCalendarClient({ terms, documents: initialDocs, schoolId
   }
 
   async function handleDelete(doc: SchoolDoc) {
-    setDeleting(doc.id);
-    await supabase.from("school_documents").delete().eq("id", doc.id);
-    setDocs(prev => prev.filter(d => d.id !== doc.id));
+    setConfirmDeleteDoc(doc);
+  }
+
+  async function confirmDelete() {
+    if (!confirmDeleteDoc) return;
+    setDeleting(confirmDeleteDoc.id);
+    setConfirmDeleteDoc(null);
+    await supabase.from("school_documents").delete().eq("id", confirmDeleteDoc.id);
+    setDocs(prev => prev.filter(d => d.id !== confirmDeleteDoc.id));
     setDeleting(null);
   }
 
@@ -504,6 +521,34 @@ export function AcademicCalendarClient({ terms, documents: initialDocs, schoolId
           )}
         </div>
       </div>
+
+      {/* Delete confirmation */}
+      {confirmDeleteDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                <Trash2 size={18} className="text-red-600" />
+              </div>
+              <div>
+                <p className="text-[15px] font-bold text-[var(--text-strong)]">Delete document?</p>
+                <p className="text-[13px] text-[var(--text-muted)] mt-0.5 truncate max-w-[220px]">{confirmDeleteDoc.title ?? confirmDeleteDoc.file_name}</p>
+              </div>
+            </div>
+            <p className="text-[13px] text-[var(--text-muted)] mb-5">This action cannot be undone. The file will be permanently removed.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmDeleteDoc(null)}
+                className="flex-1 py-2.5 rounded-xl border border-[var(--border)] text-[13px] font-semibold text-[var(--text-muted)] hover:bg-[var(--neutral-50)] transition-colors">
+                Cancel
+              </button>
+              <button onClick={confirmDelete}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-[13px] font-bold hover:bg-red-700 transition-colors">
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
