@@ -49,7 +49,7 @@ export default async function FinancePage() {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
 
-  const [walletRes, pendingRes, monthIncomeRes, monthExpRes] = await Promise.all([
+  const [schoolWalletRes, pendingRes, monthIncomeRes, monthExpRes] = await Promise.all([
     admin.from("school_wallets").select("current_balance, total_income, total_expenses").eq("school_id", schoolId).single(),
     admin.from("expenses").select("id", { count: "exact", head: true }).eq("school_id", schoolId).eq("status", "pending"),
     admin.from("income_records").select("amount").eq("school_id", schoolId).gte("income_date", monthStart),
@@ -57,23 +57,25 @@ export default async function FinancePage() {
   ]);
 
   let dashboardData: DashboardData | null = null;
-  if (!isTableMissing(walletRes.error)) {
-    const monthly_income = (monthIncomeRes.data ?? []).reduce((s: number, r: { amount: number }) => s + Number(r.amount), 0);
-    const monthly_expenses = (monthExpRes.data ?? []).reduce((s: number, r: { amount: number }) => s + Number(r.amount), 0);
+  if (!isTableMissing(schoolWalletRes.error)) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const monthly_income = ((monthIncomeRes.data ?? []) as any[]).reduce((s: number, r: { amount: number }) => s + Number(r.amount), 0);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const monthly_expenses = ((monthExpRes.data ?? []) as any[]).reduce((s: number, r: { amount: number }) => s + Number(r.amount), 0);
     const net_position = monthly_income - monthly_expenses;
-    const balance = Number(walletRes.data?.current_balance ?? 0);
+    const balance = Number(schoolWalletRes.data?.current_balance ?? 0);
     const health_score = Math.min(100, Math.round(
       (balance > 0 ? 50 : 0) + (net_position >= 0 ? 30 : 0) + Math.min(20, (balance / 10000) * 20)
     ));
     dashboardData = {
-      wallet: walletRes.data ?? undefined,
+      wallet: schoolWalletRes.data ?? undefined,
       monthly_income,
       monthly_expenses,
       net_position,
       health_score,
       pending_approvals: pendingRes.count ?? 0,
     };
-  } else if (isTableMissing(walletRes.error)) {
+  } else if (isTableMissing(schoolWalletRes.error)) {
     dashboardData = { tableNotReady: true };
   }
 

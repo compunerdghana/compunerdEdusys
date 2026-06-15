@@ -68,7 +68,7 @@ export default async function ExpensesPage() {
       .order("name"),
   ]);
 
-  const tableNotReady = isMissing(expensesRes.error) || isMissing(categoriesRes.error);
+  const tableNotReady: boolean = !!(isMissing(expensesRes.error) || isMissing(categoriesRes.error));
 
   // Resolve profile names
   let profileMap: Record<string, string> = {};

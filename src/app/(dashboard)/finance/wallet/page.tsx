@@ -53,9 +53,15 @@ export default async function WalletPage() {
 
   const tableNotReady = isTableMissing(walletRes.error) || isTableMissing(txRes.error);
   const wallet = walletRes.data as WalletData | null;
-  const transactions: WalletTransaction[] = tableNotReady ? [] : (txRes.data ?? []).map((t: Record<string, unknown>) => ({
-    ...t,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const transactions: WalletTransaction[] = tableNotReady ? [] : (txRes.data ?? []).map((t: any) => ({
+    id: t.id,
+    description: t.description ?? "",
+    category: t.category ?? "",
     transaction_type: t.type as "credit" | "debit",
+    amount: Number(t.amount),
+    balance_after: Number(t.balance_after),
+    created_at: t.created_at,
   }));
 
   const categoryVariant: Record<string, "success" | "info" | "brand" | "warning" | "danger" | "default"> = {
