@@ -21,7 +21,7 @@ export interface Expense {
   created_by_name?: string | null;
   approved_by?: string | null;
   approved_by_name?: string | null;
-  approval_note?: string | null;
+  approval_note?: string | null;  // maps to rejection_reason in DB
   created_at: string;
 }
 
@@ -58,7 +58,7 @@ export default async function ExpensesPage() {
 
   const [expensesRes, categoriesRes] = await Promise.all([
     admin.from("expenses")
-      .select("id, school_id, title, description, amount, expense_date, category_id, supplier, payment_method, reference_number, department, status, created_by, approved_by, approval_note, created_at, expense_categories(name)")
+      .select("id, school_id, title, description, amount, expense_date, category_id, supplier, payment_method, reference_number, department, status, created_by, approved_by, rejection_reason, created_at, expense_categories(name)")
       .eq("school_id", schoolId)
       .order("created_at", { ascending: false })
       .limit(200),
@@ -100,7 +100,7 @@ export default async function ExpensesPage() {
     created_by_name: e.created_by ? (profileMap[e.created_by] ?? null) : null,
     approved_by: e.approved_by,
     approved_by_name: e.approved_by ? (profileMap[e.approved_by] ?? null) : null,
-    approval_note: e.approval_note,
+    approval_note: e.rejection_reason,
     created_at: e.created_at,
   }));
 
