@@ -9,6 +9,7 @@ import {
   GraduationCap, BarChart3, ChevronDown, UserCog, LogOut, CalendarClock,
   Wallet, Receipt, PiggyBank, Building2, TrendingUp, DollarSign,
   Calendar, Award, ArrowRightLeft, UserMinus, Dumbbell,
+  Bell, Send, Smartphone, FileText, Zap, History, Settings2, MessageCircle,
 } from "lucide-react";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -54,7 +55,21 @@ const navItems = [
       { href: "/finance/bank-accounts",label: "Bank Accounts",icon: Building2 },
     ],
   },
-  { href: "/communications", label: "Communications", icon: MessageSquare },
+  {
+    label: "Communications",
+    icon: MessageSquare,
+    children: [
+      { href: "/communications/dashboard",     label: "Dashboard",    icon: LayoutDashboard },
+      { href: "/communications",               label: "Compose",      icon: Send },
+      { href: "/communications/whatsapp",      label: "WhatsApp",     icon: MessageCircle },
+      { href: "/communications/sms",           label: "SMS Center",   icon: Smartphone },
+      { href: "/communications/notifications", label: "Notifications",icon: Bell },
+      { href: "/communications/templates",     label: "Templates",    icon: FileText },
+      { href: "/communications/automation",    label: "Automation",   icon: Zap },
+      { href: "/communications/logs",          label: "Logs",         icon: History },
+      { href: "/communications/settings",      label: "Settings",     icon: Settings2 },
+    ],
+  },
   { href: "/reports",        label: "Reports",        icon: BarChart3 },
 ];
 
@@ -74,6 +89,7 @@ export function Sidebar({ userName = "Admin", userRole = "admin", schoolName, sc
     Academics: ["/academics", "/timetable", "/exams"].some((p) => pathname.startsWith(p)),
     Finance: pathname.startsWith("/finance"),
     Staff: pathname.startsWith("/staff"),
+    Communications: pathname.startsWith("/communications"),
   }));
 
   function toggleMenu(label: string) {
