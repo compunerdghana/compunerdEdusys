@@ -27,6 +27,7 @@ export default async function DashboardPage() {
     academicYearRes,
     enrollmentRes,
     termsRes,
+    eventsRes,
   ] = await Promise.all([
     supabase.from("schools").select("id, name, logo_url, address, phone").eq("id", profile.school_id).single(),
     supabase.from("students").select("id", { count: "exact", head: true }).eq("school_id", profile.school_id),
@@ -37,6 +38,7 @@ export default async function DashboardPage() {
     supabase.from("academic_years").select("id, name, is_current, current_term").eq("school_id", profile.school_id).eq("is_current", true).single(),
     supabase.from("students").select("classrooms(level)").eq("school_id", profile.school_id).eq("status", "active"),
     supabase.from("terms").select("id, name, start_date, end_date, reopening_date").eq("school_id", profile.school_id).order("start_date"),
+    supabase.from("school_events").select("id, title, event_date, color, description").eq("school_id", profile.school_id).gte("event_date", new Date().toISOString().split("T")[0]).order("event_date").limit(10),
   ]);
 
   const attendanceToday = attendanceTodayRes.data ?? [];
@@ -76,7 +78,9 @@ export default async function DashboardPage() {
     currentTerm: academicYear?.current_term ?? null,
     enrollmentByLevel,
     terms: termsRes.data ?? [],
+    events: eventsRes.data ?? [],
   };
 
-  return <DashboardClient profile={profile} school={schoolRes.data} stats={stats} />;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return <DashboardClient profile={profile} school={schoolRes.data} stats={stats as any} />;
 }

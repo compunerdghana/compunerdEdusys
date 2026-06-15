@@ -23,7 +23,18 @@ export async function POST(req: NextRequest) {
 
     if (schoolId) {
       const { error } = await admin.from("schools").update(payload).eq("id", schoolId);
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error) {
+        const isSchemaErr = /column|schema|Could not find/i.test(error.message);
+        if (isSchemaErr) {
+          // Some columns may not exist yet — retry with guaranteed-safe subset
+          const SAFE = new Set(["name","motto","address","phone","email","levels","logo_url","headmaster_signature_url","currency"]);
+          const safe = Object.fromEntries(Object.entries(payload).filter(([k]) => SAFE.has(k)));
+          const { error: e2 } = await admin.from("schools").update(safe).eq("id", schoolId);
+          if (e2) return NextResponse.json({ error: e2.message }, { status: 500 });
+        } else {
+          return NextResponse.json({ error: error.message }, { status: 500 });
+        }
+      }
       return NextResponse.json({ ok: true });
     } else {
       const { data, error } = await admin

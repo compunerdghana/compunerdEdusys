@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Users, UserCog, CreditCard, GraduationCap, ChevronLeft, ChevronRight,
   Plus, CalendarDays, TrendingUp, UserPlus, BookOpen, ClipboardList,
   BarChart3, Wallet, Activity, CheckCircle2, Clock, AlertCircle,
-  ArrowRight,
+  ArrowRight, Bell,
 } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line,
@@ -18,6 +18,7 @@ import { StatCard } from "@/components/dashboard/StatCard";
 
 interface Profile { id: string; full_name: string; role: string; school_id: string | null }
 interface School  { id: string; name: string; logo_url: string | null; address: string | null }
+interface SchoolEvent { id: string; title: string; event_date: string; color: string | null; description: string | null }
 interface Stats {
   totalStudents: number; activeStudents: number; totalStaff: number;
   presentToday: number; absentToday: number; attendanceRate: number;
@@ -25,6 +26,7 @@ interface Stats {
   academicYear: string | null; currentTerm: string | null;
   enrollmentByLevel: { level: string; count: number }[];
   terms: { id: string; name: string; start_date: string; end_date: string; reopening_date?: string | null }[];
+  events: SchoolEvent[];
 }
 interface Props { profile: Profile | null; school: School | null; stats: Stats | null }
 
@@ -239,6 +241,103 @@ function CollectionBar({ collected, outstanding }: { collected: number; outstand
   );
 }
 
+/* ─── Upcoming Events ────────────────────────────────────────────────────── */
+
+function useCountdown(events: SchoolEvent[]) {
+  // Returns a stable map of id → daysLeft (computed once per render, stable on server)
+  const map: Record<string, number> = {};
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  for (const e of events) {
+    const d = new Date(e.event_date);
+    d.setHours(0, 0, 0, 0);
+    map[e.id] = Math.round((d.getTime() - now.getTime()) / 86400000);
+  }
+  return map;
+}
+
+function UpcomingEventsWidget({ events }: { events: SchoolEvent[] }) {
+  const [localEvents, setLocalEvents] = useState<SchoolEvent[]>(events);
+
+  useEffect(() => {
+    // Persist for offline use
+    if (events.length > 0) {
+      try { localStorage.setItem("edusys_upcoming_events", JSON.stringify(events)); } catch {}
+    } else {
+      // Load from cache if offline/no events returned
+      try {
+        const cached = localStorage.getItem("edusys_upcoming_events");
+        if (cached) setLocalEvents(JSON.parse(cached));
+      } catch {}
+    }
+  }, [events]);
+
+  const days = useCountdown(localEvents);
+
+  if (localEvents.length === 0) return null;
+
+  // Urgent: within 7 days
+  const urgent = events.filter((e) => (days[e.id] ?? 99) <= 7);
+
+  return (
+    <div className="bg-white rounded-2xl border border-[var(--border)] p-5 shadow-[0_1px_6px_rgba(0,0,0,0.05)]">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Bell size={15} style={{ color: ACCENT }} />
+          <p className="text-[14px] font-bold text-[var(--text-strong)]">Upcoming Events</p>
+          {urgent.length > 0 && (
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white" style={{ background: "#DC2626" }}>
+              {urgent.length} soon
+            </span>
+          )}
+        </div>
+        <a href="/settings/academic-calendar" className="text-[11px] font-semibold" style={{ color: BRAND }}>
+          Manage →
+        </a>
+      </div>
+
+      <div className="space-y-2">
+        {localEvents.slice(0, 5).map((ev) => {
+          const d = days[ev.id] ?? 0;
+          const isToday = d === 0;
+          const isTomorrow = d === 1;
+          const isSoon = d <= 7;
+          const dotColor = ev.color ?? ACCENT;
+
+          let countdown = `In ${d} days`;
+          if (isToday) countdown = "Today";
+          else if (isTomorrow) countdown = "Tomorrow";
+          else if (d < 0) countdown = "Past";
+
+          return (
+            <div key={ev.id} className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${isSoon ? "bg-orange-50 border border-orange-100" : "hover:bg-[var(--neutral-50)]"}`}>
+              <div className="w-2.5 h-2.5 rounded-full shrink-0 mt-0.5" style={{ background: dotColor }} />
+              <div className="flex-1 min-w-0">
+                <p className={`text-[13px] font-semibold truncate ${isSoon ? "text-orange-900" : "text-[var(--text-strong)]"}`}>{ev.title}</p>
+                <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                  {new Date(ev.event_date).toLocaleDateString("en-GH", { weekday: "short", day: "numeric", month: "short" })}
+                </p>
+              </div>
+              <span className={`text-[10px] font-bold px-2 py-1 rounded-lg shrink-0 ${
+                isToday ? "bg-red-100 text-red-700" :
+                isTomorrow ? "bg-orange-100 text-orange-700" :
+                isSoon ? "bg-yellow-100 text-yellow-700" :
+                "bg-gray-100 text-gray-500"
+              }`}>
+                {countdown}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {localEvents.length > 5 && (
+        <p className="text-[11px] text-[var(--text-muted)] mt-3 text-center">+{localEvents.length - 5} more upcoming events</p>
+      )}
+    </div>
+  );
+}
+
 /* ─── Quick Actions ──────────────────────────────────────────────────────── */
 
 const QUICK_ACTIONS = [
@@ -339,6 +438,9 @@ export function DashboardClient({ profile, school, stats }: Props) {
           </Link>
         ))}
       </div>
+
+      {/* ── Upcoming Events Banner ───────────────────────────────────────── */}
+      {stats.events.length > 0 && <UpcomingEventsWidget events={stats.events} />}
 
       {/* ── Row 1: Stat Cards ────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
