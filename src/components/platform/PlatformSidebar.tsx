@@ -24,6 +24,13 @@ import {
   Clock,
   AlertTriangle,
   Archive,
+  UserCog,
+  KeyRound,
+  UsersRound,
+  ActivitySquare,
+  History,
+  MonitorSmartphone,
+  ShieldAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +44,19 @@ interface NavGroup {
   group: string;
   items: NavItem[];
 }
+
+const usersSubItems = [
+  { label: "Dashboard", href: "/platform/users/overview", icon: BarChart2 },
+  { label: "All Users", href: "/platform/users", icon: Users },
+  { label: "Create User", href: "/platform/users/new", icon: Plus },
+  { label: "Roles", href: "/platform/users/roles", icon: UserCog },
+  { label: "Permissions", href: "/platform/users/permissions", icon: KeyRound },
+  { label: "User Groups", href: "/platform/users/groups", icon: UsersRound },
+  { label: "Activity Logs", href: "/platform/users/activity", icon: ActivitySquare },
+  { label: "Login History", href: "/platform/users/login-history", icon: History },
+  { label: "Active Sessions", href: "/platform/users/sessions", icon: MonitorSmartphone },
+  { label: "Security Center", href: "/platform/users/security", icon: ShieldAlert },
+];
 
 const schoolsSubItems = [
   { label: "Dashboard", href: "/platform/schools/overview", icon: BarChart2 },
@@ -99,6 +119,7 @@ export function PlatformSidebar({ userName, userRole, onLogout }: PlatformSideba
     .slice(0, 2);
 
   const isSchoolsActive = pathname.startsWith("/platform/schools");
+  const isUsersActive = pathname.startsWith("/platform/users");
 
   function isSubItemActive(href: string) {
     if (href.includes("?")) {
@@ -109,6 +130,9 @@ export function PlatformSidebar({ userName, userRole, onLogout }: PlatformSideba
     }
     if (href === "/platform/schools") {
       return pathname === "/platform/schools" && !searchParams.get("status");
+    }
+    if (href === "/platform/users") {
+      return pathname === "/platform/users";
     }
     return pathname === href || pathname.startsWith(href + "/");
   }
@@ -235,8 +259,92 @@ export function PlatformSidebar({ userName, userRole, onLogout }: PlatformSideba
           </div>
         </div>
 
-        {/* Remaining groups */}
-        {navigation.map(({ group, items }) => (
+        {/* Platform section — with Users expandable */}
+        <div>
+          <p className="text-[10px] font-extrabold uppercase tracking-widest px-3 mb-2" style={{ color: "rgba(255,255,255,0.25)" }}>
+            Platform
+          </p>
+          <div className="space-y-0.5">
+            {/* Users expandable */}
+            <div
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold",
+                isUsersActive ? "bg-white/10 text-white" : "text-white/50",
+              )}
+            >
+              <Users size={15} className={cn("shrink-0", isUsersActive ? "text-white" : "text-white/40")} />
+              <span className="flex-1">Users</span>
+              <ChevronDown
+                size={13}
+                className={cn(
+                  "shrink-0 transition-transform duration-200",
+                  isUsersActive ? "text-white" : "text-white/30 -rotate-90",
+                )}
+              />
+            </div>
+
+            {isUsersActive && (
+              <div className="ml-3 pl-3 border-l border-white/10 space-y-0.5 mt-0.5">
+                {usersSubItems.map(({ label, href, icon: Icon }) => {
+                  const active = isSubItemActive(href);
+                  return (
+                    <Link
+                      key={href}
+                      href={href}
+                      className={cn(
+                        "flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-semibold transition-all duration-150",
+                        active ? "bg-white/10 text-white" : "text-white/40 hover:text-white/80 hover:bg-white/5",
+                      )}
+                    >
+                      <Icon size={12} className={cn("shrink-0", active ? "text-violet-400" : "text-white/30")} />
+                      {label}
+                      {active && (
+                        <div className="ml-auto w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)" }} />
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+
+            {!isUsersActive && (
+              <Link
+                href="/platform/users"
+                className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-semibold text-white/30 hover:text-white/60 hover:bg-white/5 transition-all ml-3 pl-3 border-l border-white/10"
+              >
+                <Users size={12} className="text-white/20 shrink-0" />
+                All Users
+              </Link>
+            )}
+
+            {/* Features */}
+            {[
+              { label: "Features", href: "/platform/features", icon: Zap },
+              { label: "Announcements", href: "/platform/announcements", icon: Megaphone },
+            ].map(({ label, href, icon: Icon }) => {
+              const active = isNavActive(href);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-150",
+                    active ? "bg-white/10 text-white" : "text-white/50 hover:text-white hover:bg-white/5",
+                  )}
+                >
+                  <Icon size={15} className={cn("shrink-0 transition-colors", active ? "text-white" : "text-white/40")} />
+                  {label}
+                  {active && (
+                    <div className="ml-auto w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)" }} />
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Remaining groups (skip Platform since handled above) */}
+        {navigation.filter(g => g.group !== "Platform").map(({ group, items }) => (
           <div key={group}>
             <p className="text-[10px] font-extrabold uppercase tracking-widest px-3 mb-2" style={{ color: "rgba(255,255,255,0.25)" }}>
               {group}
