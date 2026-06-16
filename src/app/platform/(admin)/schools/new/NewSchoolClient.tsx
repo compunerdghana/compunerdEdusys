@@ -32,6 +32,25 @@ const REGIONS = [
   "Western North", "Ahafo", "Bono East", "North East", "Savannah", "Oti",
 ];
 
+const DISTRICTS: Record<string, string[]> = {
+  "Greater Accra": ["Accra Metropolitan", "Tema Metropolitan", "Ga East", "Ga West", "Ga South", "Ga Central", "Adentan", "Ayawaso Central", "Ayawaso East", "Ayawaso North", "Ayawaso West Wuogon", "La Dade-Kotopon", "La Nkwantanang-Madina", "Ledzokuku", "Krowor", "Ashaiman", "Shai-Osudoku", "Ningo-Prampram", "Ada East", "Ada West", "Dangme East", "Dangme West"],
+  "Ashanti": ["Kumasi Metropolitan", "Oforikrom", "Kwadaso", "Suame", "Nhyiaeso", "Bosomtwe", "Kwabre East", "Afigya-Kwabre", "Ahafo-Ano North", "Ahafo-Ano South", "Amansie Central", "Amansie East", "Amansie West", "Asante Akim Central", "Asante Akim North", "Asante Akim South", "Asokore Mampong", "Atwima Kwanwoma", "Atwima Mponua", "Atwima Nwabiagya", "Bekwai", "Bosome-Freho", "Ejisu", "Ejura-Sekyedumase", "Juaben", "Kumasi Metropolitan", "Kwabre East", "Mampong", "Obuasi", "Offinso North", "Offinso South", "Sekyere Afram Plains", "Sekyere Central", "Sekyere East", "Sekyere Kumawu", "Sekyere South"],
+  "Western": ["Sekondi-Takoradi Metropolitan", "Ahanta West", "Effia-Kwesimintsim", "Ellembelle", "Jomoro", "Mpohor", "Nzema East", "Prestea-Huni Valley", "Shama", "Tarkwa-Nsuaem", "Wassa Amenfi Central", "Wassa Amenfi East", "Wassa Amenfi West", "Wassa East"],
+  "Eastern": ["New Juaben South", "New Juaben North", "Akuapim North", "Akuapim South", "Akyemansa", "Asuogyaman", "Atiwa East", "Atiwa West", "Ayensuano", "Birim Central", "Birim North", "Birim South", "Denkyembour", "Fanteakwa North", "Fanteakwa South", "Kwahu Afram Plains North", "Kwahu Afram Plains South", "Kwahu East", "Kwahu South", "Kwahu West", "Lower Manya Krobo", "Nsawam-Adoagyiri", "Suhum", "Upper Manya Krobo", "West Akim", "Yilo Krobo"],
+  "Central": ["Cape Coast Metropolitan", "Agona East", "Agona West", "Ajumako-Enyan-Esiam", "Asikuma-Odoben-Brakwa", "Assin Central", "Assin North", "Assin South", "Awutu Senya East", "Awutu Senya West", "Effutu", "Ekumfi", "Gomoa Central", "Gomoa East", "Gomoa West", "Hemang Lower Denkyira", "Komenda-Edina-Eguafo-Abrem", "Mfantseman", "Twifo-Atti Morkwa", "Twifo Hemang Lower Denkyira", "Upper Denkyira East", "Upper Denkyira West"],
+  "Northern": ["Tamale Metropolitan", "Bole", "Central Gonja", "East Gonja", "East Mamprusi", "Gushegu", "Karaga", "Kpandai", "Kumbungu", "Mamprugu-Moagduri", "Mion", "Nanumba North", "Nanumba South", "Nanton", "North Gonja", "Saboba", "Sagnarigu", "Savelugu", "Tatale-Sanguli", "Tolon", "West Gonja", "West Mamprusi", "Yendi", "Zabzugu"],
+  "Upper East": ["Bolgatanga Municipal", "Bawku Municipal", "Bawku West", "Binduri", "Bolgatanga East", "Bongo", "Builsa North", "Builsa South", "Garu", "Kassena-Nankana East", "Kassena-Nankana West", "Nabdam", "Pusiga", "Talensi", "Tempane"],
+  "Upper West": ["Wa Municipal", "Daffiama-Bussie-Issa", "Jirapa", "Lambussie-Karni", "Lawra", "Nadowli-Kaleo", "Nandom", "Sissala East", "Sissala West", "Wa East", "Wa West"],
+  "Volta": ["Ho Municipal", "Adaklu", "Afadjato South", "Agotime-Ziope", "Akatsi North", "Akatsi South", "Anloga", "Central Tongu", "Ho West", "Hohoe", "Keta Municipal", "Kpando", "Kpedze-Klefe", "Krachi East", "Krachi Nchumuru", "Krachi West", "Nkwanta North", "Nkwanta South", "North Dayi", "North Tongu", "South Dayi", "South Tongu"],
+  "Brong-Ahafo": ["Sunyani Municipal", "Banda", "Berekum East", "Berekum West", "Dormaa Central", "Dormaa East", "Dormaa West", "Jaman North", "Jaman South", "Kintampo North", "Kintampo South", "Nkoranza North", "Nkoranza South", "Pru East", "Pru West", "Sene East", "Sene West", "Tain", "Techiman Municipal", "Techiman North", "Wenchi"],
+  "Western North": ["Aowin", "Bibiani-Anhwiaso-Bekwai", "Bia East", "Bia West", "Bodi", "Juaboso", "Sefwi Akontombra", "Sefwi-Wiawso", "Suaman"],
+  "Ahafo": ["Asunafo North", "Asunafo South", "Asutifi North", "Asutifi South", "Tano North", "Tano South"],
+  "Bono East": ["Atebubu-Amantin", "Kintampo North", "Kintampo South", "Nkoranza North", "Nkoranza South", "Pru East", "Pru West", "Sene East", "Sene West", "Techiman Municipal", "Techiman North"],
+  "North East": ["Bunkpurugu-Nakpayili", "Chereponi", "East Mamprusi", "Mamprugu-Moagduri", "Nalerigu-Gambaga", "Yunyoo-Nasuan"],
+  "Savannah": ["Bole", "Central Gonja", "East Gonja", "North Gonja", "Sawla-Tuna-Kalba", "West Gonja"],
+  "Oti": ["Guan", "Jasikan", "Kadjebi", "Krachi East", "Krachi Nchumuru", "Krachi West", "Nkwanta North", "Nkwanta South"],
+};
+
 const PLANS: { id: Plan; label: string; price: number; desc: string; color: string }[] = [
   { id: "starter", label: "Starter", price: 299, desc: "Up to 200 students, basic features", color: "border-slate-300 bg-slate-50" },
   { id: "standard", label: "Standard", price: 599, desc: "Up to 800 students, full features", color: "border-blue-300 bg-blue-50" },
@@ -91,7 +110,23 @@ export function NewSchoolClient() {
       const res = await fetch("/api/platform/schools", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          name: form.name,
+          school_code: form.code,
+          school_type: form.type,
+          proprietor_name: form.proprietorName,
+          owner_name: form.proprietorName,
+          owner_email: form.email,
+          owner_phone: form.phone,
+          phone: form.phone,
+          website: form.website,
+          region: form.region,
+          district: form.district,
+          address: form.address,
+          gps_address: form.gpsAddress,
+          billing_cycle: form.billingCycle,
+          trial_days: form.trialEnabled ? 30 : 0,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to create school");
@@ -290,14 +325,22 @@ export function NewSchoolClient() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>Region <span className="text-red-500">*</span></label>
-                <select value={form.region} onChange={e => set("region", e.target.value)} className={inputClass}>
+                <select value={form.region} onChange={e => { set("region", e.target.value); set("district", ""); }} className={inputClass}>
                   <option value="">Select region…</option>
                   {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
               </div>
               <div>
                 <label className={labelClass}>District</label>
-                <input type="text" value={form.district} onChange={e => set("district", e.target.value)} placeholder="e.g. Accra Metropolitan" className={inputClass} />
+                <select
+                  value={form.district}
+                  onChange={e => set("district", e.target.value)}
+                  className={inputClass}
+                  disabled={!form.region}
+                >
+                  <option value="">{form.region ? "Select district…" : "Select region first"}</option>
+                  {(DISTRICTS[form.region] ?? []).map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
               </div>
               <div className="sm:col-span-2">
                 <label className={labelClass}>Address <span className="text-red-500">*</span></label>
