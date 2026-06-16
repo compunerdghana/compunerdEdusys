@@ -24,6 +24,9 @@ interface FormData {
   billingCycle: BillingCycle;
   startDate: string;
   trialEnabled: boolean;
+  ownerUsername?: string;
+  ownerPassword?: string;
+  ownerRole?: string;
 }
 
 const REGIONS = [
@@ -75,13 +78,20 @@ export function NewSchoolClient() {
   const { success, error: toastError } = useToast();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [credentials, setCredentials] = useState<{ schoolName: string; email: string; tempPassword: string } | null>(null);
+  const [credentials, setCredentials] = useState<{
+    schoolName: string;
+    email: string;
+    username: string;
+    tempPassword: string;
+    role: string;
+  } | null>(null);
   const [copied, setCopied] = useState(false);
 
   const [form, setForm] = useState<FormData>({
     name: "", code: "", type: "private", proprietorName: "", email: "", phone: "", website: "",
     region: "", district: "", address: "", gpsAddress: "",
     plan: "standard", billingCycle: "monthly", startDate: new Date().toISOString().split("T")[0], trialEnabled: false,
+    ownerUsername: "", ownerPassword: "", ownerRole: "school_admin",
   });
 
   function set(field: keyof FormData, value: string | boolean) {
@@ -127,11 +137,20 @@ export function NewSchoolClient() {
           plan_name: form.plan,
           billing_cycle: form.billingCycle,
           trial_days: form.trialEnabled ? 30 : 0,
+          owner_username: form.ownerUsername,
+          owner_password: form.ownerPassword,
+          owner_role: form.ownerRole,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to create school");
-      setCredentials({ schoolName: form.name, email: form.email, tempPassword: data.tempPassword ?? "Welcome@123" });
+      setCredentials({
+        schoolName: form.name,
+        email: data.credentials?.email ?? form.email,
+        username: data.credentials?.username ?? "",
+        tempPassword: data.credentials?.password ?? "Welcome@123",
+        role: data.credentials?.role ?? "school_admin",
+      });
       success("School created successfully!");
     } catch (err: unknown) {
       toastError(err instanceof Error ? err.message : "Failed to create school");
@@ -142,7 +161,7 @@ export function NewSchoolClient() {
 
   function copyCredentials() {
     if (!credentials) return;
-    const text = `School: ${credentials.schoolName}\nEmail: ${credentials.email}\nTemporary Password: ${credentials.tempPassword}`;
+    const text = `School: ${credentials.schoolName}\nEmail: ${credentials.email}\nUsername: ${credentials.username}\nPassword: ${credentials.tempPassword}\nRole: ${credentials.role}`;
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -168,7 +187,9 @@ export function NewSchoolClient() {
             {[
               { label: "School", value: credentials.schoolName },
               { label: "Email", value: credentials.email },
-              { label: "Temp Password", value: credentials.tempPassword, mono: true, highlight: true },
+              { label: "Username", value: credentials.username },
+              { label: "Password", value: credentials.tempPassword, mono: true, highlight: true },
+              { label: "Role", value: credentials.role },
             ].map(({ label, value, mono, highlight }) => (
               <div key={label} className="flex justify-between items-center bg-[#faf9ff] rounded-xl px-4 py-3 border border-[#f0edf8]">
                 <span className="text-slate-500 text-[13px] font-semibold">{label}</span>
@@ -186,7 +207,7 @@ export function NewSchoolClient() {
 
         <div className="flex gap-3">
           <button
-            onClick={() => { setCredentials(null); setStep(0); setForm(f => ({ ...f, name: "", code: "", email: "" })); }}
+            onClick={() => { setCredentials(null); setStep(0); setForm(f => ({ ...f, name: "", code: "", email: "", ownerUsername: "", ownerPassword: "", ownerRole: "school_admin" })); }}
             className="flex-1 py-3 rounded-xl border border-[#e0daf0] text-[13px] font-bold text-slate-600 hover:bg-slate-50 transition-all"
           >
             Create Another
@@ -314,6 +335,49 @@ export function NewSchoolClient() {
               <div>
                 <label className={labelClass}>Website</label>
                 <input type="url" value={form.website} onChange={e => set("website", e.target.value)} placeholder="https://sunshineschool.edu.gh" className={inputClass} />
+              </div>
+            </div>
+
+            {/* Custom School Owner / Admin Account Credentials */}
+            <div className="border-t border-[#f0edf8] pt-6 mt-6 space-y-4">
+              <div>
+                <h3 className="text-[14px] font-extrabold text-slate-900">Owner / Admin Account Setup</h3>
+                <p className="text-slate-400 text-[11px] font-semibold">Define custom login credentials for the school owner/admin (optional)</p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className={labelClass}>Username (Optional)</label>
+                  <input
+                    type="text"
+                    value={form.ownerUsername || ""}
+                    onChange={e => set("ownerUsername", e.target.value)}
+                    placeholder="e.g. sunshine_admin"
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Password (Optional)</label>
+                  <input
+                    type="password"
+                    value={form.ownerPassword || ""}
+                    onChange={e => set("ownerPassword", e.target.value)}
+                    placeholder="Leave blank for random"
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>System Role</label>
+                  <select
+                    value={form.ownerRole || "school_admin"}
+                    onChange={e => set("ownerRole", e.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="school_admin">School Admin</option>
+                    <option value="headmaster">Headmaster</option>
+                    <option value="accountant">Accountant</option>
+                    <option value="teacher">Teacher</option>
+                  </select>
+                </div>
               </div>
             </div>
           </div>
@@ -466,6 +530,9 @@ export function NewSchoolClient() {
                 { label: "Billing", value: form.billingCycle },
                 { label: "Start Date", value: form.startDate },
                 { label: "Trial", value: form.trialEnabled ? "30-day trial enabled" : "No trial" },
+                { label: "Owner Username", value: form.ownerUsername || "(Auto-generated)" },
+                { label: "Owner Password", value: form.ownerPassword ? "••••••••" : "(Auto-generated)" },
+                { label: "System Role", value: form.ownerRole || "school_admin" },
               ].map(({ label, value }) => (
                 <div key={label} className="flex items-start gap-4 py-3">
                   <span className="text-[13px] font-bold text-slate-400 w-32 shrink-0">{label}</span>

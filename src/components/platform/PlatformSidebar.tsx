@@ -222,7 +222,7 @@ export function PlatformSidebar({ userName, userRole, onLogout }: PlatformSideba
     <div
       className="h-full flex flex-col overflow-hidden"
       style={{
-        background: "linear-gradient(180deg, #1a0d35 0%, #0f0a1e 100%)",
+        background: "linear-gradient(180deg, #1a1854 0%, #2e1a6b 40%, #6b1f8a 80%, #92278F 100%)",
         borderRight: "1px solid rgba(255,255,255,0.06)",
       }}
     >

@@ -26,7 +26,7 @@ export default async function SchoolsOverviewPage() {
     admin.from("schools").select("id", { count: "exact", head: true }).eq("status", "suspended"),
     admin.from("schools").select("id", { count: "exact", head: true }).eq("status", "archived"),
     admin.from("students").select("id", { count: "exact", head: true }),
-    admin.from("staff").select("id", { count: "exact", head: true }),
+    admin.from("profiles").select("id", { count: "exact", head: true }).not("role", "in", '("student","parent","super_admin")'),
     admin.from("school_subscriptions").select("amount, expires_at, status").eq("status", "active"),
   ]);
 

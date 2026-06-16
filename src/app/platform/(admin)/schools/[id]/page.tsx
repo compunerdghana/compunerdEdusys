@@ -23,7 +23,7 @@ export default async function SchoolProfilePage({ params }: { params: Promise<{ 
 
   const [{ count: studentCount }, { count: staffCount }] = await Promise.all([
     admin.from("students").select("id", { count: "exact", head: true }).eq("school_id", id),
-    admin.from("staff").select("id", { count: "exact", head: true }).eq("school_id", id),
+    admin.from("profiles").select("id", { count: "exact", head: true }).eq("school_id", id).not("role", "in", '("student","parent","super_admin")'),
   ]);
 
   return (

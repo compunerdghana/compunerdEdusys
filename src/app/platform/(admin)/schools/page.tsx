@@ -17,10 +17,10 @@ export default async function PlatformSchoolsPage({
   let query = admin
     .from("schools")
     .select(`
-      id, name, code, type, region, status, created_at,
-      school_subscriptions ( plan_name, expires_at, status ),
+      id, name, code, type:school_type, region, status, created_at,
+      school_subscriptions ( expires_at, status, plan:subscription_plans ( name ) ),
       students ( count ),
-      staff ( count )
+      staff:profiles ( count )
     `)
     .order("created_at", { ascending: false });
 
@@ -30,5 +30,18 @@ export default async function PlatformSchoolsPage({
 
   const { data: schools } = await query;
 
-  return <SchoolsClient schools={schools ?? []} activeFilter={status ?? "all"} />;
+  // Map nested subscription plan name to plan_name for client-side component compatibility
+  const transformedSchools = (schools ?? []).map((s: any) => {
+    const subs = s.school_subscriptions?.map((sub: any) => ({
+      expires_at: sub.expires_at,
+      status: sub.status,
+      plan_name: sub.plan?.name ?? null,
+    }));
+    return {
+      ...s,
+      school_subscriptions: subs ?? [],
+    };
+  });
+
+  return <SchoolsClient schools={transformedSchools as any} activeFilter={status ?? "all"} />;
 }

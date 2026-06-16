@@ -76,6 +76,8 @@ export async function POST(request: NextRequest) {
       owner_name,
       owner_phone,
       owner_password,
+      owner_username,
+      owner_role = "owner",
       // subscription
       plan_id,
       plan_name,
@@ -151,7 +153,7 @@ export async function POST(request: NextRequest) {
       email: owner_email,
       password,
       email_confirm: true,
-      user_metadata: { full_name: owner_name, role: "owner", school_id: school.id },
+      user_metadata: { full_name: owner_name, role: owner_role, school_id: school.id },
     });
 
     if (authErr) {
@@ -164,9 +166,10 @@ export async function POST(request: NextRequest) {
     await admin.from("profiles").upsert({
       id: authUser.user.id,
       full_name: owner_name,
-      role: "owner",
+      role: owner_role,
       school_id: school.id,
       phone: owner_phone ?? null,
+      username: owner_username || owner_email.split("@")[0],
       is_active: true,
     });
 
@@ -209,7 +212,9 @@ export async function POST(request: NextRequest) {
       school,
       credentials: {
         email: owner_email,
+        username: owner_username || owner_email.split("@")[0],
         password,
+        role: owner_role,
         note: "Share these credentials securely with the school admin.",
       },
     });
