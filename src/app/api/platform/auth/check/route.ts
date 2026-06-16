@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { createClient as createServerClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
 function getAdmin() {
@@ -17,24 +18,21 @@ export async function GET(request: NextRequest) {
   try {
     const admin = getAdmin();
 
-    // Extract Bearer token from Authorization header
+    // Try Bearer token first, fall back to session cookie
     const authHeader = request.headers.get("authorization");
-    const token = authHeader?.startsWith("Bearer ")
-      ? authHeader.slice(7)
-      : null;
+    const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
 
-    if (!token) {
-      return NextResponse.json({ is_platform_user: false, user: null }, { status: 401 });
-    }
-
-    // Verify the JWT and get the user
-    const {
-      data: { user },
-      error: userErr,
-    } = await admin.auth.getUser(token);
-
-    if (userErr || !user) {
-      return NextResponse.json({ is_platform_user: false, user: null }, { status: 401 });
+    let user;
+    if (token) {
+      const { data, error } = await admin.auth.getUser(token);
+      if (error || !data.user) return NextResponse.json({ isPlatformUser: false }, { status: 401 });
+      user = data.user;
+    } else {
+      // Use session cookie (works for client-side fetch without auth header)
+      const supabase = await createServerClient();
+      const { data, error } = await supabase.auth.getUser();
+      if (error || !data.user) return NextResponse.json({ isPlatformUser: false }, { status: 401 });
+      user = data.user;
     }
 
     // Check if user is in platform_users
@@ -45,21 +43,14 @@ export async function GET(request: NextRequest) {
       .eq("is_active", true)
       .single();
 
-    if (isMissing(puErr)) {
-      return NextResponse.json({ is_platform_user: false, user: null });
-    }
-
-    if (puErr || !platformUser) {
-      return NextResponse.json({ is_platform_user: false, user: null });
+    if (isMissing(puErr) || puErr || !platformUser) {
+      return NextResponse.json({ isPlatformUser: false });
     }
 
     // Update last_login
-    await admin
-      .from("platform_users")
-      .update({ last_login: new Date().toISOString() })
-      .eq("id", user.id);
+    await admin.from("platform_users").update({ last_login: new Date().toISOString() }).eq("id", user.id);
 
-    return NextResponse.json({ is_platform_user: true, user: platformUser });
+    return NextResponse.json({ isPlatformUser: true, user: platformUser });
   } catch (err) {
     console.error("GET platform/auth/check error", err);
     return NextResponse.json(
