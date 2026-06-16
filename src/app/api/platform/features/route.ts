@@ -13,63 +13,39 @@ const isMissing = (e: unknown) =>
   (e as { code?: string; message?: string })?.code === "42P01" ||
   (e as { message?: string })?.message?.includes("does not exist");
 
-const DEFAULT_FEATURES = [
-  "students",
-  "admissions",
-  "finance",
-  "attendance",
-  "academics",
-  "exams",
-  "reports",
-  "communications",
-  "payroll",
-  "inventory",
-  "transport",
-  "hostel",
-];
-
 export async function GET(request: NextRequest) {
   try {
     const admin = getAdmin();
     const { searchParams } = new URL(request.url);
-    const schoolId = searchParams.get("schoolId");
+    const status = searchParams.get("status");
+    const category = searchParams.get("category");
+    const q = searchParams.get("q");
+    const accessLevel = searchParams.get("access_level");
 
-    if (!schoolId) {
-      return NextResponse.json({ error: "schoolId is required" }, { status: 400 });
-    }
+    let query = admin
+      .from("platform_features")
+      .select(`
+        *,
+        category:feature_categories(id, name, icon, color)
+      `)
+      .order("display_order", { ascending: true })
+      .order("name", { ascending: true });
 
-    const { data, error } = await admin
-      .from("feature_toggles")
-      .select("feature, is_enabled, updated_at")
-      .eq("school_id", schoolId);
+    if (status) query = query.eq("status", status);
+    if (category) query = query.eq("category_id", category);
+    if (accessLevel) query = query.eq("access_level", accessLevel);
+    if (q) query = query.or(`name.ilike.%${q}%,code.ilike.%${q}%,description.ilike.%${q}%`);
+
+    const { data, error } = await query;
 
     if (isMissing(error)) {
-      // Return defaults
-      return NextResponse.json({
-        features: DEFAULT_FEATURES.map((f) => ({ feature: f, is_enabled: true })),
-      });
+      return NextResponse.json({ features: [] });
     }
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const stored = data ?? [];
-    const storedMap = Object.fromEntries(stored.map((r) => [r.feature, r.is_enabled]));
-
-    // Merge with defaults
-    const features = DEFAULT_FEATURES.map((f) => ({
-      feature: f,
-      is_enabled: storedMap[f] !== undefined ? storedMap[f] : true,
-    }));
-
-    // Include any extra features stored beyond the default list
-    for (const row of stored) {
-      if (!DEFAULT_FEATURES.includes(row.feature)) {
-        features.push({ feature: row.feature, is_enabled: row.is_enabled });
-      }
-    }
-
-    return NextResponse.json({ features });
+    return NextResponse.json({ features: data ?? [] });
   } catch (err) {
     console.error("GET platform/features error", err);
     return NextResponse.json({ error: "Failed to load features" }, { status: 500 });
@@ -80,40 +56,133 @@ export async function POST(request: NextRequest) {
   try {
     const admin = getAdmin();
     const body = await request.json();
-    const { school_id, feature, is_enabled, updated_by } = body;
+    const {
+      name,
+      code,
+      description,
+      category_id,
+      group_id,
+      route_path,
+      icon,
+      version,
+      access_level,
+      status,
+      display_order,
+      is_core,
+    } = body;
 
-    if (!school_id || !feature) {
-      return NextResponse.json(
-        { error: "school_id and feature are required" },
-        { status: 400 },
-      );
+    if (!name || !code) {
+      return NextResponse.json({ error: "name and code are required" }, { status: 400 });
     }
 
     const { data, error } = await admin
-      .from("feature_toggles")
-      .upsert(
-        {
-          school_id,
-          feature,
-          is_enabled: is_enabled !== undefined ? is_enabled : true,
-          updated_by: updated_by ?? null,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "school_id,feature" },
-      )
-      .select()
+      .from("platform_features")
+      .insert({
+        name,
+        code,
+        description: description ?? null,
+        category_id: category_id ?? null,
+        group_id: group_id ?? null,
+        route_path: route_path ?? null,
+        icon: icon ?? "Star",
+        version: version ?? "1.0.0",
+        access_level: access_level ?? "subscription",
+        status: status ?? "active",
+        display_order: display_order ?? 0,
+        is_core: is_core ?? false,
+        updated_at: new Date().toISOString(),
+      })
+      .select(`*, category:feature_categories(id, name, icon, color)`)
       .single();
 
     if (isMissing(error)) {
-      return NextResponse.json({ error: "feature_toggles table not found" }, { status: 500 });
+      return NextResponse.json({ error: "platform_features table not found" }, { status: 500 });
     }
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ toggle: data });
+    return NextResponse.json({ feature: data }, { status: 201 });
   } catch (err) {
     console.error("POST platform/features error", err);
-    return NextResponse.json({ error: "Failed to set feature toggle" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to create feature" }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const admin = getAdmin();
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json({ error: "id is required" }, { status: 400 });
+    }
+
+    const body = await request.json();
+    const updates: Record<string, unknown> = { ...body, updated_at: new Date().toISOString() };
+    delete updates.id;
+
+    const { data, error } = await admin
+      .from("platform_features")
+      .update(updates)
+      .eq("id", id)
+      .select(`*, category:feature_categories(id, name, icon, color)`)
+      .single();
+
+    if (isMissing(error)) {
+      return NextResponse.json({ error: "platform_features table not found" }, { status: 500 });
+    }
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ feature: data });
+  } catch (err) {
+    console.error("PATCH platform/features error", err);
+    return NextResponse.json({ error: "Failed to update feature" }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const admin = getAdmin();
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json({ error: "id is required" }, { status: 400 });
+    }
+
+    // Check for dependencies before deletion
+    const { data: deps, error: depsError } = await admin
+      .from("feature_dependencies")
+      .select("id")
+      .or(`feature_id.eq.${id},requires_feature_id.eq.${id}`)
+      .limit(1);
+
+    if (!isMissing(depsError) && depsError) {
+      return NextResponse.json({ error: depsError.message }, { status: 500 });
+    }
+    if (deps && deps.length > 0) {
+      return NextResponse.json(
+        { error: "Cannot delete feature with existing dependencies" },
+        { status: 409 },
+      );
+    }
+
+    const { error } = await admin.from("platform_features").delete().eq("id", id);
+
+    if (isMissing(error)) {
+      return NextResponse.json({ error: "platform_features table not found" }, { status: 500 });
+    }
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error("DELETE platform/features error", err);
+    return NextResponse.json({ error: "Failed to delete feature" }, { status: 500 });
   }
 }

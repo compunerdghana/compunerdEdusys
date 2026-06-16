@@ -39,6 +39,16 @@ import {
   Rocket,
   BarChart3,
   ScrollText,
+  Layers,
+  Tag,
+  Map,
+  School,
+  GitBranch,
+  FlaskConical,
+  PackageOpen,
+  MessageSquarePlus,
+  Activity,
+  CreditCard as SubscriptionIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -64,6 +74,20 @@ const usersSubItems = [
   { label: "Login History", href: "/platform/users/login-history", icon: History },
   { label: "Active Sessions", href: "/platform/users/sessions", icon: MonitorSmartphone },
   { label: "Security Center", href: "/platform/users/security", icon: ShieldAlert },
+];
+
+const featuresSubItems = [
+  { label: "Dashboard", href: "/platform/features", icon: BarChart2 },
+  { label: "All Features", href: "/platform/features/list", icon: Layers },
+  { label: "Categories", href: "/platform/features/categories", icon: Tag },
+  { label: "Feature Groups", href: "/platform/features/groups", icon: GitBranch },
+  { label: "Subscription Mapping", href: "/platform/features/subscription-mapping", icon: SubscriptionIcon },
+  { label: "School Access", href: "/platform/features/school-access", icon: School },
+  { label: "Rollouts", href: "/platform/features/rollouts", icon: Map },
+  { label: "Beta Features", href: "/platform/features/beta", icon: FlaskConical },
+  { label: "Releases", href: "/platform/features/releases", icon: PackageOpen },
+  { label: "Feature Requests", href: "/platform/features/requests", icon: MessageSquarePlus },
+  { label: "Activity Logs", href: "/platform/features/activity", icon: Activity },
 ];
 
 const onboardingSubItems = [
@@ -143,6 +167,7 @@ export function PlatformSidebar({ userName, userRole, onLogout }: PlatformSideba
   const isSchoolsActive = pathname.startsWith("/platform/schools");
   const isUsersActive = pathname.startsWith("/platform/users");
   const isOnboardingActive = pathname.startsWith("/platform/onboarding");
+  const isFeaturesActive = pathname.startsWith("/platform/features");
 
   function isSubItemActive(href: string) {
     if (href.includes("?")) {
@@ -156,6 +181,9 @@ export function PlatformSidebar({ userName, userRole, onLogout }: PlatformSideba
     }
     if (href === "/platform/users") {
       return pathname === "/platform/users";
+    }
+    if (href === "/platform/features") {
+      return pathname === "/platform/features";
     }
     return pathname === href || pathname.startsWith(href + "/");
   }
@@ -399,29 +427,77 @@ export function PlatformSidebar({ userName, userRole, onLogout }: PlatformSideba
               </Link>
             )}
 
-            {/* Features */}
-            {[
-              { label: "Features", href: "/platform/features", icon: Zap },
-              { label: "Announcements", href: "/platform/announcements", icon: Megaphone },
-            ].map(({ label, href, icon: Icon }) => {
-              const active = isNavActive(href);
+            {/* Features expandable */}
+            <div
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold",
+                isFeaturesActive ? "bg-white/10 text-white" : "text-white/50",
+              )}
+            >
+              <Zap size={15} className={cn("shrink-0", isFeaturesActive ? "text-white" : "text-white/40")} />
+              <span className="flex-1">Features</span>
+              <ChevronDown
+                size={13}
+                className={cn(
+                  "shrink-0 transition-transform duration-200",
+                  isFeaturesActive ? "text-white" : "text-white/30 -rotate-90",
+                )}
+              />
+            </div>
+
+            {isFeaturesActive && (
+              <div className="ml-3 pl-3 border-l border-white/10 space-y-0.5 mt-0.5">
+                {featuresSubItems.map(({ label, href, icon: Icon }) => {
+                  const active = isSubItemActive(href);
+                  return (
+                    <Link
+                      key={href}
+                      href={href}
+                      className={cn(
+                        "flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-semibold transition-all duration-150",
+                        active ? "bg-white/10 text-white" : "text-white/40 hover:text-white/80 hover:bg-white/5",
+                      )}
+                    >
+                      <Icon size={12} className={cn("shrink-0", active ? "text-violet-400" : "text-white/30")} />
+                      {label}
+                      {active && (
+                        <div className="ml-auto w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)" }} />
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+
+            {!isFeaturesActive && (
+              <Link
+                href="/platform/features"
+                className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-semibold text-white/30 hover:text-white/60 hover:bg-white/5 transition-all ml-3 pl-3 border-l border-white/10"
+              >
+                <Zap size={12} className="text-white/20 shrink-0" />
+                Features Dashboard
+              </Link>
+            )}
+
+            {/* Announcements */}
+            {(() => {
+              const active = isNavActive("/platform/announcements");
               return (
                 <Link
-                  key={href}
-                  href={href}
+                  href="/platform/announcements"
                   className={cn(
                     "flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-150",
                     active ? "bg-white/10 text-white" : "text-white/50 hover:text-white hover:bg-white/5",
                   )}
                 >
-                  <Icon size={15} className={cn("shrink-0 transition-colors", active ? "text-white" : "text-white/40")} />
-                  {label}
+                  <Megaphone size={15} className={cn("shrink-0 transition-colors", active ? "text-white" : "text-white/40")} />
+                  Announcements
                   {active && (
                     <div className="ml-auto w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)" }} />
                   )}
                 </Link>
               );
-            })}
+            })()}
           </div>
         </div>
 
