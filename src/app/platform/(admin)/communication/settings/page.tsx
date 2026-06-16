@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Settings, Save, Loader2, Eye, EyeOff, RefreshCw, Zap, Plus, Trash2, Toggle } from "lucide-react";
+import { Settings, Save, Loader2, Eye, EyeOff, RefreshCw, Zap, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 
 interface ChannelSetting {
