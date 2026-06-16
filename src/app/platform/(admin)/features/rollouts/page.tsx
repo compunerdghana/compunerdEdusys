@@ -113,7 +113,7 @@ export default function RolloutsPage() {
     } catch {
       const feat = MOCK_FEATURES.find(f => f.id === form.feature_id);
       setRollouts(prev => [...prev, {
-        id: String(Date.now()), ...form, feature_name: feat?.name ?? "", adoption_rate: 0,
+        id: String(Date.now()), ...form, feature_name: feat?.name ?? "", adoption_rate: 0, status: "planned",
       }]);
       success("Rollout created (demo)");
       setPanelOpen(false);

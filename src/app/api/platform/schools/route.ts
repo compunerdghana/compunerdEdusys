@@ -78,6 +78,7 @@ export async function POST(request: NextRequest) {
       owner_password,
       // subscription
       plan_id,
+      plan_name,
       billing_cycle = "annual",
       trial_days = 30,
     } = body;
@@ -87,6 +88,32 @@ export async function POST(request: NextRequest) {
         { error: "name, owner_email and owner_name are required" },
         { status: 400 },
       );
+    }
+
+    // Resolve plan_id if not explicitly provided
+    let resolvedPlanId = plan_id;
+    if (!resolvedPlanId) {
+      const pName = plan_name || body.plan || "starter";
+      const { data: planData } = await admin
+        .from("subscription_plans")
+        .select("id")
+        .eq("name", pName)
+        .single();
+      
+      if (planData) {
+        resolvedPlanId = planData.id;
+      } else {
+        // Fallback: get first plan
+        const { data: firstPlan } = await admin
+          .from("subscription_plans")
+          .select("id")
+          .order("sort_order", { ascending: true })
+          .limit(1)
+          .single();
+        if (firstPlan) {
+          resolvedPlanId = firstPlan.id;
+        }
+      }
     }
 
     // 1. Insert school
@@ -103,7 +130,7 @@ export async function POST(request: NextRequest) {
         website,
         motto,
         proprietor_name,
-        status: plan_id ? "active" : "trial",
+        status: plan_id || plan_name ? "active" : "trial",
       })
       .select()
       .single();
@@ -121,7 +148,7 @@ export async function POST(request: NextRequest) {
       email: owner_email,
       password,
       email_confirm: true,
-      user_metadata: { full_name: owner_name, role: "admin", school_id: school.id },
+      user_metadata: { full_name: owner_name, role: "owner", school_id: school.id },
     });
 
     if (authErr) {
@@ -134,7 +161,7 @@ export async function POST(request: NextRequest) {
     await admin.from("profiles").upsert({
       id: authUser.user.id,
       full_name: owner_name,
-      role: "admin",
+      role: "owner",
       school_id: school.id,
       phone: owner_phone ?? null,
       is_active: true,
@@ -144,32 +171,24 @@ export async function POST(request: NextRequest) {
     const trialEndsAt = new Date();
     trialEndsAt.setDate(trialEndsAt.getDate() + trial_days);
 
-    if (plan_id) {
-      const expiresAt = new Date();
-      if (billing_cycle === "annual") {
-        expiresAt.setFullYear(expiresAt.getFullYear() + 1);
-      } else {
-        expiresAt.setMonth(expiresAt.getMonth() + 1);
-      }
-
-      await admin.from("school_subscriptions").insert({
-        school_id: school.id,
-        plan_id,
-        status: "active",
-        started_at: new Date().toISOString(),
-        expires_at: expiresAt.toISOString(),
-        trial_ends_at: trialEndsAt.toISOString(),
-        billing_cycle,
-      });
+    const expiresAt = new Date();
+    if (billing_cycle === "annual") {
+      expiresAt.setFullYear(expiresAt.getFullYear() + 1);
     } else {
-      await admin.from("school_subscriptions").insert({
-        school_id: school.id,
-        plan_id: null,
-        status: "trial",
-        trial_ends_at: trialEndsAt.toISOString(),
-        billing_cycle: "annual",
-      });
+      expiresAt.setMonth(expiresAt.getMonth() + 1);
     }
+
+    const isTrial = !(plan_id || plan_name) && trial_days > 0;
+
+    await admin.from("school_subscriptions").insert({
+      school_id: school.id,
+      plan_id: resolvedPlanId,
+      status: isTrial ? "trial" : "active",
+      started_at: new Date().toISOString(),
+      expires_at: expiresAt.toISOString(),
+      trial_ends_at: trialEndsAt.toISOString(),
+      billing_cycle,
+    });
 
     // 5. Insert onboarding
     await admin.from("school_onboarding").insert({ school_id: school.id });
@@ -180,7 +199,7 @@ export async function POST(request: NextRequest) {
       target_type: "school",
       target_id: school.id,
       target_name: name,
-      details: { owner_email, plan_id, billing_cycle },
+      details: { owner_email, plan_id: resolvedPlanId, billing_cycle },
     });
 
     return NextResponse.json({

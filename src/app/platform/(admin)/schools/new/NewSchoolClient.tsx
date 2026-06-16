@@ -124,6 +124,7 @@ export function NewSchoolClient() {
           district: form.district,
           address: form.address,
           gps_address: form.gpsAddress,
+          plan_name: form.plan,
           billing_cycle: form.billingCycle,
           trial_days: form.trialEnabled ? 30 : 0,
         }),

@@ -36,7 +36,7 @@ create table if not exists schools (
 create table if not exists profiles (
   id uuid primary key references auth.users on delete cascade,
   school_id uuid references schools(id) on delete set null,
-  role text not null default 'teacher' check (role in ('super_admin','school_owner','headmaster','accountant','teacher','parent')),
+  role text not null default 'teacher' check (role in ('super_admin','school_owner','owner','headmaster','accountant','teacher','parent','secretary','librarian','counselor','nurse','janitor','security','driver','cook','admin')),
   full_name text not null,
   username text unique,          -- used for login; set by admin
   email text,                    -- internal email used by Supabase Auth (not shown to user)
