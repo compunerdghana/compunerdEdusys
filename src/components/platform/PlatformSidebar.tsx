@@ -49,6 +49,15 @@ import {
   MessageSquarePlus,
   Activity,
   CreditCard as SubscriptionIcon,
+  // Communication Center icons
+  MessageSquare,
+  Phone,
+  Mail,
+  Bell,
+  Target,
+  FileText,
+  Settings,
+  BarChart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -102,6 +111,20 @@ const onboardingSubItems = [
   { label: "Tasks", href: "/platform/onboarding/tasks", icon: ListTodo },
   { label: "Reports", href: "/platform/onboarding/reports", icon: BarChart3 },
   { label: "Activity Logs", href: "/platform/onboarding/activity", icon: ScrollText },
+];
+
+const communicationSubItems = [
+  { label: "Dashboard", href: "/platform/communication/dashboard", icon: LayoutDashboard },
+  { label: "Announcements", href: "/platform/announcements", icon: Megaphone },
+  { label: "WhatsApp Center", href: "/platform/communication/whatsapp", icon: Phone },
+  { label: "SMS Center", href: "/platform/communication/sms", icon: MessageSquare },
+  { label: "Email Center", href: "/platform/communication/email", icon: Mail },
+  { label: "Notifications", href: "/platform/communication/notifications", icon: Bell },
+  { label: "Campaigns", href: "/platform/communication/campaigns", icon: Target },
+  { label: "Templates", href: "/platform/communication/templates", icon: FileText },
+  { label: "Comm. Logs", href: "/platform/communication/logs", icon: ScrollText },
+  { label: "Delivery Reports", href: "/platform/communication/reports", icon: BarChart },
+  { label: "Settings", href: "/platform/communication/settings", icon: Settings },
 ];
 
 const schoolsSubItems = [
@@ -168,6 +191,7 @@ export function PlatformSidebar({ userName, userRole, onLogout }: PlatformSideba
   const isUsersActive = pathname.startsWith("/platform/users");
   const isOnboardingActive = pathname.startsWith("/platform/onboarding");
   const isFeaturesActive = pathname.startsWith("/platform/features");
+  const isCommunicationActive = pathname.startsWith("/platform/communication");
 
   function isSubItemActive(href: string) {
     if (href.includes("?")) {
@@ -498,6 +522,65 @@ export function PlatformSidebar({ userName, userRole, onLogout }: PlatformSideba
                 </Link>
               );
             })()}
+          </div>
+        </div>
+
+        {/* Communication expandable section */}
+        <div>
+          <p className="text-[10px] font-extrabold uppercase tracking-widest px-3 mb-2" style={{ color: "rgba(255,255,255,0.25)" }}>
+            Communication
+          </p>
+          <div className="space-y-0.5">
+            <div
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold",
+                isCommunicationActive ? "bg-white/10 text-white" : "text-white/50",
+              )}
+            >
+              <MessageSquare size={15} className={cn("shrink-0", isCommunicationActive ? "text-white" : "text-white/40")} />
+              <span className="flex-1">Communication</span>
+              <ChevronDown
+                size={13}
+                className={cn(
+                  "shrink-0 transition-transform duration-200",
+                  isCommunicationActive ? "text-white" : "text-white/30 -rotate-90",
+                )}
+              />
+            </div>
+
+            {isCommunicationActive && (
+              <div className="ml-3 pl-3 border-l border-white/10 space-y-0.5 mt-0.5">
+                {communicationSubItems.map(({ label, href, icon: Icon }) => {
+                  const active = isSubItemActive(href);
+                  return (
+                    <Link
+                      key={href}
+                      href={href}
+                      className={cn(
+                        "flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-semibold transition-all duration-150",
+                        active ? "bg-white/10 text-white" : "text-white/40 hover:text-white/80 hover:bg-white/5",
+                      )}
+                    >
+                      <Icon size={12} className={cn("shrink-0", active ? "text-violet-400" : "text-white/30")} />
+                      {label}
+                      {active && (
+                        <div className="ml-auto w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)" }} />
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+
+            {!isCommunicationActive && (
+              <Link
+                href="/platform/communication/dashboard"
+                className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-semibold text-white/30 hover:text-white/60 hover:bg-white/5 transition-all ml-3 pl-3 border-l border-white/10"
+              >
+                <MessageSquare size={12} className="text-white/20 shrink-0" />
+                Communication Hub
+              </Link>
+            )}
           </div>
         </div>
 
