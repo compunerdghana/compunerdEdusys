@@ -16,10 +16,17 @@ export async function POST(request: Request) {
     { auth: { autoRefreshToken: false, persistSession: false } },
   );
 
+  const trimmed = username.trim().toLowerCase();
+
+  // If input looks like an email, use it directly (platform admin login)
+  if (trimmed.includes("@")) {
+    return NextResponse.json({ email: trimmed });
+  }
+
   const { data: profile, error } = await adminClient
     .from("profiles")
     .select("email")
-    .eq("username", username.trim().toLowerCase())
+    .eq("username", trimmed)
     .eq("is_active", true)
     .single();
 

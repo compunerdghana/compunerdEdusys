@@ -48,6 +48,17 @@ export function LoginForm({ schoolName, schoolLogo }: Props) {
       return;
     }
 
+    // Check if this is a platform admin
+    const platformCheck = await fetch("/api/platform/auth/check");
+    if (platformCheck.ok) {
+      const platformData = await platformCheck.json();
+      if (platformData.isPlatformUser) {
+        router.push("/platform/dashboard");
+        router.refresh();
+        return;
+      }
+    }
+
     router.push("/dashboard");
     router.refresh();
   }
