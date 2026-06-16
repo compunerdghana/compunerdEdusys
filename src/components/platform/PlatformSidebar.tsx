@@ -31,6 +31,14 @@ import {
   History,
   MonitorSmartphone,
   ShieldAlert,
+  ClipboardList,
+  ListTodo,
+  KanbanSquare,
+  UserCheck,
+  GraduationCap,
+  Rocket,
+  BarChart3,
+  ScrollText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -56,6 +64,20 @@ const usersSubItems = [
   { label: "Login History", href: "/platform/users/login-history", icon: History },
   { label: "Active Sessions", href: "/platform/users/sessions", icon: MonitorSmartphone },
   { label: "Security Center", href: "/platform/users/security", icon: ShieldAlert },
+];
+
+const onboardingSubItems = [
+  { label: "Dashboard", href: "/platform/onboarding", icon: LayoutDashboard },
+  { label: "New Registration", href: "/platform/onboarding/new", icon: Plus },
+  { label: "Pipeline", href: "/platform/onboarding/pipeline", icon: KanbanSquare },
+  { label: "School Profiles", href: "/platform/onboarding/profiles", icon: Building2 },
+  { label: "Implementation", href: "/platform/onboarding/assignments", icon: UserCheck },
+  { label: "Training", href: "/platform/onboarding/training", icon: GraduationCap },
+  { label: "Verification", href: "/platform/onboarding/verification", icon: ShieldCheck },
+  { label: "Go-Live", href: "/platform/onboarding/golive", icon: Rocket },
+  { label: "Tasks", href: "/platform/onboarding/tasks", icon: ListTodo },
+  { label: "Reports", href: "/platform/onboarding/reports", icon: BarChart3 },
+  { label: "Activity Logs", href: "/platform/onboarding/activity", icon: ScrollText },
 ];
 
 const schoolsSubItems = [
@@ -120,6 +142,7 @@ export function PlatformSidebar({ userName, userRole, onLogout }: PlatformSideba
 
   const isSchoolsActive = pathname.startsWith("/platform/schools");
   const isUsersActive = pathname.startsWith("/platform/users");
+  const isOnboardingActive = pathname.startsWith("/platform/onboarding");
 
   function isSubItemActive(href: string) {
     if (href.includes("?")) {
@@ -254,6 +277,65 @@ export function PlatformSidebar({ userName, userRole, onLogout }: PlatformSideba
               >
                 <Building2 size={12} className="text-white/20 shrink-0" />
                 All Schools
+              </Link>
+            )}
+          </div>
+        </div>
+
+        {/* Onboarding expandable section */}
+        <div>
+          <p className="text-[10px] font-extrabold uppercase tracking-widest px-3 mb-2" style={{ color: "rgba(255,255,255,0.25)" }}>
+            Onboarding
+          </p>
+          <div className="space-y-0.5">
+            <div
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold",
+                isOnboardingActive ? "bg-white/10 text-white" : "text-white/50",
+              )}
+            >
+              <ClipboardList size={15} className={cn("shrink-0", isOnboardingActive ? "text-white" : "text-white/40")} />
+              <span className="flex-1">Onboarding</span>
+              <ChevronDown
+                size={13}
+                className={cn(
+                  "shrink-0 transition-transform duration-200",
+                  isOnboardingActive ? "text-white" : "text-white/30 -rotate-90",
+                )}
+              />
+            </div>
+
+            {isOnboardingActive && (
+              <div className="ml-3 pl-3 border-l border-white/10 space-y-0.5 mt-0.5">
+                {onboardingSubItems.map(({ label, href, icon: Icon }) => {
+                  const active = isSubItemActive(href);
+                  return (
+                    <Link
+                      key={href}
+                      href={href}
+                      className={cn(
+                        "flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-semibold transition-all duration-150",
+                        active ? "bg-white/10 text-white" : "text-white/40 hover:text-white/80 hover:bg-white/5",
+                      )}
+                    >
+                      <Icon size={12} className={cn("shrink-0", active ? "text-violet-400" : "text-white/30")} />
+                      {label}
+                      {active && (
+                        <div className="ml-auto w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)" }} />
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+
+            {!isOnboardingActive && (
+              <Link
+                href="/platform/onboarding"
+                className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-semibold text-white/30 hover:text-white/60 hover:bg-white/5 transition-all ml-3 pl-3 border-l border-white/10"
+              >
+                <ClipboardList size={12} className="text-white/20 shrink-0" />
+                Onboarding Dashboard
               </Link>
             )}
           </div>
