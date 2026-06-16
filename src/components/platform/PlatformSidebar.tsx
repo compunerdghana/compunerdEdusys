@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
   Building2,
@@ -16,6 +16,14 @@ import {
   Shield,
   LogOut,
   ShieldCheck,
+  ChevronDown,
+  BarChart2,
+  Heart,
+  CheckSquare,
+  CircleDot,
+  Clock,
+  AlertTriangle,
+  Archive,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -30,20 +38,19 @@ interface NavGroup {
   items: NavItem[];
 }
 
+const schoolsSubItems = [
+  { label: "Dashboard", href: "/platform/schools/overview", icon: BarChart2 },
+  { label: "All Schools", href: "/platform/schools", icon: Building2 },
+  { label: "Create School", href: "/platform/schools/new", icon: Plus },
+  { label: "School Onboarding", href: "/platform/schools/onboarding", icon: CheckSquare },
+  { label: "Active", href: "/platform/schools?status=active", icon: CircleDot },
+  { label: "Trial", href: "/platform/schools?status=trial", icon: Clock },
+  { label: "Expired", href: "/platform/schools?status=expired", icon: AlertTriangle },
+  { label: "Suspended", href: "/platform/schools?status=suspended", icon: Archive },
+  { label: "School Health", href: "/platform/schools/health", icon: Heart },
+];
+
 const navigation: NavGroup[] = [
-  {
-    group: "Overview",
-    items: [
-      { label: "Dashboard", href: "/platform/dashboard", icon: LayoutDashboard },
-    ],
-  },
-  {
-    group: "Schools",
-    items: [
-      { label: "All Schools", href: "/platform/schools", icon: Building2 },
-      { label: "Create School", href: "/platform/schools/new", icon: Plus },
-    ],
-  },
   {
     group: "Subscriptions",
     items: [
@@ -82,15 +89,31 @@ interface PlatformSidebarProps {
 
 export function PlatformSidebar({ userName, userRole, onLogout }: PlatformSidebarProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   const initials = userName
     .split(" ")
-    .map(n => n[0])
+    .map((n) => n[0])
     .join("")
     .toUpperCase()
     .slice(0, 2);
 
-  function isActive(href: string) {
+  const isSchoolsActive = pathname.startsWith("/platform/schools");
+
+  function isSubItemActive(href: string) {
+    if (href.includes("?")) {
+      const [base, qs] = href.split("?");
+      const param = new URLSearchParams(qs);
+      const statusVal = param.get("status");
+      return pathname === base && searchParams.get("status") === statusVal;
+    }
+    if (href === "/platform/schools") {
+      return pathname === "/platform/schools" && !searchParams.get("status");
+    }
+    return pathname === href || pathname.startsWith(href + "/");
+  }
+
+  function isNavActive(href: string) {
     if (href === "/platform/dashboard") return pathname === href;
     return pathname.startsWith(href);
   }
@@ -126,6 +149,93 @@ export function PlatformSidebar({ userName, userRole, onLogout }: PlatformSideba
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5">
+        {/* Overview */}
+        <div>
+          <p className="text-[10px] font-extrabold uppercase tracking-widest px-3 mb-2" style={{ color: "rgba(255,255,255,0.25)" }}>
+            Overview
+          </p>
+          <div className="space-y-0.5">
+            {(() => {
+              const active = pathname === "/platform/dashboard";
+              return (
+                <Link
+                  href="/platform/dashboard"
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-150",
+                    active ? "bg-white/10 text-white" : "text-white/50 hover:text-white hover:bg-white/5",
+                  )}
+                >
+                  <LayoutDashboard size={15} className={cn("shrink-0", active ? "text-white" : "text-white/40")} />
+                  Dashboard
+                  {active && (
+                    <div className="ml-auto w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)" }} />
+                  )}
+                </Link>
+              );
+            })()}
+          </div>
+        </div>
+
+        {/* Schools expandable section */}
+        <div>
+          <p className="text-[10px] font-extrabold uppercase tracking-widest px-3 mb-2" style={{ color: "rgba(255,255,255,0.25)" }}>
+            Schools
+          </p>
+          <div className="space-y-0.5">
+            <div
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold",
+                isSchoolsActive ? "bg-white/10 text-white" : "text-white/50",
+              )}
+            >
+              <Building2 size={15} className={cn("shrink-0", isSchoolsActive ? "text-white" : "text-white/40")} />
+              <span className="flex-1">Schools</span>
+              <ChevronDown
+                size={13}
+                className={cn(
+                  "shrink-0 transition-transform duration-200",
+                  isSchoolsActive ? "text-white" : "text-white/30 -rotate-90",
+                )}
+              />
+            </div>
+
+            {isSchoolsActive && (
+              <div className="ml-3 pl-3 border-l border-white/10 space-y-0.5 mt-0.5">
+                {schoolsSubItems.map(({ label, href, icon: Icon }) => {
+                  const active = isSubItemActive(href);
+                  return (
+                    <Link
+                      key={href}
+                      href={href}
+                      className={cn(
+                        "flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-semibold transition-all duration-150",
+                        active ? "bg-white/10 text-white" : "text-white/40 hover:text-white/80 hover:bg-white/5",
+                      )}
+                    >
+                      <Icon size={12} className={cn("shrink-0", active ? "text-violet-400" : "text-white/30")} />
+                      {label}
+                      {active && (
+                        <div className="ml-auto w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)" }} />
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+
+            {!isSchoolsActive && (
+              <Link
+                href="/platform/schools"
+                className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-semibold text-white/30 hover:text-white/60 hover:bg-white/5 transition-all ml-3 pl-3 border-l border-white/10"
+              >
+                <Building2 size={12} className="text-white/20 shrink-0" />
+                All Schools
+              </Link>
+            )}
+          </div>
+        </div>
+
+        {/* Remaining groups */}
         {navigation.map(({ group, items }) => (
           <div key={group}>
             <p className="text-[10px] font-extrabold uppercase tracking-widest px-3 mb-2" style={{ color: "rgba(255,255,255,0.25)" }}>
@@ -133,31 +243,20 @@ export function PlatformSidebar({ userName, userRole, onLogout }: PlatformSideba
             </p>
             <div className="space-y-0.5">
               {items.map(({ label, href, icon: Icon }) => {
-                const active = isActive(href);
+                const active = isNavActive(href);
                 return (
                   <Link
                     key={href}
                     href={href}
                     className={cn(
                       "flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-150",
-                      active
-                        ? "bg-white/10 text-white"
-                        : "text-white/50 hover:text-white hover:bg-white/5",
+                      active ? "bg-white/10 text-white" : "text-white/50 hover:text-white hover:bg-white/5",
                     )}
                   >
-                    <Icon
-                      size={15}
-                      className={cn(
-                        "shrink-0 transition-colors",
-                        active ? "text-white" : "text-white/40",
-                      )}
-                    />
+                    <Icon size={15} className={cn("shrink-0 transition-colors", active ? "text-white" : "text-white/40")} />
                     {label}
                     {active && (
-                      <div
-                        className="ml-auto w-1.5 h-1.5 rounded-full shrink-0"
-                        style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)" }}
-                      />
+                      <div className="ml-auto w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)" }} />
                     )}
                   </Link>
                 );
@@ -190,11 +289,11 @@ export function PlatformSidebar({ userName, userRole, onLogout }: PlatformSideba
           onClick={onLogout}
           className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-semibold transition-all duration-150"
           style={{ color: "rgba(255,255,255,0.4)" }}
-          onMouseEnter={e => {
+          onMouseEnter={(e) => {
             (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.8)";
             (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.06)";
           }}
-          onMouseLeave={e => {
+          onMouseLeave={(e) => {
             (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.4)";
             (e.currentTarget as HTMLButtonElement).style.background = "transparent";
           }}

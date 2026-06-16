@@ -215,7 +215,7 @@ function KpiCard({
         <Icon size={20} className={iconColor} />
       </div>
       <div className="min-w-0">
-        <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-wide leading-none">
+        <p className="text-[13px] font-semibold text-slate-400 uppercase tracking-wide leading-none">
           {label}
         </p>
         <p className="text-[28px] font-extrabold text-slate-900 leading-none mt-1">
@@ -343,7 +343,7 @@ export function DashboardClient({ stats }: { stats: DashboardStats }) {
       {/* ── Page Header ───────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-[22px] font-extrabold text-slate-900 leading-tight">
+          <h1 className="text-[26px] font-extrabold text-slate-900 leading-tight">
             Executive Command Center
           </h1>
           <p className="text-slate-500 text-[13px] font-semibold mt-1">{today}</p>

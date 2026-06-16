@@ -42,7 +42,7 @@ export function PlatformShell({ userName, userRole, children }: PlatformShellPro
   const breadcrumbs = getBreadcrumb(pathname);
 
   return (
-    <div className="min-h-screen flex" style={{ background: "#0f0a1e" }}>
+    <div className="min-h-screen flex" style={{ background: "#f8f7ff" }}>
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div
