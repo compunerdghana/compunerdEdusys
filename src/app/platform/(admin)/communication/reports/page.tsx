@@ -150,7 +150,7 @@ export default function DeliveryReportsPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0edf8" />
                 <XAxis dataKey="month" tick={{ fontSize: 10, fill: "#94a3b8" }} />
                 <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: "#94a3b8" }} unit="%" />
-                <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12 }} formatter={(v: number) => `${v}%`} />
+                <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12 }} formatter={(v) => [`${v}%`, "Delivery Rate"]} />
                 <Line type="monotone" dataKey="rate" stroke="#0d9488" strokeWidth={2.5} dot={{ r: 4 }} name="Delivery Rate" />
               </LineChart>
             </ResponsiveContainer>
