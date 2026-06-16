@@ -5,13 +5,10 @@ import { useRouter } from "next/navigation";
 import { Check, Copy, ArrowRight, ArrowLeft, RefreshCw, Loader2, School, Building2 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 
-const PLATFORM_GRADIENT = "linear-gradient(135deg, #1a0533, #2d1b69, #6b1f8a)";
-
 type Plan = "starter" | "standard" | "premium" | "enterprise";
 type BillingCycle = "monthly" | "annual";
 
 interface FormData {
-  // Step 1
   name: string;
   code: string;
   type: string;
@@ -19,12 +16,10 @@ interface FormData {
   email: string;
   phone: string;
   website: string;
-  // Step 2
   region: string;
   district: string;
   address: string;
   gpsAddress: string;
-  // Step 3
   plan: Plan;
   billingCycle: BillingCycle;
   startDate: string;
@@ -37,11 +32,11 @@ const REGIONS = [
   "Western North", "Ahafo", "Bono East", "North East", "Savannah", "Oti",
 ];
 
-const PLANS: { id: Plan; label: string; price: number; desc: string }[] = [
-  { id: "starter", label: "Starter", price: 299, desc: "Up to 200 students, basic features" },
-  { id: "standard", label: "Standard", price: 599, desc: "Up to 800 students, full features" },
-  { id: "premium", label: "Premium", price: 999, desc: "Up to 2000 students, priority support" },
-  { id: "enterprise", label: "Enterprise", price: 1999, desc: "Unlimited students, dedicated support" },
+const PLANS: { id: Plan; label: string; price: number; desc: string; color: string }[] = [
+  { id: "starter", label: "Starter", price: 299, desc: "Up to 200 students, basic features", color: "border-slate-300 bg-slate-50" },
+  { id: "standard", label: "Standard", price: 599, desc: "Up to 800 students, full features", color: "border-blue-300 bg-blue-50" },
+  { id: "premium", label: "Premium", price: 999, desc: "Up to 2000 students, priority support", color: "border-violet-300 bg-violet-50" },
+  { id: "enterprise", label: "Enterprise", price: 1999, desc: "Unlimited students, dedicated support", color: "border-indigo-300 bg-indigo-50" },
 ];
 
 function generateCode(name: string) {
@@ -52,6 +47,9 @@ function generateCode(name: string) {
 }
 
 const steps = ["School Info", "Location", "Subscription", "Review & Create"];
+
+const inputClass = "w-full px-4 h-10 rounded-xl border border-[#e0daf0] text-[13px] font-semibold text-slate-800 outline-none focus:border-[#7c3aed] focus:ring-2 focus:ring-[#7c3aed]/20 transition-all bg-white";
+const labelClass = "block text-[13px] font-bold text-slate-700 mb-1.5";
 
 export function NewSchoolClient() {
   const router = useRouter();
@@ -116,9 +114,11 @@ export function NewSchoolClient() {
 
   if (credentials) {
     return (
-      <div className="max-w-lg mx-auto">
-        <div className="rounded-2xl p-8 text-white text-center mb-6"
-          style={{ background: PLATFORM_GRADIENT }}>
+      <div className="max-w-lg mx-auto space-y-4">
+        <div
+          className="rounded-2xl p-8 text-white text-center"
+          style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)" }}
+        >
           <div className="w-16 h-16 rounded-2xl bg-white/15 flex items-center justify-center mx-auto mb-4">
             <Check size={28} className="text-white" />
           </div>
@@ -126,41 +126,39 @@ export function NewSchoolClient() {
           <p className="text-white/70 font-semibold mt-1">{credentials.schoolName} has been set up successfully.</p>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 mb-4">
-          <h3 className="font-extrabold text-slate-900 mb-4">Login Credentials</h3>
-          <div className="space-y-3 font-mono text-sm">
-            <div className="flex justify-between items-center bg-slate-50 rounded-xl px-4 py-3">
-              <span className="text-slate-500 font-sans font-semibold">School</span>
-              <span className="font-bold text-slate-900">{credentials.schoolName}</span>
-            </div>
-            <div className="flex justify-between items-center bg-slate-50 rounded-xl px-4 py-3">
-              <span className="text-slate-500 font-sans font-semibold">Email</span>
-              <span className="font-bold text-slate-900">{credentials.email}</span>
-            </div>
-            <div className="flex justify-between items-center bg-slate-50 rounded-xl px-4 py-3">
-              <span className="text-slate-500 font-sans font-semibold">Temp Password</span>
-              <span className="font-bold text-purple-700">{credentials.tempPassword}</span>
-            </div>
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#e8e4f3]">
+          <h3 className="font-extrabold text-slate-900 mb-4 text-[15px]">Login Credentials</h3>
+          <div className="space-y-2.5">
+            {[
+              { label: "School", value: credentials.schoolName },
+              { label: "Email", value: credentials.email },
+              { label: "Temp Password", value: credentials.tempPassword, mono: true, highlight: true },
+            ].map(({ label, value, mono, highlight }) => (
+              <div key={label} className="flex justify-between items-center bg-[#faf9ff] rounded-xl px-4 py-3 border border-[#f0edf8]">
+                <span className="text-slate-500 text-[13px] font-semibold">{label}</span>
+                <span className={`text-[13px] font-bold ${highlight ? "text-violet-700" : "text-slate-900"} ${mono ? "font-mono" : ""}`}>{value}</span>
+              </div>
+            ))}
           </div>
           <button
             onClick={copyCredentials}
-            className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all"
+            className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-[#e0daf0] text-[13px] font-bold text-slate-600 hover:bg-slate-50 transition-all"
           >
-            {copied ? <><Check size={14} className="text-emerald-600" /> Copied!</> : <><Copy size={14} /> Copy Credentials</>}
+            {copied ? <><Check size={13} className="text-emerald-600" /> Copied!</> : <><Copy size={13} /> Copy Credentials</>}
           </button>
         </div>
 
         <div className="flex gap-3">
           <button
             onClick={() => { setCredentials(null); setStep(0); setForm(f => ({ ...f, name: "", code: "", email: "" })); }}
-            className="flex-1 py-3 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all"
+            className="flex-1 py-3 rounded-xl border border-[#e0daf0] text-[13px] font-bold text-slate-600 hover:bg-slate-50 transition-all"
           >
             Create Another
           </button>
           <button
             onClick={() => router.push("/platform/schools")}
-            className="flex-1 py-3 rounded-xl text-white text-sm font-bold transition-all"
-            style={{ background: PLATFORM_GRADIENT }}
+            className="flex-1 py-3 rounded-xl text-white text-[13px] font-bold transition-all"
+            style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)" }}
           >
             Go to Schools
           </button>
@@ -172,29 +170,39 @@ export function NewSchoolClient() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Header */}
-      <div className="rounded-2xl px-8 py-6 text-white" style={{ background: PLATFORM_GRADIENT }}>
-        <h1 className="text-2xl font-extrabold">Create New School</h1>
-        <p className="text-white/60 font-semibold mt-1">Set up a new school on the platform in 4 steps.</p>
+      <div>
+        <h1 className="text-[22px] font-extrabold text-slate-900">Create New School</h1>
+        <p className="text-slate-500 text-[13px] font-semibold mt-1">Set up a new school on the platform in 4 steps.</p>
       </div>
 
       {/* Step indicator */}
-      <div className="flex items-center gap-0">
+      <div className="flex items-center">
         {steps.map((label, i) => (
           <div key={i} className="flex items-center flex-1">
-            <div className={`flex items-center gap-2 ${i <= step ? "opacity-100" : "opacity-40"}`}>
+            <div className="flex items-center gap-2">
               <div
-                className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm font-extrabold shrink-0 ${
-                  i < step ? "text-white" : i === step ? "text-white" : "bg-slate-200 text-slate-500"
+                className={`w-8 h-8 rounded-xl flex items-center justify-center text-[13px] font-extrabold shrink-0 transition-all ${
+                  i < step
+                    ? "text-white"
+                    : i === step
+                    ? "text-white shadow-md"
+                    : "bg-slate-100 text-slate-400"
                 }`}
-                style={i <= step ? { background: PLATFORM_GRADIENT } : {}}
+                style={i <= step ? { background: "linear-gradient(135deg, #4f46e5, #7c3aed)" } : {}}
               >
                 {i < step ? <Check size={14} /> : i + 1}
               </div>
-              <span className={`text-xs font-bold whitespace-nowrap hidden sm:block ${i === step ? "text-slate-900" : "text-slate-400"}`}>{label}</span>
+              <span className={`text-[11px] font-bold whitespace-nowrap hidden sm:block ${i === step ? "text-slate-900" : "text-slate-400"}`}>{label}</span>
             </div>
             {i < steps.length - 1 && (
-              <div className="flex-1 mx-2 h-0.5 bg-slate-200">
-                <div className="h-full transition-all" style={{ width: i < step ? "100%" : "0%", background: PLATFORM_GRADIENT }} />
+              <div className="flex-1 mx-3 h-0.5 bg-slate-100 rounded-full">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: i < step ? "100%" : "0%",
+                    background: "linear-gradient(90deg, #4f46e5, #7c3aed)",
+                  }}
+                />
               </div>
             )}
           </div>
@@ -202,49 +210,53 @@ export function NewSchoolClient() {
       </div>
 
       {/* Form card */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8">
+      <div className="bg-white rounded-2xl shadow-sm border border-[#e8e4f3] p-8">
         {/* Step 1: School Info */}
         {step === 0 && (
           <div className="space-y-5">
-            <h2 className="text-lg font-extrabold text-slate-900">School Information</h2>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)" }}>
+                <Building2 size={16} className="text-white" />
+              </div>
+              <div>
+                <h2 className="text-[16px] font-extrabold text-slate-900">School Information</h2>
+                <p className="text-slate-400 text-[11px] font-semibold">Basic details about the school</p>
+              </div>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">School Name <span className="text-red-500">*</span></label>
+                <label className={labelClass}>School Name <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   value={form.name}
                   onChange={e => { set("name", e.target.value); if (e.target.value) set("code", generateCode(e.target.value)); }}
                   placeholder="e.g. Sunshine International School"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 outline-none focus:border-purple-400 transition-colors"
+                  className={inputClass}
                 />
               </div>
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">School Code <span className="text-red-500">*</span></label>
+                <label className={labelClass}>School Code <span className="text-red-500">*</span></label>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     value={form.code}
                     onChange={e => set("code", e.target.value)}
                     placeholder="e.g. SIS-GH-2025"
-                    className="flex-1 px-4 py-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 outline-none focus:border-purple-400 transition-colors font-mono"
+                    className={`${inputClass} font-mono flex-1`}
                   />
                   <button
                     type="button"
                     onClick={() => set("code", generateCode(form.name || "SCH"))}
-                    className="px-3 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+                    className="px-3 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors shrink-0"
                     title="Auto-generate"
                   >
-                    <RefreshCw size={15} />
+                    <RefreshCw size={14} />
                   </button>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">School Type</label>
-                <select
-                  value={form.type}
-                  onChange={e => set("type", e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 outline-none focus:border-purple-400 transition-colors bg-white"
-                >
+                <label className={labelClass}>School Type</label>
+                <select value={form.type} onChange={e => set("type", e.target.value)} className={inputClass}>
                   <option value="private">Private</option>
                   <option value="public">Public</option>
                   <option value="international">International</option>
@@ -252,44 +264,20 @@ export function NewSchoolClient() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">Proprietor Name <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={form.proprietorName}
-                  onChange={e => set("proprietorName", e.target.value)}
-                  placeholder="e.g. Mr. Emmanuel Asante"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 outline-none focus:border-purple-400 transition-colors"
-                />
+                <label className={labelClass}>Proprietor Name <span className="text-red-500">*</span></label>
+                <input type="text" value={form.proprietorName} onChange={e => set("proprietorName", e.target.value)} placeholder="e.g. Mr. Emmanuel Asante" className={inputClass} />
               </div>
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">Email <span className="text-red-500">*</span></label>
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={e => set("email", e.target.value)}
-                  placeholder="admin@sunshineschool.edu.gh"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 outline-none focus:border-purple-400 transition-colors"
-                />
+                <label className={labelClass}>Email <span className="text-red-500">*</span></label>
+                <input type="email" value={form.email} onChange={e => set("email", e.target.value)} placeholder="admin@sunshineschool.edu.gh" className={inputClass} />
               </div>
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">Phone <span className="text-red-500">*</span></label>
-                <input
-                  type="tel"
-                  value={form.phone}
-                  onChange={e => set("phone", e.target.value)}
-                  placeholder="+233 24 xxx xxxx"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 outline-none focus:border-purple-400 transition-colors"
-                />
+                <label className={labelClass}>Phone <span className="text-red-500">*</span></label>
+                <input type="tel" value={form.phone} onChange={e => set("phone", e.target.value)} placeholder="+233 24 xxx xxxx" className={inputClass} />
               </div>
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">Website</label>
-                <input
-                  type="url"
-                  value={form.website}
-                  onChange={e => set("website", e.target.value)}
-                  placeholder="https://sunshineschool.edu.gh"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 outline-none focus:border-purple-400 transition-colors"
-                />
+                <label className={labelClass}>Website</label>
+                <input type="url" value={form.website} onChange={e => set("website", e.target.value)} placeholder="https://sunshineschool.edu.gh" className={inputClass} />
               </div>
             </div>
           </div>
@@ -298,48 +286,32 @@ export function NewSchoolClient() {
         {/* Step 2: Location */}
         {step === 1 && (
           <div className="space-y-5">
-            <h2 className="text-lg font-extrabold text-slate-900">Location Details</h2>
+            <h2 className="text-[16px] font-extrabold text-slate-900 mb-6">Location Details</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">Region <span className="text-red-500">*</span></label>
-                <select
-                  value={form.region}
-                  onChange={e => set("region", e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 outline-none focus:border-purple-400 transition-colors bg-white"
-                >
+                <label className={labelClass}>Region <span className="text-red-500">*</span></label>
+                <select value={form.region} onChange={e => set("region", e.target.value)} className={inputClass}>
                   <option value="">Select region…</option>
                   {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">District</label>
-                <input
-                  type="text"
-                  value={form.district}
-                  onChange={e => set("district", e.target.value)}
-                  placeholder="e.g. Accra Metropolitan"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 outline-none focus:border-purple-400 transition-colors"
-                />
+                <label className={labelClass}>District</label>
+                <input type="text" value={form.district} onChange={e => set("district", e.target.value)} placeholder="e.g. Accra Metropolitan" className={inputClass} />
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">Address <span className="text-red-500">*</span></label>
+                <label className={labelClass}>Address <span className="text-red-500">*</span></label>
                 <textarea
                   value={form.address}
                   onChange={e => set("address", e.target.value)}
                   placeholder="Full physical address of the school"
                   rows={3}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 outline-none focus:border-purple-400 transition-colors resize-none"
+                  className="w-full px-4 py-3 rounded-xl border border-[#e0daf0] text-[13px] font-semibold text-slate-800 outline-none focus:border-[#7c3aed] focus:ring-2 focus:ring-[#7c3aed]/20 transition-all bg-white resize-none"
                 />
               </div>
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">GPS / Digital Address</label>
-                <input
-                  type="text"
-                  value={form.gpsAddress}
-                  onChange={e => set("gpsAddress", e.target.value)}
-                  placeholder="e.g. GA-123-4567"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 outline-none focus:border-purple-400 transition-colors"
-                />
+                <label className={labelClass}>GPS / Digital Address</label>
+                <input type="text" value={form.gpsAddress} onChange={e => set("gpsAddress", e.target.value)} placeholder="e.g. GA-123-4567" className={inputClass} />
               </div>
             </div>
           </div>
@@ -348,10 +320,9 @@ export function NewSchoolClient() {
         {/* Step 3: Subscription */}
         {step === 2 && (
           <div className="space-y-5">
-            <h2 className="text-lg font-extrabold text-slate-900">Subscription Setup</h2>
-
+            <h2 className="text-[16px] font-extrabold text-slate-900 mb-6">Subscription Setup</h2>
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-3">Plan</label>
+              <label className={labelClass}>Select Plan</label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {PLANS.map(plan => (
                   <button
@@ -360,36 +331,46 @@ export function NewSchoolClient() {
                     onClick={() => set("plan", plan.id)}
                     className={`p-4 rounded-xl border-2 text-left transition-all ${
                       form.plan === plan.id
-                        ? "border-purple-500 bg-purple-50"
-                        : "border-slate-200 hover:border-slate-300"
+                        ? "border-violet-500 bg-violet-50"
+                        : "border-[#e8e4f3] hover:border-[#d0c9ef] bg-white"
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <span className="font-extrabold text-slate-900">{plan.label}</span>
-                      <span className="text-sm font-extrabold text-purple-700">GHS {plan.price}/mo</span>
+                      <span className="font-extrabold text-slate-900 text-[13px]">{plan.label}</span>
+                      <span className="text-[12px] font-extrabold text-violet-700">GHS {plan.price}/mo</span>
                     </div>
-                    <p className="text-xs font-semibold text-slate-500">{plan.desc}</p>
+                    <p className="text-[11px] font-semibold text-slate-500">{plan.desc}</p>
+                    {form.plan === plan.id && (
+                      <div className="mt-2 flex items-center gap-1">
+                        <div className="w-4 h-4 rounded-full flex items-center justify-center" style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)" }}>
+                          <Check size={10} className="text-white" />
+                        </div>
+                        <span className="text-[10px] font-extrabold text-violet-700">Selected</span>
+                      </div>
+                    )}
                   </button>
                 ))}
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-3">Billing Cycle</label>
+              <label className={labelClass}>Billing Cycle</label>
               <div className="flex gap-3">
                 {(["monthly", "annual"] as BillingCycle[]).map(cycle => (
                   <button
                     key={cycle}
                     type="button"
                     onClick={() => set("billingCycle", cycle)}
-                    className={`flex-1 py-3 rounded-xl border-2 font-bold capitalize text-sm transition-all ${
+                    className={`flex-1 py-2.5 rounded-xl border-2 font-bold capitalize text-[13px] transition-all ${
                       form.billingCycle === cycle
-                        ? "border-purple-500 bg-purple-50 text-purple-800"
-                        : "border-slate-200 text-slate-600 hover:border-slate-300"
+                        ? "border-violet-500 bg-violet-50 text-violet-800"
+                        : "border-[#e8e4f3] text-slate-600 hover:border-[#d0c9ef]"
                     }`}
                   >
                     {cycle}
-                    {cycle === "annual" && <span className="ml-1.5 text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-extrabold">Save 20%</span>}
+                    {cycle === "annual" && (
+                      <span className="ml-2 text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-extrabold">Save 20%</span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -397,27 +378,22 @@ export function NewSchoolClient() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">Start Date</label>
-                <input
-                  type="date"
-                  value={form.startDate}
-                  onChange={e => set("startDate", e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 outline-none focus:border-purple-400 transition-colors"
-                />
+                <label className={labelClass}>Start Date</label>
+                <input type="date" value={form.startDate} onChange={e => set("startDate", e.target.value)} className={inputClass} />
               </div>
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">Trial Period</label>
+                <label className={labelClass}>Trial Period</label>
                 <button
                   type="button"
                   onClick={() => set("trialEnabled", !form.trialEnabled)}
-                  className={`mt-1 flex items-center gap-3 px-4 py-3 rounded-xl border-2 font-bold text-sm transition-all ${
+                  className={`mt-0 h-10 flex items-center gap-3 px-4 w-full rounded-xl border-2 font-bold text-[13px] transition-all ${
                     form.trialEnabled
                       ? "border-blue-400 bg-blue-50 text-blue-800"
-                      : "border-slate-200 text-slate-500"
+                      : "border-[#e8e4f3] text-slate-500"
                   }`}
                 >
                   <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${form.trialEnabled ? "bg-blue-500 border-blue-500" : "border-slate-300"}`}>
-                    {form.trialEnabled && <Check size={12} className="text-white" />}
+                    {form.trialEnabled && <Check size={11} className="text-white" />}
                   </div>
                   30-day trial
                 </button>
@@ -429,9 +405,8 @@ export function NewSchoolClient() {
         {/* Step 4: Review */}
         {step === 3 && (
           <div className="space-y-5">
-            <h2 className="text-lg font-extrabold text-slate-900">Review & Create</h2>
-
-            <div className="space-y-3">
+            <h2 className="text-[16px] font-extrabold text-slate-900 mb-6">Review & Create</h2>
+            <div className="divide-y divide-[#f5f3fc]">
               {[
                 { label: "School Name", value: form.name },
                 { label: "Code", value: form.code },
@@ -448,9 +423,9 @@ export function NewSchoolClient() {
                 { label: "Start Date", value: form.startDate },
                 { label: "Trial", value: form.trialEnabled ? "30-day trial enabled" : "No trial" },
               ].map(({ label, value }) => (
-                <div key={label} className="flex items-start gap-4 py-2.5 border-b border-slate-100 last:border-0">
-                  <span className="text-sm font-bold text-slate-500 w-32 shrink-0">{label}</span>
-                  <span className="text-sm font-semibold text-slate-900 flex-1">{value}</span>
+                <div key={label} className="flex items-start gap-4 py-3">
+                  <span className="text-[13px] font-bold text-slate-400 w-32 shrink-0">{label}</span>
+                  <span className="text-[13px] font-semibold text-slate-900 flex-1">{value}</span>
                 </div>
               ))}
             </div>
@@ -458,14 +433,14 @@ export function NewSchoolClient() {
         )}
 
         {/* Navigation */}
-        <div className="flex items-center justify-between mt-8 pt-6 border-t border-slate-100">
+        <div className="flex items-center justify-between mt-8 pt-6 border-t border-[#f0edf8]">
           <button
             type="button"
             onClick={() => setStep(s => Math.max(0, s - 1))}
             disabled={step === 0}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-[#e0daf0] text-[13px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
           >
-            <ArrowLeft size={15} />
+            <ArrowLeft size={14} />
             Back
           </button>
 
@@ -473,21 +448,21 @@ export function NewSchoolClient() {
             <button
               type="button"
               onClick={() => { if (validateStep()) setStep(s => s + 1); }}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold transition-all"
-              style={{ background: PLATFORM_GRADIENT }}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-[13px] font-bold transition-all shadow-sm"
+              style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)" }}
             >
               Next
-              <ArrowRight size={15} />
+              <ArrowRight size={14} />
             </button>
           ) : (
             <button
               type="button"
               onClick={handleCreate}
               disabled={loading}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-white text-sm font-bold transition-all disabled:opacity-60"
-              style={{ background: PLATFORM_GRADIENT }}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-white text-[13px] font-bold transition-all shadow-sm disabled:opacity-60"
+              style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)" }}
             >
-              {loading ? <><Loader2 size={15} className="animate-spin" /> Creating…</> : <><School size={15} /> Create School</>}
+              {loading ? <><Loader2 size={14} className="animate-spin" /> Creating…</> : <><School size={14} /> Create School</>}
             </button>
           )}
         </div>

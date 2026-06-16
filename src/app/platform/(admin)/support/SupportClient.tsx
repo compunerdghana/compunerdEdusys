@@ -2,26 +2,25 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, LifeBuoy } from "lucide-react";
 import { SlidePanel } from "@/components/ui/SlidePanel";
 import { useToast } from "@/components/ui/Toast";
 
-const PLATFORM_GRADIENT = "linear-gradient(135deg, #1a0533, #2d1b69, #6b1f8a)";
 const STATUS_TABS = ["all", "open", "assigned", "in_progress", "resolved", "closed"];
 
 const priorityBadge: Record<string, string> = {
-  low: "bg-slate-100 text-slate-600",
-  normal: "bg-blue-100 text-blue-700",
-  high: "bg-orange-100 text-orange-700",
-  urgent: "bg-red-100 text-red-700",
+  low: "bg-slate-50 text-slate-600 border border-slate-100",
+  normal: "bg-blue-50 text-blue-700 border border-blue-100",
+  high: "bg-orange-50 text-orange-700 border border-orange-100",
+  urgent: "bg-red-50 text-red-700 border border-red-100",
 };
 
 const statusBadge: Record<string, string> = {
-  open: "bg-emerald-100 text-emerald-700",
-  assigned: "bg-purple-100 text-purple-700",
-  in_progress: "bg-blue-100 text-blue-700",
-  resolved: "bg-slate-100 text-slate-600",
-  closed: "bg-gray-100 text-gray-500",
+  open: "bg-emerald-50 text-emerald-700 border border-emerald-100",
+  assigned: "bg-violet-50 text-violet-700 border border-violet-100",
+  in_progress: "bg-blue-50 text-blue-700 border border-blue-100",
+  resolved: "bg-slate-50 text-slate-600 border border-slate-100",
+  closed: "bg-gray-50 text-gray-500 border border-gray-100",
 };
 
 interface Ticket {
@@ -107,80 +106,106 @@ export function SupportClient({ tickets, platformUsers }: { tickets: Ticket[]; p
     }
   }
 
+  const inputClass = "w-full px-4 h-10 rounded-xl border border-[#e0daf0] text-[13px] font-semibold text-slate-800 outline-none focus:border-[#7c3aed] focus:ring-2 focus:ring-[#7c3aed]/20 transition-all bg-white";
+
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl px-8 py-6 text-white flex items-center justify-between" style={{ background: PLATFORM_GRADIENT }}>
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold">Support Tickets</h1>
-          <p className="text-white/60 font-semibold mt-1">{tickets.length} total tickets</p>
+          <h1 className="text-[22px] font-extrabold text-slate-900 leading-tight">Support Tickets</h1>
+          <p className="text-slate-500 text-[13px] font-semibold mt-1">{tickets.length} total tickets</p>
         </div>
-        <button onClick={() => setCreateOpen(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white font-bold text-sm transition-all border border-white/20">
-          <Plus size={16} />
+        <button
+          onClick={() => setCreateOpen(true)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-[13px] font-bold transition-all shadow-sm"
+          style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)" }}
+        >
+          <Plus size={15} />
           Create Ticket
         </button>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-[#e8e4f3] overflow-hidden">
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 border-b border-slate-100">
-          <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1 overflow-x-auto flex-wrap">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-5 py-4 border-b border-[#f0edf8]">
+          <div className="flex items-center gap-1 bg-[#f5f3fc] rounded-xl p-1 flex-wrap">
             {STATUS_TABS.map(tab => (
-              <button key={tab} onClick={() => setActiveTab(tab)}
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
                 className={`px-3 py-1.5 rounded-lg text-[11px] font-bold capitalize whitespace-nowrap transition-all ${
                   activeTab === tab ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
-                }`}>
+                }`}
+              >
                 {tab.replace("_", " ")}
               </button>
             ))}
           </div>
-          <select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)}
-            className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 outline-none focus:border-purple-400 bg-white">
+          <select
+            value={priorityFilter}
+            onChange={e => setPriorityFilter(e.target.value)}
+            className="px-3 h-9 rounded-xl border border-[#e0daf0] text-[12px] font-bold text-slate-600 outline-none focus:border-[#7c3aed] bg-white"
+          >
             <option value="all">All Priorities</option>
             {["low", "normal", "high", "urgent"].map(p => <option key={p} value={p}>{p}</option>)}
           </select>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full">
             <thead>
-              <tr className="bg-slate-50">
+              <tr className="bg-[#faf9ff] border-b border-[#f0edf8]">
                 {["Ticket #", "School", "Subject", "Type", "Priority", "Status", "Created", "Assigned To", ""].map(h => (
-                  <th key={h} className="px-4 py-3 text-left text-[11px] font-extrabold text-slate-500 uppercase tracking-wide whitespace-nowrap">
+                  <th key={h} className="px-4 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-widest whitespace-nowrap">
                     {h}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-[#f5f3fc]">
               {filtered.length === 0 ? (
-                <tr><td colSpan={9} className="text-center py-12 text-slate-400 font-semibold">No tickets found.</td></tr>
-              ) : filtered.map(ticket => (
-                <tr key={ticket.id} className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => openTicket(ticket)}>
-                  <td className="px-4 py-3 font-mono text-xs font-bold text-slate-600">#{ticket.ticket_number}</td>
-                  <td className="px-4 py-3">
-                    <p className="font-bold text-slate-900 text-xs">{ticket.schools?.name ?? "—"}</p>
+                <tr>
+                  <td colSpan={9} className="py-16 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-violet-50 flex items-center justify-center">
+                        <LifeBuoy size={22} className="text-violet-400" />
+                      </div>
+                      <p className="text-slate-400 font-semibold text-[13px]">No tickets found.</p>
+                    </div>
                   </td>
-                  <td className="px-4 py-3 font-semibold text-slate-800 max-w-[200px] truncate">{ticket.subject}</td>
-                  <td className="px-4 py-3 text-slate-500 font-semibold text-xs capitalize">{ticket.type ?? "general"}</td>
-                  <td className="px-4 py-3">
-                    <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${priorityBadge[ticket.priority] ?? "bg-slate-100 text-slate-500"}`}>
+                </tr>
+              ) : filtered.map(ticket => (
+                <tr
+                  key={ticket.id}
+                  className="hover:bg-[#faf9ff] transition-colors cursor-pointer"
+                  onClick={() => openTicket(ticket)}
+                >
+                  <td className="px-4 py-3.5 font-mono text-[11px] font-bold text-slate-500">#{ticket.ticket_number}</td>
+                  <td className="px-4 py-3.5">
+                    <p className="font-bold text-slate-900 text-[12px]">{ticket.schools?.name ?? "—"}</p>
+                    {ticket.schools?.code && <p className="text-slate-400 text-[10px] font-mono">{ticket.schools.code}</p>}
+                  </td>
+                  <td className="px-4 py-3.5 font-semibold text-slate-800 text-[13px] max-w-[200px] truncate">{ticket.subject}</td>
+                  <td className="px-4 py-3.5 text-slate-400 font-semibold text-[12px] capitalize">{ticket.type ?? "general"}</td>
+                  <td className="px-4 py-3.5">
+                    <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${priorityBadge[ticket.priority] ?? "bg-slate-50 text-slate-500"}`}>
                       {ticket.priority}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${statusBadge[ticket.status] ?? "bg-slate-100 text-slate-500"}`}>
-                      {ticket.status}
+                  <td className="px-4 py-3.5">
+                    <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${statusBadge[ticket.status] ?? "bg-slate-50 text-slate-500"}`}>
+                      {ticket.status.replace("_", " ")}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-slate-400 font-semibold text-xs whitespace-nowrap">
+                  <td className="px-4 py-3.5 text-slate-400 font-semibold text-[12px] whitespace-nowrap">
                     {new Date(ticket.created_at).toLocaleDateString()}
                   </td>
-                  <td className="px-4 py-3 text-slate-500 font-semibold text-xs">
+                  <td className="px-4 py-3.5 text-slate-500 font-semibold text-[12px]">
                     {platformUsers.find(u => u.id === ticket.assigned_to)?.full_name ?? "Unassigned"}
                   </td>
-                  <td className="px-4 py-3">
-                    <span className="text-xs font-bold text-purple-700">View</span>
+                  <td className="px-4 py-3.5">
+                    <span className="text-[12px] font-bold text-violet-600">View</span>
                   </td>
                 </tr>
               ))}
@@ -190,44 +215,68 @@ export function SupportClient({ tickets, platformUsers }: { tickets: Ticket[]; p
       </div>
 
       {/* Ticket Detail Panel */}
-      <SlidePanel open={detailOpen} onClose={() => setDetailOpen(false)} title={`Ticket #${selectedTicket?.ticket_number}`} subtitle={selectedTicket?.subject} width="lg">
+      <SlidePanel
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        title={`Ticket #${selectedTicket?.ticket_number}`}
+        subtitle={selectedTicket?.subject}
+        width="lg"
+      >
         {selectedTicket && (
           <div className="space-y-5">
-            <div className="bg-slate-50 rounded-xl p-4">
-              <p className="text-sm font-bold text-slate-700 mb-2">Description</p>
-              <p className="text-sm font-semibold text-slate-600">{selectedTicket.description ?? "No description provided."}</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className={`text-[11px] font-extrabold uppercase px-2.5 py-1 rounded-full ${priorityBadge[selectedTicket.priority]}`}>
+                {selectedTicket.priority}
+              </span>
+              <span className={`text-[11px] font-extrabold uppercase px-2.5 py-1 rounded-full ${statusBadge[selectedTicket.status]}`}>
+                {selectedTicket.status.replace("_", " ")}
+              </span>
+              <span className="text-slate-400 text-[12px] font-semibold ml-auto">{new Date(selectedTicket.created_at).toLocaleString()}</span>
             </div>
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className={`text-[11px] font-extrabold uppercase px-2.5 py-1 rounded-full ${priorityBadge[selectedTicket.priority]}`}>{selectedTicket.priority}</span>
-              <span className="text-slate-400 text-xs font-semibold">{new Date(selectedTicket.created_at).toLocaleString()}</span>
+            <div className="bg-[#faf9ff] rounded-xl p-4 border border-[#f0edf8]">
+              <p className="text-[13px] font-bold text-slate-700 mb-2">Description</p>
+              <p className="text-[13px] font-semibold text-slate-600">{selectedTicket.description ?? "No description provided."}</p>
             </div>
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1.5">Update Status</label>
-              <select value={updateForm.status} onChange={e => setUpdateForm(f => ({ ...f, status: e.target.value }))}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:border-purple-400 bg-white">
+              <label className="block text-[13px] font-bold text-slate-700 mb-1.5">Update Status</label>
+              <select
+                value={updateForm.status}
+                onChange={e => setUpdateForm(f => ({ ...f, status: e.target.value }))}
+                className={inputClass}
+              >
                 {["open", "assigned", "in_progress", "resolved", "closed"].map(s => (
                   <option key={s} value={s}>{s.replace("_", " ")}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1.5">Assign To</label>
-              <select value={updateForm.assignedTo} onChange={e => setUpdateForm(f => ({ ...f, assignedTo: e.target.value }))}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:border-purple-400 bg-white">
+              <label className="block text-[13px] font-bold text-slate-700 mb-1.5">Assign To</label>
+              <select
+                value={updateForm.assignedTo}
+                onChange={e => setUpdateForm(f => ({ ...f, assignedTo: e.target.value }))}
+                className={inputClass}
+              >
                 <option value="">Unassigned</option>
                 {platformUsers.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1.5">Resolution Notes</label>
-              <textarea value={updateForm.resolution} onChange={e => setUpdateForm(f => ({ ...f, resolution: e.target.value }))}
-                placeholder="Describe how this was resolved…" rows={4}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:border-purple-400 resize-none transition-colors" />
+              <label className="block text-[13px] font-bold text-slate-700 mb-1.5">Resolution Notes</label>
+              <textarea
+                value={updateForm.resolution}
+                onChange={e => setUpdateForm(f => ({ ...f, resolution: e.target.value }))}
+                placeholder="Describe how this was resolved…"
+                rows={4}
+                className="w-full px-4 py-3 rounded-xl border border-[#e0daf0] text-[13px] font-semibold text-slate-800 outline-none focus:border-[#7c3aed] focus:ring-2 focus:ring-[#7c3aed]/20 transition-all resize-none bg-white"
+              />
             </div>
-            <button onClick={handleUpdate} disabled={saving}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-bold text-sm disabled:opacity-60"
-              style={{ background: PLATFORM_GRADIENT }}>
-              {saving ? <><Loader2 size={15} className="animate-spin" /> Updating…</> : "Update Ticket"}
+            <button
+              onClick={handleUpdate}
+              disabled={saving}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-60"
+              style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)" }}
+            >
+              {saving ? <><Loader2 size={14} className="animate-spin" /> Updating…</> : "Update Ticket"}
             </button>
           </div>
         )}
@@ -237,37 +286,46 @@ export function SupportClient({ tickets, platformUsers }: { tickets: Ticket[]; p
       <SlidePanel open={createOpen} onClose={() => setCreateOpen(false)} title="Create Support Ticket">
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-bold text-slate-700 mb-1.5">Subject <span className="text-red-500">*</span></label>
-            <input type="text" value={createForm.subject} onChange={e => setCreateForm(f => ({ ...f, subject: e.target.value }))}
+            <label className="block text-[13px] font-bold text-slate-700 mb-1.5">Subject <span className="text-red-500">*</span></label>
+            <input
+              type="text"
+              value={createForm.subject}
+              onChange={e => setCreateForm(f => ({ ...f, subject: e.target.value }))}
               placeholder="Briefly describe the issue"
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:border-purple-400 transition-colors" />
+              className={inputClass}
+            />
           </div>
           <div>
-            <label className="block text-sm font-bold text-slate-700 mb-1.5">Description</label>
-            <textarea value={createForm.description} onChange={e => setCreateForm(f => ({ ...f, description: e.target.value }))}
-              placeholder="Full details of the issue" rows={4}
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:border-purple-400 resize-none transition-colors" />
+            <label className="block text-[13px] font-bold text-slate-700 mb-1.5">Description</label>
+            <textarea
+              value={createForm.description}
+              onChange={e => setCreateForm(f => ({ ...f, description: e.target.value }))}
+              placeholder="Full details of the issue"
+              rows={4}
+              className="w-full px-4 py-3 rounded-xl border border-[#e0daf0] text-[13px] font-semibold text-slate-800 outline-none focus:border-[#7c3aed] focus:ring-2 focus:ring-[#7c3aed]/20 transition-all resize-none bg-white"
+            />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1.5">Type</label>
-              <select value={createForm.type} onChange={e => setCreateForm(f => ({ ...f, type: e.target.value }))}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:border-purple-400 bg-white">
+              <label className="block text-[13px] font-bold text-slate-700 mb-1.5">Type</label>
+              <select value={createForm.type} onChange={e => setCreateForm(f => ({ ...f, type: e.target.value }))} className={inputClass}>
                 {["general", "billing", "technical", "feature_request", "bug"].map(t => <option key={t} value={t}>{t.replace("_", " ")}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1.5">Priority</label>
-              <select value={createForm.priority} onChange={e => setCreateForm(f => ({ ...f, priority: e.target.value }))}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:border-purple-400 bg-white">
+              <label className="block text-[13px] font-bold text-slate-700 mb-1.5">Priority</label>
+              <select value={createForm.priority} onChange={e => setCreateForm(f => ({ ...f, priority: e.target.value }))} className={inputClass}>
                 {["low", "normal", "high", "urgent"].map(p => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
           </div>
-          <button onClick={handleCreate} disabled={saving}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-bold text-sm disabled:opacity-60"
-            style={{ background: PLATFORM_GRADIENT }}>
-            {saving ? <><Loader2 size={15} className="animate-spin" /> Creating…</> : "Create Ticket"}
+          <button
+            onClick={handleCreate}
+            disabled={saving}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-bold text-[13px] disabled:opacity-60"
+            style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)" }}
+          >
+            {saving ? <><Loader2 size={14} className="animate-spin" /> Creating…</> : "Create Ticket"}
           </button>
         </div>
       </SlidePanel>

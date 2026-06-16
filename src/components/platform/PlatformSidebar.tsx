@@ -98,20 +98,28 @@ export function PlatformSidebar({ userName, userRole, onLogout }: PlatformSideba
   return (
     <div
       className="h-full flex flex-col overflow-hidden"
-      style={{ background: "linear-gradient(180deg, #1a0533 0%, #2d1b69 60%, #1a0533 100%)", borderRight: "1px solid rgba(255,255,255,0.08)" }}
+      style={{
+        background: "linear-gradient(180deg, #1a0d35 0%, #0f0a1e 100%)",
+        borderRight: "1px solid rgba(255,255,255,0.06)",
+      }}
     >
       {/* Brand */}
-      <div className="px-5 py-5 shrink-0 border-b" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+      <div className="px-5 py-5 shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
         <div className="flex items-center gap-3">
           <div
             className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-            style={{ background: "linear-gradient(135deg, #6b1f8a, #2d1b69)", border: "1px solid rgba(255,255,255,0.2)" }}
+            style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)", boxShadow: "0 0 0 1px rgba(255,255,255,0.15)" }}
           >
-            <ShieldCheck size={18} className="text-white" />
+            <ShieldCheck size={17} className="text-white" />
           </div>
           <div>
-            <p className="text-white font-extrabold text-sm leading-tight">CompunerdEduSys</p>
-            <p className="text-white/40 text-[10px] font-semibold uppercase tracking-wider">Platform Admin</p>
+            <p className="text-white font-extrabold text-[13px] leading-tight tracking-tight">CompunerdEduSys</p>
+            <span
+              className="inline-block mt-0.5 text-[9px] font-extrabold uppercase tracking-widest px-1.5 py-0.5 rounded"
+              style={{ background: "rgba(124,58,237,0.3)", color: "#a78bfa" }}
+            >
+              Platform Admin
+            </span>
           </div>
         </div>
       </div>
@@ -120,7 +128,7 @@ export function PlatformSidebar({ userName, userRole, onLogout }: PlatformSideba
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5">
         {navigation.map(({ group, items }) => (
           <div key={group}>
-            <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest px-3 mb-1.5">
+            <p className="text-[10px] font-extrabold uppercase tracking-widest px-3 mb-2" style={{ color: "rgba(255,255,255,0.25)" }}>
               {group}
             </p>
             <div className="space-y-0.5">
@@ -131,14 +139,26 @@ export function PlatformSidebar({ userName, userRole, onLogout }: PlatformSideba
                     key={href}
                     href={href}
                     className={cn(
-                      "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all",
+                      "flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-150",
                       active
-                        ? "bg-white/15 text-white font-bold"
-                        : "text-white/60 hover:text-white hover:bg-white/8 font-semibold",
+                        ? "bg-white/10 text-white"
+                        : "text-white/50 hover:text-white hover:bg-white/5",
                     )}
                   >
-                    <Icon size={16} className={active ? "text-white" : "text-white/50"} />
+                    <Icon
+                      size={15}
+                      className={cn(
+                        "shrink-0 transition-colors",
+                        active ? "text-white" : "text-white/40",
+                      )}
+                    />
                     {label}
+                    {active && (
+                      <div
+                        className="ml-auto w-1.5 h-1.5 rounded-full shrink-0"
+                        style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)" }}
+                      />
+                    )}
                   </Link>
                 );
               })}
@@ -148,25 +168,38 @@ export function PlatformSidebar({ userName, userRole, onLogout }: PlatformSideba
       </nav>
 
       {/* Bottom user block */}
-      <div className="shrink-0 px-3 py-4 border-t" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
-        <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl mb-2"
-          style={{ background: "rgba(255,255,255,0.06)" }}>
+      <div className="shrink-0 px-3 py-4" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+        <div
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1.5"
+          style={{ background: "rgba(255,255,255,0.05)" }}
+        >
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-extrabold shrink-0"
-            style={{ background: "linear-gradient(135deg, #2d1b69, #6b1f8a)" }}
+            style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)" }}
           >
             {initials}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-white text-sm font-bold truncate leading-tight">{userName}</p>
-            <p className="text-white/40 text-[10px] font-semibold capitalize truncate">{userRole.replace("_", " ")}</p>
+            <p className="text-white text-[13px] font-bold truncate leading-tight">{userName}</p>
+            <p className="text-[10px] font-semibold capitalize truncate" style={{ color: "rgba(255,255,255,0.35)" }}>
+              {userRole.replace("_", " ")}
+            </p>
           </div>
         </div>
         <button
           onClick={onLogout}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/50 hover:text-white hover:bg-white/10 transition-all text-sm font-semibold"
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-semibold transition-all duration-150"
+          style={{ color: "rgba(255,255,255,0.4)" }}
+          onMouseEnter={e => {
+            (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.8)";
+            (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.06)";
+          }}
+          onMouseLeave={e => {
+            (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.4)";
+            (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+          }}
         >
-          <LogOut size={16} />
+          <LogOut size={14} />
           Sign out
         </button>
       </div>

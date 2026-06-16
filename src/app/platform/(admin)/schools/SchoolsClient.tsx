@@ -22,14 +22,19 @@ interface School {
 const STATUS_TABS = ["all", "active", "trial", "suspended", "expired", "archived"];
 
 const statusBadge: Record<string, string> = {
-  active: "bg-emerald-100 text-emerald-700",
-  trial: "bg-blue-100 text-blue-700",
-  suspended: "bg-red-100 text-red-700",
-  expired: "bg-amber-100 text-amber-700",
-  archived: "bg-slate-100 text-slate-500",
+  active: "bg-emerald-50 text-emerald-700 border border-emerald-100",
+  trial: "bg-blue-50 text-blue-700 border border-blue-100",
+  suspended: "bg-red-50 text-red-700 border border-red-100",
+  expired: "bg-amber-50 text-amber-700 border border-amber-100",
+  archived: "bg-slate-50 text-slate-500 border border-slate-100",
 };
 
-const PLATFORM_GRADIENT = "linear-gradient(135deg, #1a0533, #2d1b69, #6b1f8a)";
+const planBadge: Record<string, string> = {
+  starter: "bg-slate-50 text-slate-600 border border-slate-100",
+  standard: "bg-blue-50 text-blue-700 border border-blue-100",
+  premium: "bg-violet-50 text-violet-700 border border-violet-100",
+  enterprise: "bg-indigo-50 text-indigo-700 border border-indigo-100",
+};
 
 export function SchoolsClient({ schools, activeFilter }: { schools: School[]; activeFilter: string }) {
   const router = useRouter();
@@ -65,30 +70,30 @@ export function SchoolsClient({ schools, activeFilter }: { schools: School[]; ac
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="rounded-2xl px-8 py-6 text-white flex items-center justify-between"
-        style={{ background: PLATFORM_GRADIENT }}>
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold">Schools</h1>
-          <p className="text-white/60 font-semibold mt-1">{schools.length} schools registered on the platform</p>
+          <h1 className="text-[22px] font-extrabold text-slate-900 leading-tight">Schools</h1>
+          <p className="text-slate-500 text-[13px] font-semibold mt-1">{schools.length} schools registered on the platform</p>
         </div>
         <Link
           href="/platform/schools/new"
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white font-bold text-sm transition-all border border-white/20"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-[13px] font-bold transition-all shadow-sm"
+          style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)" }}
         >
-          <Plus size={16} />
+          <Plus size={15} />
           Create School
         </Link>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-[#e8e4f3] overflow-hidden">
         {/* Filter tabs + search */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-6 py-4 border-b border-slate-100">
-          <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1 flex-wrap">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-5 py-4 border-b border-[#f0edf8]">
+          <div className="flex items-center gap-1 bg-[#f5f3fc] rounded-xl p-1 flex-wrap">
             {STATUS_TABS.map(tab => (
               <button
                 key={tab}
                 onClick={() => router.push(`/platform/schools${tab !== "all" ? `?status=${tab}` : ""}`)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold capitalize transition-all ${
                   activeFilter === tab
                     ? "bg-white text-slate-900 shadow-sm"
                     : "text-slate-500 hover:text-slate-700"
@@ -99,13 +104,13 @@ export function SchoolsClient({ schools, activeFilter }: { schools: School[]; ac
             ))}
           </div>
           <div className="relative flex-1 max-w-xs ml-auto">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               placeholder="Search schools..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 outline-none focus:border-purple-400 transition-colors"
+              className="w-full pl-9 pr-4 h-10 rounded-xl border border-[#e0daf0] text-[13px] font-semibold text-slate-700 outline-none focus:border-[#7c3aed] focus:ring-2 focus:ring-[#7c3aed]/20 transition-all"
             />
           </div>
         </div>
@@ -113,78 +118,83 @@ export function SchoolsClient({ schools, activeFilter }: { schools: School[]; ac
         {/* Table */}
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center">
-              <Building2 size={28} className="text-slate-400" />
+            <div className="w-16 h-16 rounded-2xl bg-violet-50 flex items-center justify-center">
+              <Building2 size={28} className="text-violet-400" />
             </div>
-            <p className="text-slate-500 font-bold">No schools found</p>
+            <div className="text-center">
+              <p className="text-slate-700 font-bold text-[15px]">No schools found</p>
+              <p className="text-slate-400 text-[13px] font-semibold mt-1">Try adjusting your search or filters</p>
+            </div>
             <Link
               href="/platform/schools/new"
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-bold transition-all"
-              style={{ background: PLATFORM_GRADIENT }}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-[13px] font-bold transition-all"
+              style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)" }}
             >
-              <Plus size={15} />
+              <Plus size={14} />
               Create First School
             </Link>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full">
               <thead>
-                <tr className="bg-slate-50">
-                  {["School", "Code", "Type", "Region", "Plan", "Students", "Staff", "Status", "Expiry", "Actions"].map(h => (
-                    <th key={h} className="px-4 py-3 text-left text-[11px] font-extrabold text-slate-500 uppercase tracking-wide whitespace-nowrap">
+                <tr className="bg-[#faf9ff] border-b border-[#f0edf8]">
+                  {["School", "Type", "Region", "Plan", "Students", "Status", "Expiry", "Actions"].map(h => (
+                    <th key={h} className="px-4 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-widest whitespace-nowrap">
                       {h}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-[#f5f3fc]">
                 {filtered.map(school => {
                   const sub = school.school_subscriptions?.[0];
                   const studentCount = school.students?.[0]?.count ?? 0;
-                  const staffCount = school.staff?.[0]?.count ?? 0;
                   return (
-                    <tr key={school.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-4 py-3">
+                    <tr key={school.id} className="hover:bg-[#faf9ff] transition-colors group">
+                      <td className="px-4 py-3.5">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-xl bg-purple-100 flex items-center justify-center shrink-0">
-                            <Building2 size={14} className="text-purple-700" />
+                          <div className="w-8 h-8 rounded-xl bg-violet-50 flex items-center justify-center shrink-0 font-extrabold text-violet-700 text-[11px]">
+                            {school.name.charAt(0).toUpperCase()}
                           </div>
-                          <span className="font-bold text-slate-900 max-w-[200px] truncate">{school.name}</span>
+                          <div>
+                            <p className="font-bold text-slate-900 text-[13px] max-w-[200px] truncate">{school.name}</p>
+                            <p className="text-slate-400 text-[11px] font-mono font-semibold">{school.code ?? ""}</p>
+                          </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3">
-                        <span className="font-mono text-xs text-slate-600 bg-slate-100 px-2 py-0.5 rounded-lg">{school.code ?? "—"}</span>
+                      <td className="px-4 py-3.5 text-[13px] font-semibold text-slate-500 capitalize">{school.type ?? "—"}</td>
+                      <td className="px-4 py-3.5 text-[13px] font-semibold text-slate-500">{school.region ?? "—"}</td>
+                      <td className="px-4 py-3.5">
+                        {sub?.plan_name ? (
+                          <span className={`text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full ${planBadge[sub.plan_name] ?? "bg-slate-50 text-slate-500"}`}>
+                            {sub.plan_name}
+                          </span>
+                        ) : <span className="text-slate-400 text-[13px]">—</span>}
                       </td>
-                      <td className="px-4 py-3 font-semibold text-slate-600 capitalize">{school.type ?? "—"}</td>
-                      <td className="px-4 py-3 font-semibold text-slate-600">{school.region ?? "—"}</td>
-                      <td className="px-4 py-3">
-                        <span className="text-xs font-bold text-purple-700 capitalize">{sub?.plan_name ?? "—"}</span>
-                      </td>
-                      <td className="px-4 py-3 font-bold text-slate-700">{studentCount.toLocaleString()}</td>
-                      <td className="px-4 py-3 font-bold text-slate-700">{staffCount.toLocaleString()}</td>
-                      <td className="px-4 py-3">
-                        <span className={`text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full ${statusBadge[school.status] ?? "bg-slate-100 text-slate-500"}`}>
+                      <td className="px-4 py-3.5 text-[13px] font-bold text-slate-700">{studentCount.toLocaleString()}</td>
+                      <td className="px-4 py-3.5">
+                        <span className={`text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full ${statusBadge[school.status] ?? "bg-slate-50 text-slate-500"}`}>
                           {school.status}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-xs font-semibold text-slate-500 whitespace-nowrap">
+                      <td className="px-4 py-3.5 text-[12px] font-semibold text-slate-400 whitespace-nowrap">
                         {sub?.expires_at ? new Date(sub.expires_at).toLocaleDateString("en-GH") : "—"}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3.5">
                         <div className="flex items-center gap-2">
                           <Link
                             href={`/platform/schools/${school.id}`}
-                            className="px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 text-xs font-bold hover:bg-purple-100 transition-colors"
+                            className="px-2.5 py-1.5 rounded-lg bg-violet-50 text-violet-700 text-[11px] font-bold hover:bg-violet-100 transition-colors border border-violet-100"
                           >
                             View
                           </Link>
                           <button
                             onClick={() => handleImpersonate(school.id, school.name)}
                             disabled={impersonating === school.id}
-                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 text-xs font-bold hover:bg-slate-200 transition-colors disabled:opacity-50"
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-700 text-[11px] font-bold hover:bg-amber-100 transition-colors border border-amber-100 disabled:opacity-50"
                           >
-                            <ExternalLink size={11} />
+                            <ExternalLink size={10} />
                             {impersonating === school.id ? "…" : "Impersonate"}
                           </button>
                         </div>
