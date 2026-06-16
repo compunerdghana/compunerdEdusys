@@ -3,10 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { Plus, ChevronDown, ChevronUp, CheckCircle2, Circle, Pencil } from "lucide-react";
+import { Plus, ChevronDown, ChevronUp, CheckCircle2, Circle, Pencil, CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Modal } from "@/components/ui/Modal";
 
@@ -147,40 +146,57 @@ export function AcademicYearManager({ schoolId, years: initial, terms: initialTe
   }
 
   return (
-    <div className="space-y-5 max-w-2xl">
+    <div className="space-y-6 max-w-2xl">
+      {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-base font-bold text-[var(--text-strong)]">Academic years & terms</h3>
-          <p className="text-sm text-[var(--text-muted)]">Create academic years and set their three terms.</p>
+          <h1 className="text-[22px] font-extrabold text-slate-800 leading-tight">Academic Years &amp; Terms</h1>
+          <p className="text-[13px] text-slate-400 mt-0.5">Create academic years and configure their three terms.</p>
         </div>
-        <Button size="sm" onClick={() => setShowYearForm((v) => !v)}>
-          <Plus size={14} /> New year
-        </Button>
+        <button
+          onClick={() => setShowYearForm((v) => !v)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold text-white shadow-sm hover:opacity-90 transition-opacity"
+          style={{ background: "linear-gradient(135deg, #262262, #92278F)" }}
+        >
+          <Plus size={15} /> New Year
+        </button>
       </div>
 
       {/* New year form */}
       {showYearForm && (
-        <Card>
-          <p className="text-sm font-semibold text-[var(--text-strong)] mb-4">New academic year</p>
+        <div className="bg-white rounded-2xl shadow-sm border border-[#e8e4f3] p-6">
+          <p className="text-[14px] font-bold text-slate-700 mb-5">New Academic Year</p>
           <form onSubmit={saveYear} className="space-y-4">
             <Input label="Year name" placeholder="e.g. 2024/2025" value={yearForm.name} onChange={(e) => setYearForm((f) => ({ ...f, name: e.target.value }))} required />
             <div className="grid grid-cols-2 gap-4">
               <Input label="Start date" type="date" value={yearForm.start_date} onChange={(e) => setYearForm((f) => ({ ...f, start_date: e.target.value }))} required />
               <Input label="End date" type="date" value={yearForm.end_date} onChange={(e) => setYearForm((f) => ({ ...f, end_date: e.target.value }))} required />
             </div>
-            {yearErr && <p className="text-sm text-[var(--danger)]">{yearErr}</p>}
-            <div className="flex gap-2">
+            {yearErr && <p className="text-[13px] text-red-600 bg-red-50 px-3 py-2 rounded-xl border border-red-100">{yearErr}</p>}
+            <div className="flex gap-2 pt-1">
               <Button type="submit" size="sm" loading={savingYear}>Save year</Button>
               <Button type="button" size="sm" variant="secondary" onClick={() => setShowYearForm(false)}>Cancel</Button>
             </div>
           </form>
-        </Card>
+        </div>
       )}
 
+      {/* Empty state */}
       {years.length === 0 && !showYearForm && (
-        <Card>
-          <p className="text-sm text-[var(--text-muted)] text-center py-4">No academic years yet. Create your first one above.</p>
-        </Card>
+        <div className="bg-white rounded-2xl shadow-sm border border-[#e8e4f3] p-12 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-[#f0eeff] flex items-center justify-center mx-auto mb-4">
+            <CalendarDays size={24} className="text-[#6b1f8a]" />
+          </div>
+          <p className="text-[15px] font-bold text-slate-700 mb-1">No academic years yet</p>
+          <p className="text-[13px] text-slate-400">Create your first academic year to get started.</p>
+          <button
+            onClick={() => setShowYearForm(true)}
+            className="mt-5 flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold text-white mx-auto hover:opacity-90 transition-opacity"
+            style={{ background: "linear-gradient(135deg, #262262, #92278F)" }}
+          >
+            <Plus size={14} /> Create Year
+          </button>
+        </div>
       )}
 
       {/* Edit term modal */}
@@ -208,42 +224,61 @@ export function AcademicYearManager({ schoolId, years: initial, terms: initialTe
           const isExpanded = expandedYear === year.id;
 
           return (
-            <Card key={year.id} className={cn(year.is_current && "border-[var(--border-brand)]")}>
+            <div key={year.id}
+              className={cn(
+                "bg-white rounded-2xl shadow-sm border overflow-hidden",
+                year.is_current ? "border-[#6b1f8a]/40 border-l-4 border-l-[#6b1f8a]" : "border-[#e8e4f3]",
+              )}>
               {/* Year header */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 px-5 py-4">
                 <button onClick={() => setExpandedYear(isExpanded ? null : year.id)} className="flex-1 flex items-center gap-3 text-left">
                   {year.is_current
-                    ? <CheckCircle2 size={16} className="text-[var(--success)] shrink-0" />
-                    : <Circle size={16} className="text-[var(--neutral-300)] shrink-0" />
+                    ? <CheckCircle2 size={17} className="text-emerald-500 shrink-0" />
+                    : <Circle size={17} className="text-slate-300 shrink-0" />
                   }
-                  <div className="flex-1">
-                    <p className="text-sm font-bold text-[var(--text-strong)]">{year.name}</p>
-                    <p className="text-xs text-[var(--text-muted)]">{year.start_date} → {year.end_date} · {yearTerms.length}/3 terms</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[15px] font-bold text-slate-800 leading-tight">{year.name}</p>
+                    <p className="text-[12px] text-slate-400 mt-0.5">{year.start_date} → {year.end_date} · {yearTerms.length}/3 terms</p>
                   </div>
-                  {year.is_current && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[var(--success-bg)] text-[var(--success)]">Current</span>}
-                  {isExpanded ? <ChevronUp size={15} className="text-[var(--text-muted)]" /> : <ChevronDown size={15} className="text-[var(--text-muted)]" />}
+                  {year.is_current && (
+                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 shrink-0">
+                      Current
+                    </span>
+                  )}
+                  {isExpanded ? <ChevronUp size={15} className="text-slate-400 shrink-0" /> : <ChevronDown size={15} className="text-slate-400 shrink-0" />}
                 </button>
                 {!year.is_current && (
                   <Button size="sm" variant="secondary" onClick={() => setCurrentYear(year.id)}>Set current</Button>
                 )}
               </div>
 
-              {/* Terms */}
+              {/* Terms section */}
               {isExpanded && (
-                <div className="mt-4 pt-4 border-t border-[var(--border)] space-y-3">
+                <div className="border-t border-[#e8e4f3] px-5 py-4 space-y-2.5 bg-[#faf9ff]">
                   {yearTerms.map((t) => (
-                    <div key={t.id} className="flex items-center gap-3 px-3 py-2.5 rounded-[10px] bg-[var(--neutral-50)]">
+                    <div key={t.id}
+                      className={cn(
+                        "flex items-center gap-3 px-4 py-3 rounded-xl border",
+                        t.is_current ? "bg-white border-[#6b1f8a]/30" : "bg-white border-[#e8e4f3]",
+                      )}>
                       {t.is_current
-                        ? <CheckCircle2 size={14} className="text-[var(--success)] shrink-0" />
-                        : <Circle size={14} className="text-[var(--neutral-300)] shrink-0" />
+                        ? <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />
+                        : <Circle size={14} className="text-slate-300 shrink-0" />
                       }
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold text-[var(--text-strong)]">{t.name}</p>
-                        <p className="text-xs text-[var(--text-muted)]">{t.start_date} → {t.end_date}{t.reopening_date ? ` · Reopens ${t.reopening_date}` : ""}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-semibold text-slate-700">{t.name}</p>
+                        <p className="text-[11px] text-slate-400">
+                          {t.start_date} → {t.end_date}{t.reopening_date ? ` · Reopens ${t.reopening_date}` : ""}
+                        </p>
                       </div>
-                      {t.is_current && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[var(--success-bg)] text-[var(--success)]">Current</span>}
-                      <button onClick={() => openEditTerm(t)} className="text-[var(--text-subtle)] hover:text-[var(--brand)] transition-colors">
-                        <Pencil size={13} />
+                      {t.is_current && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 shrink-0">
+                          Current
+                        </span>
+                      )}
+                      <button onClick={() => openEditTerm(t)}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#6b1f8a] hover:bg-[#f0eeff] transition-all">
+                        <Pencil size={12} />
                       </button>
                       {!t.is_current && (
                         <Button size="sm" variant="secondary" onClick={() => setCurrentTerm(t.id, year.id)}>Set current</Button>
@@ -252,25 +287,30 @@ export function AcademicYearManager({ schoolId, years: initial, terms: initialTe
                   ))}
 
                   {yearTerms.length < 3 && showTermForm !== year.id && (
-                    <Button size="sm" variant="secondary" onClick={() => setShowTermForm(year.id)}>
-                      <Plus size={13} /> Add term
-                    </Button>
+                    <button
+                      onClick={() => setShowTermForm(year.id)}
+                      className="flex items-center gap-2 px-4 py-2.5 text-[13px] font-semibold text-[#6b1f8a] hover:bg-[#f0eeff] rounded-xl transition-colors w-full border border-dashed border-[#c4b5e8]"
+                    >
+                      <Plus size={14} /> Add term
+                    </button>
                   )}
 
                   {showTermForm === year.id && (
-                    <form onSubmit={(e) => saveTerm(e, year.id)} className="space-y-3 mt-2">
-                      <div className="grid grid-cols-3 gap-3">
+                    <form onSubmit={(e) => saveTerm(e, year.id)} className="space-y-3 mt-2 bg-white rounded-xl border border-[#e8e4f3] p-4">
+                      <p className="text-[13px] font-bold text-slate-700">New Term</p>
+                      <div className="grid grid-cols-3 gap-2">
                         {TERM_OPTIONS.filter((o) => !yearTerms.find((t) => t.term === o.value)).map((o) => (
                           <button
                             key={o.value}
                             type="button"
                             onClick={() => setTermForm((f) => ({ ...f, term: o.value, name: o.label }))}
                             className={cn(
-                              "px-3 py-2 rounded-[8px] text-sm font-medium border transition-all",
+                              "px-3 py-2 rounded-xl text-[13px] font-semibold border transition-all",
                               termForm.term === o.value
-                                ? "bg-[var(--brand)] text-white border-[var(--brand)]"
-                                : "bg-white text-[var(--text-muted)] border-[var(--border)] hover:border-[var(--ring)]",
+                                ? "text-white border-transparent"
+                                : "bg-white text-slate-500 border-[#e0daf0] hover:border-[#6b1f8a]",
                             )}
+                            style={termForm.term === o.value ? { background: "linear-gradient(135deg, #262262, #92278F)" } : {}}
                           >
                             {o.label}
                           </button>
@@ -282,7 +322,7 @@ export function AcademicYearManager({ schoolId, years: initial, terms: initialTe
                         <Input label="End date" type="date" value={termForm.end_date} onChange={(e) => setTermForm((f) => ({ ...f, end_date: e.target.value }))} required />
                       </div>
                       <Input label="Reopening date (optional)" type="date" value={termForm.reopening_date} onChange={(e) => setTermForm((f) => ({ ...f, reopening_date: e.target.value }))} />
-                      {termErr && <p className="text-sm text-[var(--danger)]">{termErr}</p>}
+                      {termErr && <p className="text-[13px] text-red-600 bg-red-50 px-3 py-2 rounded-xl border border-red-100">{termErr}</p>}
                       <div className="flex gap-2">
                         <Button type="submit" size="sm" loading={savingTerm}>Save term</Button>
                         <Button type="button" size="sm" variant="secondary" onClick={() => setShowTermForm(null)}>Cancel</Button>
@@ -291,7 +331,7 @@ export function AcademicYearManager({ schoolId, years: initial, terms: initialTe
                   )}
                 </div>
               )}
-            </Card>
+            </div>
           );
         })}
       </div>

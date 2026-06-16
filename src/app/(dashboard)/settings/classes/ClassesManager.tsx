@@ -3,10 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { Plus, Trash2, Users, Pencil } from "lucide-react";
+import { Plus, Trash2, Users, Pencil, GraduationCap } from "lucide-react";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { Modal } from "@/components/ui/Modal";
 
@@ -18,9 +17,12 @@ const LEVELS = [
   { value: "jhs", label: "JHS" },
 ];
 
-const LEVEL_COLORS: Record<string, string> = {
-  daycare: "var(--teal-600)", nursery: "var(--green-600)", kg: "var(--amber-500)",
-  primary: "var(--brand)", jhs: "var(--accent)",
+const LEVEL_COLORS: Record<string, { bg: string; text: string; accent: string }> = {
+  daycare:  { bg: "#f0fdfa", text: "#0d9488", accent: "#0d9488" },
+  nursery:  { bg: "#f0fdf4", text: "#16a34a", accent: "#16a34a" },
+  kg:       { bg: "#fffbeb", text: "#d97706", accent: "#d97706" },
+  primary:  { bg: "#eef2ff", text: "#262262", accent: "#262262" },
+  jhs:      { bg: "#fdf4ff", text: "#92278F", accent: "#92278F" },
 };
 
 interface Classroom {
@@ -113,46 +115,50 @@ export function ClassesManager({ schoolId, classes: initial, teachers }: Props) 
     router.refresh();
   }
 
-  const byLevel = LEVELS.map((l) => ({
-    ...l,
-    items: classes.filter((c) => c.level === l.value),
-  })).filter((l) => l.items.length > 0 || showForm);
-
   return (
-    <div className="space-y-5 max-w-2xl">
+    <div className="space-y-6 max-w-2xl">
+      {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-base font-bold text-[var(--text-strong)]">Classes</h3>
-          <p className="text-sm text-[var(--text-muted)]">Create classes and assign class teachers.</p>
+          <h1 className="text-[22px] font-extrabold text-slate-800 leading-tight">Classes</h1>
+          <p className="text-[13px] text-slate-400 mt-0.5">Create classes and assign class teachers.</p>
         </div>
-        <Button size="sm" onClick={() => setShowForm((v) => !v)}>
-          <Plus size={14} /> Add class
-        </Button>
+        <button
+          onClick={() => setShowForm((v) => !v)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold text-white shadow-sm hover:opacity-90 transition-opacity"
+          style={{ background: "linear-gradient(135deg, #262262, #92278F)" }}
+        >
+          <Plus size={15} /> Add Class
+        </button>
       </div>
 
+      {/* New class form */}
       {showForm && (
-        <Card>
-          <p className="text-sm font-semibold text-[var(--text-strong)] mb-4">New class</p>
+        <div className="bg-white rounded-2xl shadow-sm border border-[#e8e4f3] p-6">
+          <p className="text-[14px] font-bold text-slate-700 mb-5">New Class</p>
           <form onSubmit={save} className="space-y-4">
             {/* Level selector */}
             <div>
-              <p className="text-sm font-semibold text-[var(--text-strong)] mb-2">Level</p>
+              <p className="text-[13px] font-semibold text-slate-600 mb-2">Level</p>
               <div className="flex flex-wrap gap-2">
-                {LEVELS.map((l) => (
-                  <button
-                    key={l.value}
-                    type="button"
-                    onClick={() => setField("level", l.value)}
-                    className={`px-3 py-1.5 rounded-[8px] text-sm font-medium border transition-all ${
-                      form.level === l.value
-                        ? "text-white border-transparent"
-                        : "bg-white text-[var(--text-muted)] border-[var(--border)] hover:border-[var(--ring)]"
-                    }`}
-                    style={form.level === l.value ? { background: LEVEL_COLORS[l.value] } : {}}
-                  >
-                    {l.label}
-                  </button>
-                ))}
+                {LEVELS.map((l) => {
+                  const colors = LEVEL_COLORS[l.value];
+                  const active = form.level === l.value;
+                  return (
+                    <button
+                      key={l.value}
+                      type="button"
+                      onClick={() => setField("level", l.value)}
+                      className="px-3 py-1.5 rounded-xl text-[13px] font-semibold border transition-all"
+                      style={active
+                        ? { background: colors.accent, color: "#fff", borderColor: colors.accent }
+                        : { background: "#fff", color: "#64748b", borderColor: "#e0daf0" }
+                      }
+                    >
+                      {l.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -161,11 +167,11 @@ export function ClassesManager({ schoolId, classes: initial, teachers }: Props) 
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-semibold text-[var(--text-strong)]">Class teacher</label>
+                <label className="text-[13px] font-semibold text-slate-600">Class teacher</label>
                 <select
                   value={form.class_teacher_id}
                   onChange={(e) => setField("class_teacher_id", e.target.value)}
-                  className="h-10 rounded-[10px] border border-[var(--border)] bg-white px-3 text-sm text-[var(--text-strong)] outline-none focus:border-[var(--ring)] focus:shadow-[var(--shadow-focus)]"
+                  className="h-10 rounded-xl border border-[#e0daf0] bg-white px-3 text-[14px] text-slate-700 outline-none focus:border-[#6b1f8a] focus:ring-2 focus:ring-[#6b1f8a]/20 transition-all"
                 >
                   <option value="">— None —</option>
                   {teachers.map((t) => <option key={t.id} value={t.id}>{t.full_name}</option>)}
@@ -173,45 +179,69 @@ export function ClassesManager({ schoolId, classes: initial, teachers }: Props) 
               </div>
               <Input label="Capacity" type="number" min="1" placeholder="e.g. 40" value={form.capacity} onChange={(e) => setField("capacity", e.target.value)} />
             </div>
-            {err && <p className="text-sm text-[var(--danger)]">{err}</p>}
-            <div className="flex gap-2">
+            {err && <p className="text-[13px] text-red-600 bg-red-50 px-3 py-2 rounded-xl border border-red-100">{err}</p>}
+            <div className="flex gap-2 pt-1">
               <Button type="submit" size="sm" loading={saving}>Save class</Button>
               <Button type="button" size="sm" variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button>
             </div>
           </form>
-        </Card>
+        </div>
       )}
 
+      {/* Empty state */}
       {classes.length === 0 && !showForm && (
-        <Card>
-          <p className="text-sm text-[var(--text-muted)] text-center py-4">No classes yet. Add your first class above.</p>
-        </Card>
+        <div className="bg-white rounded-2xl shadow-sm border border-[#e8e4f3] p-12 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-[#eef2ff] flex items-center justify-center mx-auto mb-4">
+            <GraduationCap size={24} className="text-[#262262]" />
+          </div>
+          <p className="text-[15px] font-bold text-slate-700 mb-1">No classes yet</p>
+          <p className="text-[13px] text-slate-400">Add your first class to get started.</p>
+          <button
+            onClick={() => setShowForm(true)}
+            className="mt-5 flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold text-white mx-auto hover:opacity-90 transition-opacity"
+            style={{ background: "linear-gradient(135deg, #262262, #92278F)" }}
+          >
+            <Plus size={14} /> Add Class
+          </button>
+        </div>
       )}
 
+      {/* Classes by level */}
       {LEVELS.map((l) => {
         const items = classes.filter((c) => c.level === l.value).sort((a, b) => a.name.localeCompare(b.name));
         if (!items.length) return null;
+        const colors = LEVEL_COLORS[l.value];
         return (
           <div key={l.value}>
-            <p className="text-xs font-semibold uppercase tracking-[0.08em] mb-2" style={{ color: LEVEL_COLORS[l.value] }}>{l.label}</p>
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] mb-3 px-0.5" style={{ color: colors.accent }}>
+              {l.label}
+            </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {items.map((cls) => {
                 const teacher = teachers.find((t) => t.id === cls.class_teacher_id);
                 return (
-                  <div key={cls.id} className="bg-white border border-[var(--border)] rounded-[12px] p-4 flex items-start gap-3 shadow-[var(--shadow-sm)]">
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: `color-mix(in srgb, ${LEVEL_COLORS[cls.level]} 12%, white)` }}>
-                      <Users size={16} style={{ color: LEVEL_COLORS[cls.level] }} />
+                  <div key={cls.id}
+                    className="bg-white border border-[#e8e4f3] rounded-2xl p-4 flex items-start gap-3 shadow-sm hover:shadow-md hover:border-[#c4b5e8] transition-all">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                      style={{ background: colors.bg }}>
+                      <Users size={17} style={{ color: colors.accent }} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-[var(--text-strong)]">{cls.name}{cls.arm ? ` (${cls.arm})` : ""}</p>
-                      <p className="text-xs text-[var(--text-muted)]">
+                      <p className="text-[14px] font-bold text-slate-800">{cls.name}{cls.arm ? ` (${cls.arm})` : ""}</p>
+                      <p className="text-[12px] text-slate-400">
                         {teacher ? teacher.full_name : "No teacher assigned"}
-                        {cls.capacity ? ` · Capacity: ${cls.capacity}` : ""}
+                        {cls.capacity ? ` · Cap: ${cls.capacity}` : ""}
                       </p>
                     </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => openEdit(cls)} className="text-[var(--text-subtle)] hover:text-[var(--brand)] transition-colors"><Pencil size={14} /></button>
-                      <button onClick={() => setConfirmDelete(cls.id)} className="text-[var(--text-subtle)] hover:text-[var(--danger)] transition-colors"><Trash2 size={14} /></button>
+                    <div className="flex gap-1 shrink-0">
+                      <button onClick={() => openEdit(cls)}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#6b1f8a] hover:bg-[#f0eeff] transition-all">
+                        <Pencil size={13} />
+                      </button>
+                      <button onClick={() => setConfirmDelete(cls.id)}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all">
+                        <Trash2 size={13} />
+                      </button>
                     </div>
                   </div>
                 );
@@ -226,17 +256,22 @@ export function ClassesManager({ schoolId, classes: initial, teachers }: Props) 
         {editingClass && (
           <form onSubmit={saveEdit} className="space-y-4">
             <div>
-              <p className="text-sm font-semibold text-[var(--text-strong)] mb-2">Level</p>
+              <p className="text-[13px] font-semibold text-slate-600 mb-2">Level</p>
               <div className="flex flex-wrap gap-2">
-                {LEVELS.map((l) => (
-                  <button key={l.value} type="button"
-                    onClick={() => setEditForm((f) => ({ ...f, level: l.value }))}
-                    className={`px-3 py-1.5 rounded-[8px] text-sm font-medium border transition-all ${
-                      editForm.level === l.value ? "text-white border-transparent" : "bg-white text-[var(--text-muted)] border-[var(--border)] hover:border-[var(--ring)]"
-                    }`}
-                    style={editForm.level === l.value ? { background: LEVEL_COLORS[l.value] } : {}}
-                  >{l.label}</button>
-                ))}
+                {LEVELS.map((l) => {
+                  const colors = LEVEL_COLORS[l.value];
+                  const active = editForm.level === l.value;
+                  return (
+                    <button key={l.value} type="button"
+                      onClick={() => setEditForm((f) => ({ ...f, level: l.value }))}
+                      className="px-3 py-1.5 rounded-xl text-[13px] font-semibold border transition-all"
+                      style={active
+                        ? { background: colors.accent, color: "#fff", borderColor: colors.accent }
+                        : { background: "#fff", color: "#64748b", borderColor: "#e0daf0" }
+                      }
+                    >{l.label}</button>
+                  );
+                })}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -245,9 +280,9 @@ export function ClassesManager({ schoolId, classes: initial, teachers }: Props) 
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-semibold text-[var(--text-strong)]">Class teacher</label>
+                <label className="text-[13px] font-semibold text-slate-600">Class teacher</label>
                 <select value={editForm.class_teacher_id} onChange={(e) => setEditForm((f) => ({ ...f, class_teacher_id: e.target.value }))}
-                  className="h-10 rounded-[10px] border border-[var(--border)] bg-white px-3 text-sm text-[var(--text-strong)] outline-none focus:border-[var(--ring)] focus:shadow-[var(--shadow-focus)]">
+                  className="h-10 rounded-xl border border-[#e0daf0] bg-white px-3 text-[14px] text-slate-700 outline-none focus:border-[#6b1f8a] focus:ring-2 focus:ring-[#6b1f8a]/20 transition-all">
                   <option value="">— None —</option>
                   {teachers.map((t) => <option key={t.id} value={t.id}>{t.full_name}</option>)}
                 </select>

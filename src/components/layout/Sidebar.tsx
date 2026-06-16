@@ -124,8 +124,8 @@ export function Sidebar({ userName = "Admin", userRole = "admin", schoolName, sc
   const initials = userName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
 
   return (
-    <aside className="w-64 shrink-0 flex flex-col h-full overflow-hidden"
-      style={{ background: "linear-gradient(160deg, #1a1854 0%, #2e1a6b 40%, #6b1f8a 80%, #92278F 100%)" }}>
+    <aside className="w-[260px] shrink-0 flex flex-col h-full overflow-hidden"
+      style={{ background: "linear-gradient(180deg, #1a1854 0%, #2e1a6b 40%, #6b1f8a 80%, #92278F 100%)" }}>
 
       {/* School branding */}
       <div className="px-4 pt-5 pb-4">

@@ -268,8 +268,9 @@ export default async function FinancePage() {
             iconBg: "#FDF4FF",
             iconColor: ACCENT,
           },
-        ].map(card => (
-          <div key={card.label} className="bg-white rounded-2xl border border-[var(--border)] p-5 shadow-[0_1px_6px_rgba(0,0,0,0.05)] flex items-start gap-4">
+        ].map((card) => (
+          <div key={card.label} className="bg-white rounded-2xl border border-[#e8e4f3] p-5 shadow-sm flex items-start gap-4 border-l-4"
+            style={{ borderLeftColor: card.iconColor }}>
             <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: card.iconBg }}>
               <card.icon size={20} style={{ color: card.iconColor }} />
             </div>

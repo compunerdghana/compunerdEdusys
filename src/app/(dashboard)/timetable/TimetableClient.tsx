@@ -421,7 +421,7 @@ export function TimetableClient({
                     "flex items-center gap-2.5 px-4 py-2.5 rounded-2xl border transition-all shrink-0",
                     active
                       ? "bg-[#262262] border-[#262262] shadow-sm"
-                      : "bg-white border-[var(--border)] hover:border-[#262262]/30 hover:shadow-sm",
+                      : "bg-white border-[#e8e4f3] hover:border-[#262262]/30 hover:shadow-sm",
                   )}
                 >
                   <div className={cn(
@@ -448,9 +448,9 @@ export function TimetableClient({
       )}
 
       {/* Main card */}
-      <div className="bg-white rounded-2xl border border-[var(--border)] shadow-[0_1px_6px_rgba(0,0,0,0.05)]">
+      <div className="bg-white rounded-2xl border border-[#e8e4f3] shadow-sm">
         {/* Tab bar */}
-        <div className="flex border-b border-[var(--border)] px-5 pt-1">
+        <div className="flex border-b border-[#e8e4f3] px-5 pt-1 bg-[#faf9ff]">
           {(["timetable", "periods"] as const).map((tab) => (
             <button
               key={tab}
@@ -506,11 +506,11 @@ export function TimetableClient({
                 <table className="w-full min-w-[560px] border-separate border-spacing-0 print:text-xs">
                   <thead>
                     <tr>
-                      <th className="sticky left-0 z-10 bg-white/95 backdrop-blur-sm w-28 min-w-[7rem] text-left px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--border)]">
+                      <th className="sticky left-0 z-10 bg-[#faf9ff] w-28 min-w-[7rem] text-left px-3 py-2.5 text-[11px] font-bold uppercase tracking-widest text-slate-400 border-b border-[#e8e4f3]">
                         Period
                       </th>
                       {DAYS.map((d, i) => (
-                        <th key={d} className="px-3 py-2.5 text-center text-[12px] font-semibold text-[#262262] border-b border-[var(--border)] bg-[#262262]/5 min-w-[100px]">
+                        <th key={d} className="px-3 py-2.5 text-center text-[11px] font-bold uppercase tracking-widest text-slate-400 border-b border-[#e8e4f3] bg-[#faf9ff] min-w-[100px]">
                           <span className="hidden sm:inline">{d}</span>
                           <span className="sm:hidden">{DAY_SHORT[i]}</span>
                         </th>
@@ -526,7 +526,7 @@ export function TimetableClient({
                       periods.map((period, pIdx) => (
                         <tr key={period.id} className={pIdx % 2 === 0 ? "" : "bg-[var(--neutral-50)]/40"}>
                           {/* Period name col */}
-                          <td className="sticky left-0 z-10 bg-[var(--neutral-50)] backdrop-blur-sm px-3 py-2 border-b border-[var(--border)] align-top">
+                          <td className="sticky left-0 z-10 bg-[#faf9ff] px-3 py-2 border-b border-[#e8e4f3] align-top">
                             <div className="flex items-start gap-1.5">
                               {period.is_break && <Coffee size={11} className="text-amber-500 mt-0.5 shrink-0" />}
                               <div>
@@ -544,7 +544,7 @@ export function TimetableClient({
 
                             if (period.is_break) {
                               return (
-                                <td key={day} className="px-2 py-2 border-b border-[var(--border)] text-center">
+                                <td key={day} className="px-2 py-2 border-b border-[#e8e4f3] text-center">
                                   <span className="text-[10px] text-amber-500 font-medium">Break</span>
                                 </td>
                               );
@@ -554,8 +554,8 @@ export function TimetableClient({
                               <td
                                 key={day}
                                 className={cn(
-                                  "px-2 py-2 border-b border-[var(--border)] transition-colors",
-                                  isHeadmaster && "cursor-pointer hover:bg-[#262262]/5 group",
+                                  "px-2 py-2 border-b border-[#e8e4f3] transition-colors",
+                                  isHeadmaster && "cursor-pointer hover:bg-[#faf9ff] group",
                                 )}
                                 onClick={() => {
                                   if (!isHeadmaster) return;
@@ -573,7 +573,7 @@ export function TimetableClient({
                                   </div>
                                 ) : (
                                   isHeadmaster && (
-                                    <div className="border border-dashed border-[var(--border)] rounded-lg h-8 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="border-2 border-dashed border-[#c4b5e8] rounded-xl h-8 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                       <Plus size={13} className="text-[var(--text-muted)]" />
                                     </div>
                                   )
@@ -668,7 +668,7 @@ export function TimetableClient({
                   <div
                     key={period.id}
                     className={cn(
-                      "rounded-xl border border-[var(--border)] px-4 py-3",
+                      "rounded-xl border border-[#e8e4f3] px-4 py-3",
                       period.is_break ? "bg-amber-50 border-amber-100" : "bg-white",
                     )}
                   >

@@ -141,7 +141,7 @@ export function TopBar({ userName = "Admin", schoolName, onMenuClick }: TopBarPr
   }
 
   return (
-    <header className="h-16 bg-white border-b border-[var(--border)] flex items-center px-4 md:px-6 gap-4 shrink-0 shadow-sm">
+    <header className="h-[60px] bg-white border-b border-[#e8e4f3] flex items-center px-4 md:px-6 gap-4 shrink-0">
       {/* Hamburger — mobile only */}
       <button onClick={onMenuClick}
         className="md:hidden w-9 h-9 flex items-center justify-center rounded-xl text-[var(--text-muted)] hover:bg-[var(--neutral-100)] transition-colors shrink-0">

@@ -3,10 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { Plus, Trash2, BookOpen, Pencil } from "lucide-react";
+import { Plus, Trash2, BookOpen, Pencil, Sparkles } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 
 const LEVELS = [
@@ -113,83 +112,98 @@ export function SubjectsManager({ schoolId, subjects: initial }: Props) {
     router.refresh();
   }
 
+  const missingGES = GH_SUBJECTS.filter((s) => !subjects.find((x) => x.name === s));
+
   return (
-    <div className="space-y-5 max-w-2xl">
+    <div className="space-y-6 max-w-2xl">
+      {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-base font-bold text-[var(--text-strong)]">Subjects</h3>
-          <p className="text-sm text-[var(--text-muted)]">Define subjects and which levels they apply to.</p>
+          <h1 className="text-[22px] font-extrabold text-slate-800 leading-tight">Subjects</h1>
+          <p className="text-[13px] text-slate-400 mt-0.5">Define subjects and which levels they apply to.</p>
         </div>
-        <Button size="sm" onClick={() => setShowForm((v) => !v)}>
-          <Plus size={14} /> Add subject
-        </Button>
+        <button
+          onClick={() => setShowForm((v) => !v)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold text-white shadow-sm hover:opacity-90 transition-opacity"
+          style={{ background: "linear-gradient(135deg, #262262, #92278F)" }}
+        >
+          <Plus size={15} /> Add Subject
+        </button>
       </div>
 
       {/* Quick add from GH curriculum */}
-      <Card>
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">Common GES subjects — click to pre-fill</p>
-          {GH_SUBJECTS.filter((s) => !subjects.find((x) => x.name === s)).length > 0 && (
+      {missingGES.length > 0 && (
+        <div className="bg-white rounded-2xl shadow-sm border border-[#e8e4f3] p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Sparkles size={14} className="text-[#92278F]" />
+              <p className="text-[12px] font-bold uppercase tracking-[0.1em] text-slate-400">Common GES subjects</p>
+            </div>
             <button onClick={selectAllGES}
-              className="text-xs font-semibold px-2.5 py-1 rounded-lg border border-[var(--brand)] text-[var(--brand)] hover:bg-[var(--brand-subtle)] transition-all">
-              Select All
+              className="text-[12px] font-bold px-3 py-1.5 rounded-lg border border-[#6b1f8a]/40 text-[#6b1f8a] hover:bg-[#f0eeff] transition-all">
+              Add All
             </button>
-          )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {missingGES.map((s) => (
+              <button
+                key={s}
+                onClick={() => quickAdd(s)}
+                className="px-2.5 py-1 rounded-lg text-[12px] font-medium border border-[#e0daf0] text-slate-500 hover:border-[#6b1f8a] hover:text-[#6b1f8a] hover:bg-[#f0eeff] transition-all"
+              >
+                + {s}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {GH_SUBJECTS.filter((s) => !subjects.find((x) => x.name === s)).map((s) => (
-            <button
-              key={s}
-              onClick={() => quickAdd(s)}
-              className="px-2.5 py-1 rounded-[6px] text-xs font-medium border border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--ring)] hover:text-[var(--brand)] hover:bg-[var(--brand-subtle)] transition-all"
-            >
-              + {s}
-            </button>
-          ))}
-          {GH_SUBJECTS.filter((s) => !subjects.find((x) => x.name === s)).length === 0 && (
-            <p className="text-xs text-[var(--text-muted)]">All common subjects added.</p>
-          )}
-        </div>
-      </Card>
+      )}
 
+      {/* New subject form */}
       {showForm && (
-        <Card>
-          <p className="text-sm font-semibold text-[var(--text-strong)] mb-4">New subject</p>
+        <div className="bg-white rounded-2xl shadow-sm border border-[#e8e4f3] p-6">
+          <p className="text-[14px] font-bold text-slate-700 mb-5">New Subject</p>
           <form onSubmit={save} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <Input label="Subject name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required placeholder="e.g. Mathematics" />
               <Input label="Code (optional)" value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))} placeholder="e.g. MTH" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-[var(--text-strong)] mb-2">Applies to levels</p>
+              <p className="text-[13px] font-semibold text-slate-600 mb-2">Applies to levels</p>
               <div className="flex flex-wrap gap-2">
                 {LEVELS.map((l) => (
                   <button
                     key={l.value}
                     type="button"
                     onClick={() => toggleLevel(l.value)}
-                    className={`px-3 py-1.5 rounded-[8px] text-sm font-medium border transition-all ${
-                      form.level.includes(l.value)
-                        ? "bg-[var(--brand)] text-white border-[var(--brand)]"
-                        : "bg-white text-[var(--text-muted)] border-[var(--border)] hover:border-[var(--ring)]"
-                    }`}
+                    className="px-3 py-1.5 rounded-xl text-[13px] font-semibold border transition-all"
+                    style={form.level.includes(l.value)
+                      ? { background: "linear-gradient(135deg, #262262, #92278F)", color: "#fff", borderColor: "transparent" }
+                      : { background: "#fff", color: "#64748b", borderColor: "#e0daf0" }
+                    }
                   >
                     {l.label}
                   </button>
                 ))}
               </div>
             </div>
-            {err && <p className="text-sm text-[var(--danger)]">{err}</p>}
-            <div className="flex gap-2">
+            {err && <p className="text-[13px] text-red-600 bg-red-50 px-3 py-2 rounded-xl border border-red-100">{err}</p>}
+            <div className="flex gap-2 pt-1">
               <Button type="submit" size="sm" loading={saving}>Save subject</Button>
               <Button type="button" size="sm" variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button>
             </div>
           </form>
-        </Card>
+        </div>
       )}
 
+      {/* Empty state */}
       {subjects.length === 0 && !showForm && (
-        <Card><p className="text-sm text-[var(--text-muted)] text-center py-4">No subjects yet. Add from common subjects above or create a custom one.</p></Card>
+        <div className="bg-white rounded-2xl shadow-sm border border-[#e8e4f3] p-12 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-[#eef2ff] flex items-center justify-center mx-auto mb-4">
+            <BookOpen size={24} className="text-[#262262]" />
+          </div>
+          <p className="text-[15px] font-bold text-slate-700 mb-1">No subjects yet</p>
+          <p className="text-[13px] text-slate-400">Add from common subjects above or create a custom one.</p>
+        </div>
       )}
 
       {/* Edit subject modal */}
@@ -201,14 +215,17 @@ export function SubjectsManager({ schoolId, subjects: initial }: Props) {
               <Input label="Code (optional)" value={editForm.code} onChange={(e) => setEditForm((f) => ({ ...f, code: e.target.value }))} placeholder="e.g. MTH" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-[var(--text-strong)] mb-2">Applies to levels</p>
+              <p className="text-[13px] font-semibold text-slate-600 mb-2">Applies to levels</p>
               <div className="flex flex-wrap gap-2">
                 {LEVELS.map((l) => (
                   <button key={l.value} type="button"
                     onClick={() => setEditForm((f) => ({ ...f, level: f.level.includes(l.value) ? f.level.filter((x) => x !== l.value) : [...f.level, l.value] }))}
-                    className={`px-3 py-1.5 rounded-[8px] text-sm font-medium border transition-all ${editForm.level.includes(l.value) ? "bg-[var(--brand)] text-white border-[var(--brand)]" : "bg-white text-[var(--text-muted)] border-[var(--border)] hover:border-[var(--ring)]"}`}>
-                    {l.label}
-                  </button>
+                    className="px-3 py-1.5 rounded-xl text-[13px] font-semibold border transition-all"
+                    style={editForm.level.includes(l.value)
+                      ? { background: "linear-gradient(135deg, #262262, #92278F)", color: "#fff", borderColor: "transparent" }
+                      : { background: "#fff", color: "#64748b", borderColor: "#e0daf0" }
+                    }
+                  >{l.label}</button>
                 ))}
               </div>
             </div>
@@ -220,23 +237,31 @@ export function SubjectsManager({ schoolId, subjects: initial }: Props) {
         )}
       </Modal>
 
+      {/* Subjects grid */}
       {subjects.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {subjects.map((s) => (
-            <div key={s.id} className="bg-white border border-[var(--border)] rounded-[12px] p-4 flex items-start gap-3 shadow-[var(--shadow-sm)]">
-              <div className="w-9 h-9 rounded-xl bg-[var(--brand-subtle)] flex items-center justify-center shrink-0">
-                <BookOpen size={16} className="text-[var(--brand)]" />
+            <div key={s.id}
+              className="bg-white border border-[#e8e4f3] rounded-2xl p-4 flex items-start gap-3 shadow-sm hover:shadow-md hover:border-[#c4b5e8] transition-all">
+              <div className="w-10 h-10 rounded-xl bg-[#eef2ff] flex items-center justify-center shrink-0">
+                <BookOpen size={17} className="text-[#262262]" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-[var(--text-strong)]">{s.name}</p>
-                <p className="text-xs text-[var(--text-muted)]">
+                <p className="text-[14px] font-bold text-slate-800">{s.name}</p>
+                <p className="text-[12px] text-slate-400">
                   {s.code ? `${s.code} · ` : ""}
                   {s.level?.length ? s.level.map((l) => LEVELS.find((x) => x.value === l)?.label ?? l).join(", ") : "All levels"}
                 </p>
               </div>
-              <div className="flex gap-2">
-                <button onClick={() => openEdit(s)} className="text-[var(--text-subtle)] hover:text-[var(--brand)] transition-colors"><Pencil size={14} /></button>
-                <button onClick={() => deleteSubject(s.id)} disabled={deleting === s.id} className="text-[var(--text-subtle)] hover:text-[var(--danger)] transition-colors"><Trash2 size={14} /></button>
+              <div className="flex gap-1 shrink-0">
+                <button onClick={() => openEdit(s)}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#6b1f8a] hover:bg-[#f0eeff] transition-all">
+                  <Pencil size={13} />
+                </button>
+                <button onClick={() => deleteSubject(s.id)} disabled={deleting === s.id}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all disabled:opacity-50">
+                  <Trash2 size={13} />
+                </button>
               </div>
             </div>
           ))}

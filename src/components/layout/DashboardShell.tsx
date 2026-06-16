@@ -40,7 +40,7 @@ export function DashboardShell({ userName, userRole, schoolName, schoolLogo, chi
           schoolName={schoolName}
           onMenuClick={() => setSidebarOpen((v) => !v)}
         />
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-[#f8f7ff]">{children}</main>
       </div>
     </div>
     </ToastProvider>

@@ -137,7 +137,7 @@ export default function BudgetPage() {
           { label: "Total Used", value: formatCurrency(totalUsed), sub: `${Math.round(totalAllocated > 0 ? (totalUsed / totalAllocated) * 100 : 0)}% of budget`, icon: BarChart2, bg: "#F0FDF4", color: "#16A34A" },
           { label: "Over Budget", value: overBudgetCount.toString(), sub: "categories exceeded", icon: AlertTriangle, bg: "#FEF2F2", color: "#DC2626" },
         ].map(c => (
-          <div key={c.label} className="bg-white rounded-2xl border border-[var(--border)] p-5 shadow-[0_1px_6px_rgba(0,0,0,0.05)] flex items-center gap-4">
+          <div key={c.label} className="bg-white rounded-2xl border border-[#e8e4f3] p-5 shadow-sm flex items-center gap-4 border-l-4" style={{ borderLeftColor: c.color }}>
             <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: c.bg }}>
               <c.icon size={22} style={{ color: c.color }} />
             </div>
@@ -172,7 +172,7 @@ export default function BudgetPage() {
             const color = barColor(used, allocated);
 
             return (
-              <div key={b.id} className="bg-white rounded-2xl border border-[var(--border)] shadow-[0_1px_6px_rgba(0,0,0,0.05)] p-5 flex flex-col gap-4">
+              <div key={b.id} className="bg-white rounded-2xl border border-[#e8e4f3] shadow-sm p-5 flex flex-col gap-4 hover:shadow-md hover:border-[#c4b5e8] transition-all">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-0.5">
