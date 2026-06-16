@@ -18,7 +18,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params;
 
   const { data, error } = await admin
-    .from("communication_campaigns")
+    .from("platform_campaigns")
     .select("*")
     .eq("id", id)
     .single();
@@ -47,7 +47,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const { data, error } = await admin
-    .from("communication_campaigns")
+    .from("platform_campaigns")
     .update(update)
     .eq("id", id)
     .select()
@@ -60,7 +60,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = getAdmin();
   const { id } = await params;
-  const { error } = await admin.from("communication_campaigns").delete().eq("id", id);
+  const { error } = await admin.from("platform_campaigns").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }
@@ -80,7 +80,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     // Fetch campaign
     const { data: campaign, error: campErr } = await admin
-      .from("communication_campaigns")
+      .from("platform_campaigns")
       .select("*")
       .eq("id", id)
       .single();
@@ -94,10 +94,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     // Mark as active
-    await admin.from("communication_campaigns").update({ status: "active", started_at: new Date().toISOString() }).eq("id", id);
+    await admin.from("platform_campaigns").update({ status: "active", started_at: new Date().toISOString() }).eq("id", id);
 
     // Get provider settings
-    const { data: allSettings } = await admin.from("communication_settings").select("*");
+    const { data: allSettings } = await admin.from("platform_comm_settings").select("*");
     const settingsByChannel = Object.fromEntries((allSettings ?? []).map((s: Record<string, unknown>) => [s.channel, s]));
 
     // Resolve recipients
@@ -161,7 +161,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     // Update campaign stats
-    await admin.from("communication_campaigns").update({
+    await admin.from("platform_campaigns").update({
       status: "completed",
       completed_at: new Date().toISOString(),
       total_recipients: schools.length,

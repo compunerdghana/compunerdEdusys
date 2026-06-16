@@ -33,7 +33,7 @@ export async function GET() {
 
     // Active campaigns
     const { count: activeCampaigns } = await admin
-      .from("communication_campaigns")
+      .from("platform_campaigns")
       .select("id", { count: "exact", head: true })
       .eq("status", "active");
 
@@ -77,7 +77,7 @@ export async function GET() {
 
     // Recent logs
     const { data: recentLogs } = await admin
-      .from("communication_logs")
+      .from("platform_comm_logs")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(10);

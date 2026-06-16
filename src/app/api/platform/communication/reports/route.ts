@@ -35,7 +35,7 @@ export async function GET() {
 
     // Campaign performance (top 10)
     const { data: campaigns } = await admin
-      .from("communication_campaigns")
+      .from("platform_campaigns")
       .select("id, name, type, status, total_recipients, sent_count, delivered_count, read_count, failed_count, completed_at")
       .in("status", ["completed", "active"])
       .order("completed_at", { ascending: false })

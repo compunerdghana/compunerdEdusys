@@ -11,7 +11,7 @@ function getAdmin() {
 
 export async function GET() {
   const admin = getAdmin();
-  const { data } = await admin.from("automation_rules").select("*").order("created_at", { ascending: false });
+  const { data } = await admin.from("platform_automation_rules").select("*").order("created_at", { ascending: false });
   return NextResponse.json({ rules: data ?? [] });
 }
 
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "name and trigger_event are required" }, { status: 400 });
     }
 
-    const { data, error } = await admin.from("automation_rules").insert({
+    const { data, error } = await admin.from("platform_automation_rules").insert({
       name,
       description: description ?? null,
       trigger_event,
@@ -52,7 +52,7 @@ export async function PATCH(req: NextRequest) {
     const { id, is_active, ...rest } = body;
     if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
 
-    const { error } = await admin.from("automation_rules").update({
+    const { error } = await admin.from("platform_automation_rules").update({
       is_active,
       ...rest,
       updated_at: new Date().toISOString(),

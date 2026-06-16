@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
 
     // Get SMS settings
     const { data: settings } = await admin
-      .from("communication_settings")
+      .from("platform_comm_settings")
       .select("*")
       .eq("channel", "sms")
       .single();
@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
         sent_at: status === "sent" ? new Date().toISOString() : null,
       }).select().single();
 
-      await admin.from("communication_logs").insert({
+      await admin.from("platform_comm_logs").insert({
         message_id: msgData?.id ?? null,
         campaign_id: campaign_id ?? null,
         channel: "sms",

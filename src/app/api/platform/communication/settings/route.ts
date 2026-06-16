@@ -11,7 +11,7 @@ function getAdmin() {
 
 export async function GET() {
   const admin = getAdmin();
-  const { data } = await admin.from("communication_settings").select("channel, provider, sender_id, is_active, updated_at");
+  const { data } = await admin.from("platform_comm_settings").select("channel, provider, sender_id, is_active, updated_at");
   return NextResponse.json({ settings: data ?? [] });
 }
 
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
 
     if (!channel) return NextResponse.json({ error: "channel is required" }, { status: 400 });
 
-    const { error } = await admin.from("communication_settings").upsert({
+    const { error } = await admin.from("platform_comm_settings").upsert({
       channel,
       provider: provider ?? null,
       api_key: api_key ?? null,

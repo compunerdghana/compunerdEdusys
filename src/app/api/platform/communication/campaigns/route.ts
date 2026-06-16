@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
   const offset = (page - 1) * limit;
 
   let q = admin
-    .from("communication_campaigns")
+    .from("platform_campaigns")
     .select("*", { count: "exact" })
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { data, error } = await admin
-      .from("communication_campaigns")
+      .from("platform_campaigns")
       .insert({
         name,
         description: description ?? null,

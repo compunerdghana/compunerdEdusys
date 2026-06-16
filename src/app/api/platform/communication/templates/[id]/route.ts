@@ -12,7 +12,7 @@ function getAdmin() {
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = getAdmin();
   const { id } = await params;
-  const { data, error } = await admin.from("communication_templates").select("*").eq("id", id).single();
+  const { data, error } = await admin.from("platform_comm_templates").select("*").eq("id", id).single();
   if (error) return NextResponse.json({ error: error.message }, { status: 404 });
   return NextResponse.json({ template: data });
 }
@@ -25,7 +25,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
   for (const k of allowed) if (k in body) update[k] = body[k];
 
-  const { data, error } = await admin.from("communication_templates").update(update).eq("id", id).select().single();
+  const { data, error } = await admin.from("platform_comm_templates").update(update).eq("id", id).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ template: data });
 }
@@ -33,7 +33,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = getAdmin();
   const { id } = await params;
-  const { error } = await admin.from("communication_templates").delete().eq("id", id);
+  const { error } = await admin.from("platform_comm_templates").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }

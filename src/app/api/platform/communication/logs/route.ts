@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
   const to = url.searchParams.get("to");
 
   let q = admin
-    .from("communication_logs")
+    .from("platform_comm_logs")
     .select("*", { count: "exact" })
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);

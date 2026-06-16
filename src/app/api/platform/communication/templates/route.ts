@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   const category = url.searchParams.get("category");
 
   let q = admin
-    .from("communication_templates")
+    .from("platform_comm_templates")
     .select("*")
     .eq("is_active", true)
     .order("created_at", { ascending: false });
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { data, error } = await admin
-      .from("communication_templates")
+      .from("platform_comm_templates")
       .insert({ name, category, channel, subject: subject ?? null, body: tmplBody, variables, created_by: created_by ?? null })
       .select()
       .single();
