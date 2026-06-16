@@ -116,12 +116,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const resolvedSchoolCode = school_code || (name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") + "-" + Math.floor(1000 + Math.random() * 9000));
+
     // 1. Insert school
     const { data: school, error: schoolErr } = await admin
       .from("schools")
       .insert({
         name,
-        school_code,
+        school_code: resolvedSchoolCode,
+        code: resolvedSchoolCode,
         school_type,
         region,
         district,
