@@ -56,6 +56,41 @@ export async function POST(request: NextRequest) {
   try {
     const admin = getAdmin();
     const body = await request.json();
+    const schoolId = body.schoolId || body.school_id;
+
+    if (schoolId) {
+      const { feature, enabled } = body;
+      const validColumns = [
+        "students", "admissions", "finance", "attendance", "academics",
+        "exams", "report_cards", "communications", "payroll",
+        "inventory", "transport", "hostel"
+      ];
+      if (!validColumns.includes(feature)) {
+        return NextResponse.json({ error: "Invalid feature code" }, { status: 400 });
+      }
+
+      const { data, error } = await admin
+        .from("school_features")
+        .update({ [feature]: enabled, updated_at: new Date().toISOString() })
+        .eq("school_id", schoolId)
+        .select()
+        .single();
+
+      if (error) {
+        const { data: upsertData, error: upsertErr } = await admin
+          .from("school_features")
+          .upsert({ school_id: schoolId, [feature]: enabled, updated_at: new Date().toISOString() })
+          .select()
+          .single();
+        if (upsertErr) {
+          return NextResponse.json({ error: upsertErr.message }, { status: 500 });
+        }
+        return NextResponse.json({ success: true, features: upsertData });
+      }
+
+      return NextResponse.json({ success: true, features: data });
+    }
+
     const {
       name,
       code,
@@ -105,7 +140,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ feature: data }, { status: 201 });
   } catch (err) {
     console.error("POST platform/features error", err);
-    return NextResponse.json({ error: "Failed to create feature" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to process request" }, { status: 500 });
   }
 }
 

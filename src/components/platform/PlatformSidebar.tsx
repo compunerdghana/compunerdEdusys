@@ -78,6 +78,7 @@ const usersSubItems = [
   { label: "Create User", href: "/platform/users/new", icon: Plus },
   { label: "Roles", href: "/platform/users/roles", icon: UserCog },
   { label: "Permissions", href: "/platform/users/permissions", icon: KeyRound },
+  { label: "Role Templates", href: "/platform/users/role-templates", icon: ShieldCheck },
   { label: "User Groups", href: "/platform/users/groups", icon: UsersRound },
   { label: "Activity Logs", href: "/platform/users/activity", icon: ActivitySquare },
   { label: "Login History", href: "/platform/users/login-history", icon: History },
