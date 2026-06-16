@@ -39,9 +39,20 @@ export async function POST(req: NextRequest) {
       }
       return NextResponse.json({ ok: true });
     } else {
+      const name = (payload.name as string) || "school";
+      const resolvedSchoolCode =
+        (payload.code as string) ||
+        (payload.school_code as string) ||
+        (name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") + "-" + Math.floor(1000 + Math.random() * 9000));
+
       const { data, error } = await getAdmin()
         .from("schools")
-        .insert({ ...payload, created_by: user.id })
+        .insert({
+          ...payload,
+          code: resolvedSchoolCode,
+          school_code: resolvedSchoolCode,
+          created_by: user.id
+        })
         .select("id")
         .single();
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });

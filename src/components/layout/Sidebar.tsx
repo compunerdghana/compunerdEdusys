@@ -184,8 +184,16 @@ export function Sidebar({ userName = "Admin", userRole = "admin", schoolName, sc
 
     // Check specific permission
     if (item.permission) {
-      const hasPerm = userContext.permissions.includes(item.permission);
-      if (!hasPerm) return false;
+      const isAdminRole =
+        userContext.role === "admin" ||
+        userContext.role === "owner" ||
+        userContext.role === "school_owner" ||
+        userContext.role === "school_admin";
+
+      if (!isAdminRole) {
+        const hasPerm = userContext.permissions.includes(item.permission);
+        if (!hasPerm) return false;
+      }
     }
 
     // For groups, check if any child is visible
