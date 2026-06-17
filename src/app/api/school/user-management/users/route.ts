@@ -213,16 +213,35 @@ export async function POST(request: NextRequest) {
       override_permission_ids
     } = body;
 
-    if (!email || !full_name || !password || !role) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    if (!username || !full_name || !password || !role) {
+      return NextResponse.json({ error: "Username, full name, and password are required." }, { status: 400 });
     }
 
-    // 1. Create auth user
+    const cleanUsername = String(username).trim().toLowerCase().replace(/\s+/g, ".");
+
+    // Username must be unique within the school
+    const { data: existingUser } = await admin
+      .from("profiles")
+      .select("id")
+      .eq("school_id", schoolId)
+      .eq("username", cleanUsername)
+      .maybeSingle();
+
+    if (existingUser) {
+      return NextResponse.json({ error: "That username is already taken." }, { status: 400 });
+    }
+
+    // Accounts are username + password only — no real email/verification required.
+    // Supabase Auth still needs an email-shaped identifier internally, so we
+    // synthesize one from the username + school. It is never shown or used for login.
+    const loginEmail = email?.trim() || `${cleanUsername}.${schoolId.slice(0, 8)}@accounts.compunerdedusys.internal`;
+
+    // 1. Create auth user (email_confirm: true — no verification email, no extra auth step)
     const { data: authUser, error: authErr } = await admin.auth.admin.createUser({
-      email,
+      email: loginEmail,
       password,
       email_confirm: true,
-      user_metadata: { full_name, role, school_id: schoolId }
+      user_metadata: { full_name, role, school_id: schoolId, username: cleanUsername }
     });
 
     if (authErr) {
@@ -246,7 +265,8 @@ export async function POST(request: NextRequest) {
         digital_address: digital_address || null,
         ghana_card: ghana_card || null,
         emergency_contact: emergency_contact || {},
-        username: username || email.split("@")[0],
+        username: cleanUsername,
+        email: loginEmail,
         phone: phone || null,
         is_active: true,
         updated_at: new Date().toISOString()

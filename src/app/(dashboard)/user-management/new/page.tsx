@@ -81,8 +81,8 @@ export default function CreateUserPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.full_name || !form.email || !form.password) {
-      toastError("Full name, email, and password are required.");
+    if (!form.full_name || !form.username || !form.password) {
+      toastError("Full name, username, and password are required.");
       return;
     }
     setLoading(true);
@@ -123,7 +123,7 @@ export default function CreateUserPage() {
           </div>
           <div>
             <h3 className="font-extrabold text-slate-900 text-[14px]">Create New User Account</h3>
-            <p className="text-[11px] text-slate-400 font-semibold mt-0.5">Register staff, teachers, parents, or students</p>
+            <p className="text-[11px] text-slate-400 font-semibold mt-0.5">Logs in with username + password only — no email or extra verification needed</p>
           </div>
         </div>
 
@@ -184,27 +184,27 @@ export default function CreateUserPage() {
               />
             </div>
             <div>
-              <label className="block text-[12px] font-bold text-slate-700 mb-1.5">Email (Unique)</label>
+              <label className="block text-[12px] font-bold text-slate-700 mb-1.5">Username (Unique)</label>
               <input
-                type="email"
-                placeholder="john.mensah@school.com"
+                type="text"
+                placeholder="john.mensah"
                 required
-                value={form.email}
-                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                value={form.username}
+                onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
                 className={inputClass}
               />
             </div>
           </div>
 
-          {/* Username & Phone */}
+          {/* Email (optional) & Phone */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-[12px] font-bold text-slate-700 mb-1.5">Username (Optional)</label>
+              <label className="block text-[12px] font-bold text-slate-700 mb-1.5">Email (Optional)</label>
               <input
-                type="text"
-                placeholder="john.mensah"
-                value={form.username}
-                onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
+                type="email"
+                placeholder="Leave blank — not required to log in"
+                value={form.email}
+                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                 className={inputClass}
               />
             </div>
