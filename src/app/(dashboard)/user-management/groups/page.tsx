@@ -221,7 +221,7 @@ export default function UserGroupsBoard() {
 
               <div className="p-6">
                 <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mb-3">Add / Remove School Users</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto pr-2 scrollbar-hide">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto pr-2 scrollbar-hide">
                   {profiles.map((u) => {
                     const isChecked = selectedUserIds.includes(u.id);
                     return (

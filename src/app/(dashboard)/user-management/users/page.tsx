@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { UserPlus, Search, Lock, Unlock, RefreshCw, Loader2, Users, Download, ShieldAlert, Key } from "lucide-react";
+import { UserPlus, Search, Lock, Unlock, RefreshCw, Loader2, Users, Download, ShieldAlert, Key, UsersRound } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import { SlidePanel } from "@/components/ui/SlidePanel";
 
@@ -30,7 +30,7 @@ const roleBadge: Record<string, string> = {
 };
 
 const inputClass =
-  "w-full px-4 h-10 rounded-xl border border-[#e0daf0] text-[13px] font-semibold text-slate-800 outline-none focus:border-[#7c3aed] focus:ring-2 focus:ring-[#7c3aed]/20 transition-all bg-white";
+  "w-full px-4 h-11 rounded-xl border border-[#e0daf0] text-[13px] font-semibold text-slate-800 outline-none focus:border-[#7c3aed] focus:ring-2 focus:ring-[#7c3aed]/20 transition-all bg-white";
 
 export default function AllUsersDirectory() {
   const { success, error: toastError } = useToast();
@@ -199,17 +199,17 @@ export default function AllUsersDirectory() {
   });
 
   const filterSelect =
-    "h-10 px-3 rounded-xl border border-[#e0daf0] text-[13px] font-semibold text-slate-700 outline-none focus:border-[#7c3aed] focus:ring-2 focus:ring-[#7c3aed]/20 bg-white transition-all";
+    "h-11 px-3 rounded-xl border border-[#e0daf0] text-[13px] font-semibold text-slate-700 outline-none focus:border-[#7c3aed] focus:ring-2 focus:ring-[#7c3aed]/20 bg-white transition-all";
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-[20px] font-extrabold text-slate-900 leading-tight flex items-center gap-2">
+          <h1 className="text-[24px] font-extrabold text-slate-900 leading-tight tracking-tight flex items-center gap-2">
             All Users Directory
           </h1>
-          <p className="text-slate-500 text-[12px] font-semibold mt-0.5">
+          <p className="text-slate-500 text-[13px] font-medium mt-1">
             Overview list of all school portal users (students, parents, teachers, and staff).
           </p>
         </div>
@@ -233,7 +233,7 @@ export default function AllUsersDirectory() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 items-center">
+      <div className="flex flex-wrap gap-4 items-center">
         <div className="relative flex-1 min-w-[200px]">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -259,7 +259,7 @@ export default function AllUsersDirectory() {
           <option value="active">Active</option>
           <option value="suspended">Suspended</option>
         </select>
-        <button onClick={loadUsers} className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-[12px] font-bold border border-[#e0daf0] text-slate-600 hover:bg-slate-50 transition-all bg-white">
+        <button onClick={loadUsers} className="flex items-center gap-2 px-4 h-11 rounded-xl text-[12px] font-bold border border-[#e0daf0] text-slate-600 hover:bg-slate-50 transition-all bg-white">
           <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
         </button>
       </div>
@@ -310,7 +310,7 @@ export default function AllUsersDirectory() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-[#faf9ff] border-b border-[#f0edf8]">
-                <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest w-12">
+                <th className="px-6 py-3.5 text-[11px] font-bold text-slate-400 uppercase tracking-widest w-12">
                   <input
                     type="checkbox"
                     checked={selectedUserIds.length > 0 && selectedUserIds.length === filtered.length}
@@ -321,7 +321,7 @@ export default function AllUsersDirectory() {
                 {["User Details", "Role", "Username / Email", "Phone", "Status", "Actions"].map((h) => (
                   <th
                     key={h}
-                    className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap"
+                    className="px-6 py-3.5 text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap"
                   >
                     {h}
                   </th>
@@ -338,8 +338,12 @@ export default function AllUsersDirectory() {
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-16 text-center text-slate-400 font-semibold text-[13px]">
-                    No accounts found matching your filter options.
+                  <td colSpan={7} className="py-20 text-center">
+                    <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center mx-auto mb-3">
+                      <UsersRound size={28} className="text-slate-300" />
+                    </div>
+                    <p className="text-slate-700 font-bold text-[14px]">No accounts found</p>
+                    <p className="text-slate-400 text-[12px] font-medium mt-1">Try adjusting your search or filter options.</p>
                   </td>
                 </tr>
               ) : (
@@ -348,7 +352,7 @@ export default function AllUsersDirectory() {
                   const isChecked = selectedUserIds.includes(u.id);
                   return (
                     <tr key={u.id} className="hover:bg-[#faf9ff]/50 transition-colors">
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-5">
                         <input
                           type="checkbox"
                           checked={isChecked}
@@ -356,31 +360,31 @@ export default function AllUsersDirectory() {
                           className="rounded border-[#e0daf0] text-[#7c3aed] focus:ring-[#7c3aed]"
                         />
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-5">
                         <div className="flex items-center gap-3">
                           <div
-                            className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-[11px] font-extrabold shrink-0 shadow-inner"
+                            className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-[11px] font-extrabold shrink-0 shadow ring-2 ring-white"
                             style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)" }}
                           >
                             {initials}
                           </div>
                           <div>
-                            <p className="font-bold text-slate-900 text-[13px]">{u.full_name}</p>
+                            <p className="font-bold text-slate-900 text-[13.5px]">{u.full_name}</p>
                             <p className="text-slate-400 font-semibold text-[11px] capitalize">{u.role.replace("_", " ")}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-5">
                         <span className={`rounded-full text-[11px] font-bold px-2.5 py-0.5 border capitalize ${roleBadge[u.role] ?? "bg-slate-100 text-slate-600 border-slate-200"}`}>
                           {u.user_roles?.[0]?.role?.display_name || u.role.replace("_", " ")}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
-                        <p className="text-slate-700 font-semibold text-[13px]">{u.username}</p>
+                      <td className="px-6 py-5">
+                        <p className="text-slate-700 font-semibold text-[13.5px]">{u.username}</p>
                         {u.email && <p className="text-slate-400 font-medium text-[11px]">{u.email}</p>}
                       </td>
-                      <td className="px-6 py-4 text-slate-500 font-semibold text-[13px]">{u.phone || "—"}</td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-5 text-slate-500 font-semibold text-[13.5px]">{u.phone || "—"}</td>
+                      <td className="px-6 py-5">
                         <span className={`rounded-full text-[10px] font-extrabold uppercase px-2.5 py-0.5 border ${
                           u.is_active
                             ? "bg-emerald-50 text-emerald-700 border-emerald-100"
@@ -389,7 +393,7 @@ export default function AllUsersDirectory() {
                           {u.is_active ? "Active" : "Suspended"}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-5">
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => {

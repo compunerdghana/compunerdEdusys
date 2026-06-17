@@ -73,7 +73,7 @@ export default function ActivityLogsBoard() {
             <thead>
               <tr className="bg-[#faf9ff] border-b border-[#f0edf8]">
                 {["Actor Name", "Action Key", "Target Category", "Operation Details", "Timestamp"].map((h) => (
-                  <th key={h} className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">{h}</th>
+                  <th key={h} className="px-6 py-3.5 text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -87,22 +87,26 @@ export default function ActivityLogsBoard() {
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-16 text-center text-slate-400 font-semibold text-[13px]">
-                    No activity logs recorded.
+                  <td colSpan={5} className="py-20 text-center">
+                    <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center mx-auto mb-3">
+                      <ScrollText size={28} className="text-slate-300" />
+                    </div>
+                    <p className="text-slate-700 font-bold text-[14px]">No activity logs recorded</p>
+                    <p className="text-slate-400 text-[12px] font-medium mt-1">Administrative actions will be tracked here.</p>
                   </td>
                 </tr>
               ) : (
                 filtered.map((log) => (
                   <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-6 py-4 font-bold text-slate-900 text-[13px]">{log.actor_name}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-5 font-bold text-slate-900 text-[13.5px]">{log.actor_name}</td>
+                    <td className="px-6 py-5">
                       <span className="text-[10px] font-mono font-bold text-violet-700 bg-violet-50 border border-violet-100 rounded px-2 py-0.5">{log.action}</span>
                     </td>
-                    <td className="px-6 py-4 text-slate-600 font-bold text-[12.5px] capitalize">{log.target_type}</td>
-                    <td className="px-6 py-4 text-slate-500 font-medium text-[12px] max-w-xs truncate">
+                    <td className="px-6 py-5 text-slate-600 font-bold text-[12.5px] capitalize">{log.target_type}</td>
+                    <td className="px-6 py-5 text-slate-500 font-medium text-[12px] max-w-xs truncate">
                       {JSON.stringify(log.details)}
                     </td>
-                    <td className="px-6 py-4 text-slate-400 font-medium text-[11.5px]">{new Date(log.created_at).toLocaleString()}</td>
+                    <td className="px-6 py-5 text-slate-400 font-medium text-[11.5px]">{new Date(log.created_at).toLocaleString()}</td>
                   </tr>
                 ))
               )}

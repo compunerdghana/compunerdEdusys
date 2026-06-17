@@ -83,24 +83,24 @@ export default function UserManagementDashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-[20px] font-extrabold text-slate-900 leading-tight">
+        <h1 className="text-[24px] font-extrabold text-slate-900 leading-tight tracking-tight">
           User Management Dashboard
         </h1>
-        <p className="text-slate-500 text-[12px] font-semibold mt-0.5">
+        <p className="text-slate-500 text-[13px] font-medium mt-1">
           Access control, directories, login sessions, and permission override setups.
         </p>
       </div>
 
       {/* Grid Counts */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-5">
         {statCards.map((c) => (
-          <div key={c.label} className="bg-white rounded-2xl border border-[#e8e4f3] p-4 flex flex-col gap-2 shadow-sm">
-            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${c.color}`}>
-              <c.icon size={15} />
+          <div key={c.label} className="bg-white rounded-2xl border border-[#e8e4f3] p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${c.color}`}>
+              <c.icon size={18} />
             </div>
             <div>
               <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">{c.label}</p>
-              <h3 className="text-[18px] font-black text-slate-900 mt-0.5">{c.value}</h3>
+              <h3 className="text-[22px] font-black text-slate-900 mt-0.5">{c.value}</h3>
             </div>
           </div>
         ))}
@@ -141,8 +141,8 @@ export default function UserManagementDashboard() {
                 const initials = u.full_name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
                 return (
                   <div key={u.id} className="flex items-center justify-between p-3 rounded-xl bg-[#faf9ff] border border-[#f0edf8]">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-8 h-8 rounded-lg bg-violet-600 text-white flex items-center justify-center text-[10px] font-extrabold shrink-0 shadow-sm">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-lg bg-violet-600 text-white flex items-center justify-center text-[10px] font-extrabold shrink-0 shadow-sm ring-2 ring-white">
                         {initials}
                       </div>
                       <div className="min-w-0">
@@ -179,7 +179,7 @@ export default function UserManagementDashboard() {
             <thead>
               <tr className="bg-[#faf9ff] border-b border-[#f0edf8]">
                 {["User", "Status", "IP Address", "Device / Browser", "Time"].map((h) => (
-                  <th key={h} className="px-4 py-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">{h}</th>
+                  <th key={h} className="px-4 py-3.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -189,20 +189,20 @@ export default function UserManagementDashboard() {
                 const deviceLabel = log.device || "Unknown";
                 return (
                   <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-4 py-3.5">
-                      <p className="text-[12.5px] font-bold text-slate-900">{log.profile?.full_name || log.username}</p>
+                    <td className="px-4 py-4">
+                      <p className="text-[13.5px] font-bold text-slate-900">{log.profile?.full_name || log.username}</p>
                       <p className="text-[10px] text-slate-400 font-semibold capitalize">{log.profile?.role?.replace("_", " ") || "User"}</p>
                     </td>
-                    <td className="px-4 py-3.5">
+                    <td className="px-4 py-4">
                       <span className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded border ${
                         log.status === "success" ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-red-50 text-red-700 border-red-100"
                       }`}>
                         {log.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3.5 text-slate-600 font-mono text-[11.5px] font-semibold">{log.ip_address}</td>
-                    <td className="px-4 py-3.5 text-slate-500 font-semibold text-[11px]">{deviceLabel} / {browserLabel}</td>
-                    <td className="px-4 py-3.5 text-slate-400 font-medium text-[11px]">{new Date(log.created_at).toLocaleTimeString()}</td>
+                    <td className="px-4 py-4 text-slate-600 font-mono text-[11.5px] font-semibold">{log.ip_address}</td>
+                    <td className="px-4 py-4 text-slate-500 font-semibold text-[11px]">{deviceLabel} / {browserLabel}</td>
+                    <td className="px-4 py-4 text-slate-400 font-medium text-[11px]">{new Date(log.created_at).toLocaleTimeString()}</td>
                   </tr>
                 );
               })}

@@ -56,11 +56,11 @@ export default function FeatureAccessBoard() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-[20px] font-extrabold text-slate-900 leading-tight">Feature Access Board</h1>
-        <p className="text-slate-500 text-[12px] font-semibold mt-0.5">Assigned platforms features enabled by the Super Admin for your school subscription.</p>
+        <h1 className="text-[24px] font-extrabold text-slate-900 leading-tight tracking-tight">Feature Access Board</h1>
+        <p className="text-slate-500 text-[13px] font-medium mt-1">Assigned platforms features enabled by the Super Admin for your school subscription.</p>
       </div>
 
-      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3 shadow-inner">
+      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 flex items-start gap-4 shadow-inner">
         <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
           <ShieldAlert size={16} />
         </div>
@@ -79,11 +79,11 @@ export default function FeatureAccessBoard() {
           <p className="text-slate-400 text-[12px] font-semibold mt-2">Loading feature statuses...</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {features.map((f) => (
             <div
               key={f.name}
-              className={`p-5 rounded-2xl border transition-all flex items-start justify-between bg-white ${
+              className={`p-6 rounded-2xl border transition-all flex items-start justify-between bg-white ${
                 f.status
                   ? "border-violet-100 shadow-sm"
                   : "border-slate-100 opacity-60"

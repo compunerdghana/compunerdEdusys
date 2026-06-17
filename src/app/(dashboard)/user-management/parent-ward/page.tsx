@@ -178,7 +178,7 @@ export default function ParentWardLinkingBoard() {
             <thead>
               <tr className="bg-[#faf9ff] border-b border-[#f0edf8]">
                 {["Parent Name (ID)", "Ward Name (ID)", "Admission No.", "Relationship", "Linked At", "Actions"].map((h) => (
-                  <th key={h} className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">{h}</th>
+                  <th key={h} className="px-6 py-3.5 text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -192,29 +192,33 @@ export default function ParentWardLinkingBoard() {
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-16 text-center text-slate-400 font-semibold text-[13px]">
-                    No links found. Click Create New Link above.
+                  <td colSpan={6} className="py-20 text-center">
+                    <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center mx-auto mb-3">
+                      <ArrowRightLeft size={28} className="text-slate-300" />
+                    </div>
+                    <p className="text-slate-700 font-bold text-[14px]">No links found</p>
+                    <p className="text-slate-400 text-[12px] font-medium mt-1">Click Create New Link above to get started.</p>
                   </td>
                 </tr>
               ) : (
                 filtered.map((lnk) => (
                   <tr key={lnk.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-6 py-4">
-                      <p className="font-bold text-slate-900 text-[13px]">{lnk.parent?.full_name}</p>
+                    <td className="px-6 py-5">
+                      <p className="font-bold text-slate-900 text-[13.5px]">{lnk.parent?.full_name}</p>
                       <p className="text-slate-400 font-mono text-[11px]">{lnk.parent?.parent_id || "—"}</p>
                     </td>
-                    <td className="px-6 py-4">
-                      <p className="font-bold text-slate-900 text-[13px]">{lnk.student?.first_name} {lnk.student?.last_name}</p>
+                    <td className="px-6 py-5">
+                      <p className="font-bold text-slate-900 text-[13.5px]">{lnk.student?.first_name} {lnk.student?.last_name}</p>
                       <p className="text-slate-400 font-mono text-[11px]">{lnk.student?.student_id || "—"}</p>
                     </td>
-                    <td className="px-6 py-4 text-[13px] font-semibold text-slate-600 font-mono">{lnk.student?.admission_number}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-5 text-[13.5px] font-semibold text-slate-600 font-mono">{lnk.student?.admission_number}</td>
+                    <td className="px-6 py-5">
                       <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-full px-2.5 py-0.5">
                         {lnk.relationship}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-slate-400 font-medium text-[11.5px]">{new Date(lnk.created_at || "").toLocaleDateString()}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-5 text-slate-400 font-medium text-[11.5px]">{new Date(lnk.created_at || "").toLocaleDateString()}</td>
+                    <td className="px-6 py-5">
                       <button
                         onClick={() => handleDeleteLink(lnk.id)}
                         className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all"

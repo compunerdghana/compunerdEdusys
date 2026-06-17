@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { ScrollText, Search, RefreshCw, Loader2, Check } from "lucide-react";
+import { ShieldQuestion } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 
 interface Permission {
@@ -96,12 +97,12 @@ export default function PermissionsMatrix() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-[20px] font-extrabold text-slate-900 leading-tight">System Permissions Grid</h1>
-        <p className="text-slate-500 text-[12px] font-semibold mt-0.5">Lookup system access permission keys and default role matrices.</p>
+        <h1 className="text-[24px] font-extrabold text-slate-900 leading-tight tracking-tight">System Permissions Grid</h1>
+        <p className="text-slate-500 text-[13px] font-medium mt-1">Lookup system access permission keys and default role matrices.</p>
       </div>
 
       {/* Toolbar */}
-      <div className="flex gap-3 items-center">
+      <div className="flex gap-4 items-center">
         <div className="relative flex-1">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -109,10 +110,10 @@ export default function PermissionsMatrix() {
             placeholder="Search permission by name, key or description..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 h-10 rounded-xl border border-[#e0daf0] text-[13px] font-semibold text-slate-800 outline-none focus:border-[#7c3aed] focus:ring-2 focus:ring-[#7c3aed]/20 transition-all bg-white"
+            className="w-full pl-9 pr-4 h-11 rounded-xl border border-[#e0daf0] text-[13px] font-semibold text-slate-800 outline-none focus:border-[#7c3aed] focus:ring-2 focus:ring-[#7c3aed]/20 transition-all bg-white"
           />
         </div>
-        <button onClick={loadPermissions} className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-[12px] font-bold border border-[#e0daf0] text-slate-600 hover:bg-slate-50 transition-all bg-white">
+        <button onClick={loadPermissions} className="flex items-center gap-2 px-4 h-11 rounded-xl text-[12px] font-bold border border-[#e0daf0] text-slate-600 hover:bg-slate-50 transition-all bg-white">
           <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
         </button>
       </div>
@@ -123,9 +124,9 @@ export default function PermissionsMatrix() {
           <table className="w-full text-left">
             <thead>
               <tr className="bg-[#faf9ff] border-b border-[#f0edf8]">
-                <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Permission & Description</th>
+                <th className="px-6 py-3.5 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Permission & Description</th>
                 {roleTemplates.map(t => (
-                  <th key={t.name} className="px-4 py-4 text-center text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">{t.label}</th>
+                  <th key={t.name} className="px-4 py-3.5 text-center text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">{t.label}</th>
                 ))}
               </tr>
             </thead>
@@ -139,8 +140,12 @@ export default function PermissionsMatrix() {
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-16 text-center text-slate-400 font-semibold text-[13px]">
-                    No permissions found matching search.
+                  <td colSpan={8} className="py-20 text-center">
+                    <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center mx-auto mb-3">
+                      <ShieldQuestion size={28} className="text-slate-300" />
+                    </div>
+                    <p className="text-slate-700 font-bold text-[14px]">No permissions found</p>
+                    <p className="text-slate-400 text-[12px] font-medium mt-1">Try a different search term.</p>
                   </td>
                 </tr>
               ) : (

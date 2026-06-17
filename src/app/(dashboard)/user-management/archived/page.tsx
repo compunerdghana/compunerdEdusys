@@ -92,7 +92,7 @@ export default function ArchivedUsersList() {
             <thead>
               <tr className="bg-[#faf9ff] border-b border-[#f0edf8]">
                 {["User Details", "Username / Email", "Phone", "Role", "Actions"].map((h) => (
-                  <th key={h} className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">{h}</th>
+                  <th key={h} className="px-6 py-3.5 text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -106,8 +106,12 @@ export default function ArchivedUsersList() {
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-16 text-center text-slate-400 font-semibold text-[13px]">
-                    No archived accounts found in recycle-bin.
+                  <td colSpan={5} className="py-20 text-center">
+                    <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center mx-auto mb-3">
+                      <UserMinus size={28} className="text-slate-300" />
+                    </div>
+                    <p className="text-slate-700 font-bold text-[14px]">No archived accounts found</p>
+                    <p className="text-slate-400 text-[12px] font-medium mt-1">Suspended accounts will appear in this recycle bin.</p>
                   </td>
                 </tr>
               ) : (
@@ -116,28 +120,28 @@ export default function ArchivedUsersList() {
                   const isRestoring = restoringId === u.id;
                   return (
                     <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-5">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white bg-slate-400 text-[11px] font-extrabold shadow-sm shrink-0">
+                          <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white bg-slate-400 text-[11px] font-extrabold shadow ring-2 ring-white shrink-0">
                             {initials}
                           </div>
                           <div>
-                            <p className="font-bold text-slate-900 text-[13px]">{u.full_name}</p>
+                            <p className="font-bold text-slate-900 text-[13.5px]">{u.full_name}</p>
                             <p className="text-slate-400 font-semibold text-[11px] capitalize">{u.role.replace("_", " ")}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-5">
                         <p className="text-slate-700 font-semibold text-[13.5px]">{u.username}</p>
                         <p className="text-slate-400 font-medium text-[11.5px]">{u.email}</p>
                       </td>
-                      <td className="px-6 py-4 text-slate-500 font-semibold text-[13px]">{u.phone || "—"}</td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-5 text-slate-500 font-semibold text-[13.5px]">{u.phone || "—"}</td>
+                      <td className="px-6 py-5">
                         <span className="text-[11px] font-bold text-slate-600 bg-slate-100 rounded px-2 py-0.5 border border-slate-200 capitalize">
                           {u.role.replace("_", " ")}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-5">
                         <button
                           onClick={() => handleRestore(u.id)}
                           disabled={isRestoring}

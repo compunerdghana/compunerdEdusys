@@ -117,19 +117,19 @@ export default function CreateUserPage() {
       </div>
 
       <div className="bg-white rounded-2xl border border-[#e8e4f3] shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-[#f0edf8] flex items-center gap-3 bg-[#faf9ff]">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white bg-violet-600 shadow-md">
-            <UserPlus size={14} />
+        <div className="px-6 py-5 border-b border-[#f0edf8] flex items-center gap-3 bg-[#faf9ff]">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white bg-violet-600 shadow-md">
+            <UserPlus size={16} />
           </div>
           <div>
-            <h3 className="font-extrabold text-slate-900 text-[14px]">Create New User Account</h3>
-            <p className="text-[11px] text-slate-400 font-semibold mt-0.5">Logs in with username + password only — no email or extra verification needed</p>
+            <h3 className="font-extrabold text-slate-900 text-[15px]">Create New User Account</h3>
+            <p className="text-[12px] text-slate-400 font-medium mt-0.5">Logs in with username + password only — no email or extra verification needed</p>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-7 space-y-6">
           {/* User Type & School Role */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
               <label className="block text-[12px] font-bold text-slate-700 mb-1.5">User Type (Template)</label>
               <select
@@ -171,7 +171,7 @@ export default function CreateUserPage() {
           </div>
 
           {/* Full Name & Email */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
               <label className="block text-[12px] font-bold text-slate-700 mb-1.5">Full Name</label>
               <input
@@ -197,7 +197,7 @@ export default function CreateUserPage() {
           </div>
 
           {/* Email (optional) & Phone */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
               <label className="block text-[12px] font-bold text-slate-700 mb-1.5">Email (Optional)</label>
               <input
@@ -237,7 +237,7 @@ export default function CreateUserPage() {
           {form.role === "parent" && (
             <div className="bg-violet-50/30 rounded-xl border border-violet-100 p-4 space-y-4">
               <p className="text-[12px] font-bold text-violet-700">Link Wards (Students)</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
                   <label className="block text-[11px] font-bold text-slate-600 mb-1">Select Student</label>
                   <select

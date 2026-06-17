@@ -75,7 +75,7 @@ export default function LoginHistoryBoard() {
             <thead>
               <tr className="bg-[#faf9ff] border-b border-[#f0edf8]">
                 {["User Details", "Authentication Status", "IP Address", "Device / Browser User-Agent", "Timestamp"].map((h) => (
-                  <th key={h} className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">{h}</th>
+                  <th key={h} className="px-6 py-3.5 text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -89,27 +89,31 @@ export default function LoginHistoryBoard() {
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-16 text-center text-slate-400 font-semibold text-[13px]">
-                    No sign-in records logged.
+                  <td colSpan={5} className="py-20 text-center">
+                    <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center mx-auto mb-3">
+                      <History size={28} className="text-slate-300" />
+                    </div>
+                    <p className="text-slate-700 font-bold text-[14px]">No sign-in records logged</p>
+                    <p className="text-slate-400 text-[12px] font-medium mt-1">Login activity will appear here once users sign in.</p>
                   </td>
                 </tr>
               ) : (
                 filtered.map((log) => (
                   <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-5">
                       <p className="font-bold text-slate-900 text-[13.5px]">{log.profile?.full_name || log.username}</p>
                       <p className="text-slate-400 font-semibold text-[11px] capitalize">{log.profile?.role?.replace("_", " ") || "Visitor"}</p>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-5">
                       <span className={`text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full border ${
                         log.status === "success" ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-rose-50 text-rose-700 border-rose-100"
                       }`}>
                         {log.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-slate-700 font-mono text-[13px] font-semibold">{log.ip_address}</td>
-                    <td className="px-6 py-4 text-slate-500 font-semibold text-[12px]">{log.device || "Desktop"} / {log.browser || "Chrome"}</td>
-                    <td className="px-6 py-4 text-slate-400 font-medium text-[12px]">{new Date(log.created_at).toLocaleString()}</td>
+                    <td className="px-6 py-5 text-slate-700 font-mono text-[13.5px] font-semibold">{log.ip_address}</td>
+                    <td className="px-6 py-5 text-slate-500 font-semibold text-[12px]">{log.device || "Desktop"} / {log.browser || "Chrome"}</td>
+                    <td className="px-6 py-5 text-slate-400 font-medium text-[12px]">{new Date(log.created_at).toLocaleString()}</td>
                   </tr>
                 ))
               )}
