@@ -32,7 +32,6 @@ export async function GET() {
 export async function POST() {
   try {
     const admin = getAdmin();
-    const errors: string[] = [];
     const missingTables: string[] = [];
 
     const tableChecks = [
@@ -49,9 +48,34 @@ export async function POST() {
 
     for (const table of tableChecks) {
       const { error } = await admin.from(table).select("id").limit(1);
-      if (error && (error.message.includes("relation") || error.message.includes("does not exist"))) {
-        missingTables.push(table);
+      if (error) {
+        const msg = error.message.toLowerCase();
+        if (
+          msg.includes("relation") ||
+          msg.includes("does not exist") ||
+          msg.includes("could not find") ||
+          msg.includes("schema cache") ||
+          error.code === "PGRST205"
+        ) {
+          missingTables.push(table);
+        }
       }
+    }
+
+    // Check if new columns exist on existing tables
+    const { error: profileColErr } = await admin.from("profiles").select("gender").limit(1);
+    if (profileColErr && profileColErr.message.toLowerCase().includes("column")) {
+      missingTables.push("profiles (column: gender)");
+    }
+
+    const { error: studentColErr } = await admin.from("students").select("student_id").limit(1);
+    if (studentColErr && studentColErr.message.toLowerCase().includes("column")) {
+      missingTables.push("students (column: student_id)");
+    }
+
+    const { error: parentColErr } = await admin.from("parents").select("parent_id").limit(1);
+    if (parentColErr && parentColErr.message.toLowerCase().includes("column")) {
+      missingTables.push("parents (column: parent_id)");
     }
 
     const migrationPath = path.join(process.cwd(), "supabase", "migrations", "20260617_user_management.sql");
@@ -63,7 +87,7 @@ export async function POST() {
     if (missingTables.length > 0) {
       return NextResponse.json({
         ok: false,
-        message: `The following tables are missing from the schema: ${missingTables.join(", ")}. Please copy the SQL migration code and run it in the Supabase SQL editor.`,
+        message: `The following schema elements are missing or incomplete: ${missingTables.join(", ")}. Please copy the SQL migration code and run it in the Supabase SQL editor.`,
         missingTables,
         sql
       }, { status: 200 });
