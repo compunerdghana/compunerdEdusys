@@ -44,19 +44,23 @@ export async function POST() {
       "user_group_members",
       "user_documents",
       "school_id_sequences",
-      "teacher_lesson_notes"
     ];
 
     for (const table of tableChecks) {
       const { error } = await admin.from(table).select("id").limit(1);
       if (error) {
         const msg = error.message.toLowerCase();
+        // PGRST116 = no rows returned (table exists but is empty) — that's fine
+        // Only flag as missing if the table genuinely doesn't exist
         if (
-          msg.includes("relation") ||
-          msg.includes("does not exist") ||
-          msg.includes("could not find") ||
-          msg.includes("schema cache") ||
-          error.code === "PGRST205"
+          error.code !== "PGRST116" &&
+          (
+            msg.includes("relation") ||
+            msg.includes("does not exist") ||
+            msg.includes("could not find") ||
+            msg.includes("schema cache") ||
+            error.code === "PGRST205"
+          )
         ) {
           missingTables.push(table);
         }

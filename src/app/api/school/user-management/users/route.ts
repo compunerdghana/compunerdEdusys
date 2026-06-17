@@ -132,7 +132,7 @@ export async function GET(request: NextRequest) {
 
     if (roleFilter) {
       if (roleFilter === "staff_all") {
-        query = query.not("role", "in", '("student","parent")');
+        query = query.neq("role", "student").neq("role", "parent");
       } else {
         query = query.eq("role", roleFilter);
       }
