@@ -1,0 +1,149 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { GraduationCap, Search, RefreshCw, Loader2, Award, ClipboardList } from "lucide-react";
+import { useToast } from "@/components/ui/Toast";
+
+interface StudentProfile {
+  id: string;
+  full_name: string;
+  username: string;
+  is_active: boolean;
+  students: Array<{
+    id: string;
+    student_id: string;
+    admission_number: string;
+    class_id: string;
+    stream: string;
+    house: string;
+    academic_year: string;
+    classroom?: { name: string };
+  }>;
+}
+
+export default function StudentsDirectory() {
+  const { error: toastError } = useToast();
+  const [students, setStudents] = useState<StudentProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+
+  async function loadStudents() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/school/user-management/users?role=student");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed");
+      setStudents(data.users ?? []);
+    } catch {
+      toastError("Failed to load students list.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadStudents();
+  }, []);
+
+  const filtered = students.filter(s => 
+    s.full_name?.toLowerCase().includes(search.toLowerCase()) ||
+    s.students?.[0]?.student_id?.toLowerCase().includes(search.toLowerCase()) ||
+    s.students?.[0]?.admission_number?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-[20px] font-extrabold text-slate-900 leading-tight">Students Access Board</h1>
+          <p className="text-slate-500 text-[12px] font-semibold mt-0.5">Manage student-specific profiles, IDs, classes, and houses.</p>
+        </div>
+      </div>
+
+      {/* Toolbar */}
+      <div className="flex gap-3 items-center">
+        <div className="relative flex-1">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search student name, ID or admission number..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-4 h-10 rounded-xl border border-[#e0daf0] text-[13px] font-semibold text-slate-800 outline-none focus:border-[#7c3aed] focus:ring-2 focus:ring-[#7c3aed]/20 transition-all bg-white"
+          />
+        </div>
+        <button onClick={loadStudents} className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-[12px] font-bold border border-[#e0daf0] text-slate-600 hover:bg-slate-50 transition-all bg-white">
+          <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
+        </button>
+      </div>
+
+      {/* Grid */}
+      <div className="bg-white rounded-2xl shadow-sm border border-[#e8e4f3] overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-[#faf9ff] border-b border-[#f0edf8]">
+                {["Student Details", "Student ID", "Admission No.", "Class / Room", "House", "Stream", "Status"].map((h) => (
+                  <th key={h} className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#f5f3fc]">
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="py-20 text-center">
+                    <Loader2 size={24} className="animate-spin text-violet-600 mx-auto" />
+                    <p className="text-slate-400 text-[12px] font-semibold mt-2">Loading students directory...</p>
+                  </td>
+                </tr>
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-16 text-center text-slate-400 font-semibold text-[13px]">
+                    No students found.
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((s) => {
+                  const sInfo = s.students?.[0];
+                  const initials = s.full_name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+                  return (
+                    <tr key={s.id} className="hover:bg-[#faf9ff]/50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white bg-blue-600 text-[11px] font-extrabold shadow-sm shrink-0">
+                            {initials}
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-900 text-[13px]">{s.full_name}</p>
+                            <p className="text-slate-400 font-semibold text-[11px] font-mono">{s.username}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-[13px] font-bold text-slate-700 font-mono">{sInfo?.student_id || "—"}</td>
+                      <td className="px-6 py-4 text-[13px] font-semibold text-slate-600 font-mono">{sInfo?.admission_number || "—"}</td>
+                      <td className="px-6 py-4">
+                        <span className="text-[12px] font-bold text-violet-700 bg-violet-50 px-2 py-0.5 rounded-full border border-violet-100">
+                          {sInfo?.classroom?.name || "Not assigned"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-slate-600 font-semibold text-[13px]">{sInfo?.house || "—"}</td>
+                      <td className="px-6 py-4 text-slate-500 font-semibold text-[12px]">{sInfo?.stream || "—"}</td>
+                      <td className="px-6 py-4">
+                        <span className={`text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full border ${
+                          s.is_active ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-rose-50 text-rose-700 border-rose-100"
+                        }`}>
+                          {s.is_active ? "Active" : "Suspended"}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}

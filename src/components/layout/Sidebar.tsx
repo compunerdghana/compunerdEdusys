@@ -121,9 +121,20 @@ const navItems: NavItem[] = [
     label: "User Management",
     icon: UserCheck,
     children: [
-      { href: "/user-management",             label: "User Directory",  icon: Users, permission: "users.manage" },
-      { href: "/user-management/roles",       label: "Roles & Matrix",  icon: Shield, permission: "roles.manage" },
-      { href: "/user-management/audit-logs",  label: "Audit Logs",      icon: ScrollText, permission: "audit.view" },
+      { href: "/user-management",             label: "Dashboard",       icon: LayoutDashboard, permission: "users.manage" },
+      { href: "/user-management/users",       label: "All Users",       icon: Users, permission: "users.manage" },
+      { href: "/user-management/students",     label: "Students",        icon: GraduationCap, permission: "students.view" },
+      { href: "/user-management/parents",      label: "Parents",         icon: Users, permission: "users.manage" },
+      { href: "/user-management/teachers",     label: "Teachers",        icon: UserCog, permission: "users.manage" },
+      { href: "/user-management/staff",        label: "Staff Directory", icon: UserCheck, permission: "staff.view" },
+      { href: "/user-management/roles",        label: "User Roles",      icon: Shield, permission: "roles.manage" },
+      { href: "/user-management/permissions",  label: "Permissions",     icon: ScrollText, permission: "roles.manage" },
+      { href: "/user-management/features",     label: "Feature Access",  icon: Zap, permission: "school.settings.manage" },
+      { href: "/user-management/groups",       label: "User Groups",     icon: UserCog, permission: "users.manage" },
+      { href: "/user-management/parent-ward",  label: "Parent-Ward Links",icon: ArrowRightLeft, permission: "users.manage" },
+      { href: "/user-management/login-history",label: "Login History",   icon: History, permission: "audit.view" },
+      { href: "/user-management/activity-logs",label: "Activity Logs",   icon: ScrollText, permission: "audit.view" },
+      { href: "/user-management/archived",     label: "Archived Users",  icon: UserMinus, permission: "users.manage" },
     ],
   }
 ];
