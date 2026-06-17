@@ -43,7 +43,8 @@ export async function POST() {
       "user_groups",
       "user_group_members",
       "user_documents",
-      "school_id_sequences"
+      "school_id_sequences",
+      "teacher_lesson_notes"
     ];
 
     for (const table of tableChecks) {

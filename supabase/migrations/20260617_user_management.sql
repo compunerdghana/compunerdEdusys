@@ -214,8 +214,36 @@ DO $$ BEGIN
     USING (school_id = my_school_id()) WITH CHECK (school_id = my_school_id());
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
--- ─── 13. TRIGGERS & PROCEDURES ─────────────────────────────
 -- Populate parent_student_links for historical parents data
 INSERT INTO public.parent_student_links (parent_id, student_id, relationship, is_primary)
 SELECT id, student_id, relationship, is_primary FROM public.parents
 ON CONFLICT DO NOTHING;
+
+-- ─── 14. TEACHER LESSON NOTES TABLE ───────────────────────
+CREATE TABLE IF NOT EXISTS public.teacher_lesson_notes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  school_id UUID NOT NULL REFERENCES public.schools(id) ON DELETE CASCADE,
+  teacher_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  week_number INTEGER NOT NULL,
+  academic_year TEXT NOT NULL,
+  subject_id UUID REFERENCES public.subjects(id) ON DELETE SET NULL,
+  class_id UUID REFERENCES public.classrooms(id) ON DELETE SET NULL,
+  topic TEXT NOT NULL,
+  objectives TEXT,
+  activities TEXT,
+  assessment_strategy TEXT,
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'pending_approval', 'approved', 'rejected')),
+  remarks TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE public.teacher_lesson_notes ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  CREATE POLICY tenant_policy ON public.teacher_lesson_notes FOR ALL
+    USING (school_id = my_school_id()) WITH CHECK (school_id = my_school_id());
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+CREATE INDEX IF NOT EXISTS idx_teacher_lesson_notes_teacher ON public.teacher_lesson_notes(teacher_id);
+CREATE INDEX IF NOT EXISTS idx_teacher_lesson_notes_school ON public.teacher_lesson_notes(school_id);

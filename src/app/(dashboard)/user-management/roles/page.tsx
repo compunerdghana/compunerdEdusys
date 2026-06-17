@@ -312,17 +312,12 @@ export default function SchoolRolesPage() {
                       )}
                     </div>
 
-                    <div
-                      className={`w-9 h-5 rounded-full relative transition-all shrink-0 ml-4 ${
-                        perm.granted ? "bg-violet-600" : "bg-slate-200"
-                      }`}
-                    >
-                      <div
-                        className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${
-                          perm.granted ? "left-4.5" : "left-0.5"
-                        }`}
-                      />
-                    </div>
+                    <input
+                      type="checkbox"
+                      checked={perm.granted}
+                      readOnly
+                      className="w-5 h-5 rounded border-[#e0daf0] text-violet-600 focus:ring-violet-500 shrink-0 ml-4 accent-violet-600 cursor-pointer"
+                    />
                   </div>
                 ))}
               </div>

@@ -13,6 +13,10 @@ export default async function DashboardPage() {
     .eq("id", user.id)
     .single();
 
+  if (profile?.role === "teacher") {
+    redirect("/teacher");
+  }
+
   if (!profile?.school_id) {
     return <DashboardClient profile={profile} school={null} stats={null} />;
   }
