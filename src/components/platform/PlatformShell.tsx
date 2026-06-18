@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { PlatformSidebar } from "./PlatformSidebar";
-import { LogOut, Menu, X, Bell, Shield } from "lucide-react";
+import { LogOut, Menu, X, Bell, Shield, ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter, usePathname } from "next/navigation";
 
@@ -12,13 +12,23 @@ interface PlatformShellProps {
   children: React.ReactNode;
 }
 
+function isUuid(s: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s) || /^[0-9a-f]{32}$/i.test(s) || (s.length > 20 && /^[0-9a-f]+$/i.test(s));
+}
+
 function getBreadcrumb(pathname: string) {
   const segments = pathname.replace("/platform", "").split("/").filter(Boolean);
   if (segments.length === 0) return [{ label: "Dashboard", href: "/platform/dashboard" }];
   return segments.map((seg, i) => ({
-    label: seg.charAt(0).toUpperCase() + seg.slice(1).replace(/-/g, " "),
+    label: isUuid(seg) ? "Detail" : seg.charAt(0).toUpperCase() + seg.slice(1).replace(/-/g, " "),
     href: "/platform/" + segments.slice(0, i + 1).join("/"),
   }));
+}
+
+function getParentHref(pathname: string) {
+  const parts = pathname.split("/").filter(Boolean);
+  if (parts.length <= 2) return null; // /platform/dashboard → no parent
+  return "/" + parts.slice(0, -1).join("/");
 }
 
 export function PlatformShell({ userName, userRole, children }: PlatformShellProps) {
@@ -40,6 +50,7 @@ export function PlatformShell({ userName, userRole, children }: PlatformShellPro
     .slice(0, 2);
 
   const breadcrumbs = getBreadcrumb(pathname);
+  const parentHref = getParentHref(pathname);
 
   return (
     <div className="min-h-screen flex" style={{ background: "#f8f7ff" }}>
@@ -74,6 +85,18 @@ export function PlatformShell({ userName, userRole, children }: PlatformShellPro
           >
             {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
+
+          {/* Back button — shown on drill-down pages */}
+          {parentHref && (
+            <button
+              onClick={() => router.push(parentHref)}
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition-all text-[12px] font-bold border border-[#e8e4f3] group"
+              title="Go back"
+            >
+              <ArrowLeft size={13} className="group-hover:-translate-x-0.5 transition-transform" />
+              Back
+            </button>
+          )}
 
           {/* Breadcrumb */}
           <nav className="hidden sm:flex items-center gap-1.5 text-[13px] font-semibold">

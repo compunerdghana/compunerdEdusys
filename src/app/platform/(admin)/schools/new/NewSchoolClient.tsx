@@ -228,6 +228,14 @@ export function NewSchoolClient() {
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Header */}
       <div>
+        <button
+          type="button"
+          onClick={() => router.push("/platform/schools")}
+          className="flex items-center gap-2 text-[13px] font-bold text-slate-500 hover:text-slate-800 mb-4 transition-colors group"
+        >
+          <ArrowLeft size={15} className="group-hover:-translate-x-0.5 transition-transform" />
+          Back to Schools
+        </button>
         <h1 className="text-[22px] font-extrabold text-slate-900">Create New School</h1>
         <p className="text-slate-500 text-[13px] font-semibold mt-1">Set up a new school on the platform in 4 steps.</p>
       </div>
