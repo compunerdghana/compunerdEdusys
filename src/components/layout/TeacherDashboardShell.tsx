@@ -40,7 +40,34 @@ export function TeacherDashboardShell({ userName, schoolName, schoolLogo, childr
 
   return (
     <ToastProvider>
-      <div className="flex h-screen overflow-hidden bg-[#f8f7ff]">
+      <div className="flex h-screen overflow-hidden bg-[#faf9fe] relative">
+        <style>{`
+          @keyframes float-orb {
+            0%, 100% { transform: translateY(0px) scale(1); }
+            50% { transform: translateY(-35px) scale(1.08); }
+          }
+          @keyframes float-orb-reverse {
+            0%, 100% { transform: translateY(0px) scale(1); }
+            50% { transform: translateY(30px) scale(0.92); }
+          }
+        `}</style>
+
+        {/* Animated background orbs */}
+        <div
+          className="absolute top-[-100px] right-[-100px] w-[350px] h-[350px] rounded-full pointer-events-none opacity-[0.05] z-0"
+          style={{
+            background: "radial-gradient(circle, #7c3aed 0%, transparent 70%)",
+            animation: "float-orb 15s ease-in-out infinite",
+          }}
+        />
+        <div
+          className="absolute bottom-[-100px] left-[10%] w-[300px] h-[300px] rounded-full pointer-events-none opacity-[0.04] z-0"
+          style={{
+            background: "radial-gradient(circle, #4f46e5 0%, transparent 70%)",
+            animation: "float-orb-reverse 20s ease-in-out infinite",
+          }}
+        />
+
         {/* Overlay — mobile */}
         {sidebarOpen && (
           <div className="fixed inset-0 z-20 bg-black/50 md:hidden" onClick={() => setSidebarOpen(false)} />
@@ -52,7 +79,7 @@ export function TeacherDashboardShell({ userName, schoolName, schoolLogo, childr
         </div>
 
         {/* Main Workspace */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-10">
           {/* Custom Teacher TopBar wrapper */}
           <TopBar
             userName={userName}
@@ -89,8 +116,12 @@ export function TeacherDashboardShell({ userName, schoolName, schoolLogo, childr
           )}
 
           {/* Page content */}
-          <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-[#f8f7ff]">
-            {children}
+          <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-[#faf9fe]/30 backdrop-blur-[1px] relative overflow-x-hidden">
+            {/* Subtle grid pattern */}
+            <div className="absolute inset-0 pointer-events-none opacity-[0.35] bg-[linear-gradient(to_right,#e4dffa_1px,transparent_1px),linear-gradient(to_bottom,#e4dffa_1px,transparent_1px)] bg-[size:24px_24px] z-0" />
+            <div className="relative z-10">
+              {children}
+            </div>
           </main>
         </div>
       </div>
