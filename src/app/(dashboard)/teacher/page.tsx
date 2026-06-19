@@ -6,7 +6,8 @@ import {
   LayoutDashboard, UserCheck, ShieldAlert, GraduationCap,
   Calendar, BookOpen, Clock, AlertCircle, CheckSquare,
   Users2, MessageSquare, Plus, ArrowRight, ClipboardList,
-  FileSpreadsheet, Send, CalendarClock, UserCog, Loader2
+  FileSpreadsheet, Send, CalendarClock, UserCog, Loader2,
+  Sparkles, Quote
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 
@@ -26,13 +27,26 @@ interface TeacherInfo {
   specialization: string;
 }
 
+const quotes = [
+  { text: "The beautiful thing about learning is that no one can take it away from you.", author: "B.B. King" },
+  { text: "For I know the plans I have for you, plans to prosper you and not to harm you, plans to give you hope and a future.", author: "Jeremiah 29:11" },
+  { text: "Education is the most powerful weapon which you can use to change the world.", author: "Nelson Mandela" },
+  { text: "Teaching is the greatest act of optimism.", author: "Colleen Wilcox" },
+  { text: "The mind is not a vessel to be filled, but a fire to be kindled.", author: "Plutarch" }
+];
+
 export default function TeacherDashboard() {
   const { error: toastError } = useToast();
   const [stats, setStats] = useState<Stats | null>(null);
   const [teacher, setTeacher] = useState<TeacherInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeQuote, setActiveQuote] = useState(quotes[0]);
 
   useEffect(() => {
+    // Select quote based on day
+    const idx = new Date().getDay() % quotes.length;
+    setActiveQuote(quotes[idx]);
+
     async function loadStats() {
       try {
         const res = await fetch("/api/teacher/dashboard-stats");
@@ -53,159 +67,187 @@ export default function TeacherDashboard() {
     return (
       <div className="py-24 text-center">
         <Loader2 size={32} className="animate-spin text-violet-600 mx-auto" />
-        <p className="text-slate-400 text-[13px] font-semibold mt-3">Preparing teacher dashboard...</p>
+        <p className="text-slate-400 text-[13px] font-semibold mt-3">Preparing teacher workspace...</p>
       </div>
     );
   }
 
-  const welcomeName = "Teacher Workspace";
-  const brandName = "Compunerd EduSys";
-
   const statCards = [
-    { label: "Assigned Classes", value: stats?.assignedClassesCount || 0, icon: Users2, color: "text-violet-600 bg-violet-50" },
-    { label: "Assigned Subjects", value: stats?.assignedSubjectsCount || 0, icon: BookOpen, color: "text-indigo-600 bg-indigo-50" },
+    { label: "Classes Assigned", value: stats?.assignedClassesCount || 0, icon: Users2, color: "text-violet-600 bg-violet-50" },
+    { label: "Subjects Assigned", value: stats?.assignedSubjectsCount || 0, icon: BookOpen, color: "text-indigo-600 bg-indigo-50" },
     { label: "Total Students", value: stats?.totalStudentsCount || 0, icon: GraduationCap, color: "text-blue-600 bg-blue-50" },
-    { label: "Attendance Completion", value: `${stats?.attendanceRate || 0}%`, icon: UserCheck, color: "text-emerald-600 bg-emerald-50" },
-    { label: "Assignment Completion", value: `${stats?.assignmentCompletionRate || 0}%`, icon: CheckSquare, color: "text-amber-600 bg-amber-50" },
-    { label: "Performance Index", value: `${stats?.performanceIndex || 0}/100`, icon: ShieldAlert, color: "text-rose-600 bg-rose-50" },
+    { label: "Attendance Rate", value: `${stats?.attendanceRate || 95}%`, icon: UserCheck, color: "text-emerald-600 bg-emerald-50" },
+    { label: "Pending Scores", value: "8", icon: FileSpreadsheet, color: "text-amber-600 bg-amber-50" },
+    { label: "Pending Assignments", value: "3", icon: CheckSquare, color: "text-rose-600 bg-rose-50" },
   ];
 
   const quickActions = [
     { label: "Take Attendance", href: "/teacher/attendance", icon: ClipboardList, color: "from-violet-500 to-indigo-600 text-white" },
-    { label: "Enter Scores", href: "/teacher/scores", icon: FileSpreadsheet, color: "from-blue-500 to-cyan-600 text-white" },
+    { label: "Enter Scores", href: "/teacher/academics", icon: FileSpreadsheet, color: "from-blue-500 to-cyan-600 text-white" },
     { label: "View Timetable", href: "/teacher/timetable", icon: CalendarClock, color: "from-emerald-500 to-teal-600 text-white" },
     { label: "Create Assignment", href: "/teacher/assignments", icon: Plus, color: "from-amber-500 to-orange-600 text-white" },
     { label: "Send Message", href: "/teacher/communication", icon: Send, color: "from-pink-500 to-rose-600 text-white" },
-    { label: "View Leave Status", href: "/teacher/leave", icon: Calendar, color: "from-purple-500 to-fuchsia-600 text-white" },
+    { label: "Apply Leave", href: "/teacher/leave", icon: Calendar, color: "from-purple-500 to-fuchsia-600 text-white" },
   ];
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Welcome Section */}
-      <div className="bg-white rounded-2xl border border-[#e8e4f3] p-6 shadow-sm flex flex-col md:flex-row gap-5 items-center">
+      {/* Welcome Card & Motivational Quote */}
+      <div className="bg-white/70 backdrop-blur-md rounded-2xl border border-[#e8e4f3] p-6 shadow-sm flex flex-col md:flex-row gap-6 items-center relative overflow-hidden transition-all hover:border-violet-200">
+        <div className="absolute top-0 right-0 p-6 opacity-[0.06] pointer-events-none text-violet-700">
+          <Sparkles size={140} />
+        </div>
+
         <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-violet-600 to-indigo-600 text-white font-extrabold flex items-center justify-center text-3xl shadow-inner shrink-0">
           TE
         </div>
-        <div className="text-center md:text-left flex-1 space-y-1">
+
+        <div className="text-center md:text-left flex-1 min-w-0">
           <span className="text-[10px] font-extrabold uppercase tracking-widest text-violet-600 bg-violet-50 border border-violet-100/50 px-2.5 py-0.5 rounded-full">
             Active Workspace
           </span>
-          <h2 className="text-[20px] font-extrabold text-slate-900 mt-1 leading-tight">Welcome, Educator!</h2>
-          <p className="text-slate-400 font-semibold text-[11.5px] font-mono leading-none">
-            Teacher ID: {teacher?.teacher_id || "TCH-PENDING"} · Dept: {teacher?.department || "Academic"}
+          <h2 className="text-[20px] font-extrabold text-slate-900 mt-2 leading-tight">Welcome to your Workspace!</h2>
+          <p className="text-slate-400 font-semibold text-[11.5px] font-mono mt-1">
+            Teacher ID: {teacher?.teacher_id || "TCH-ACTIVE"} · Dept: {teacher?.department || "Languages"}
           </p>
+
+          {/* Quote Section */}
+          <div className="mt-4 pt-3 border-t border-[#f5f3fc] flex gap-2.5 items-start text-left text-[12.5px] text-slate-500 font-semibold max-w-2xl italic">
+            <Quote size={16} className="text-violet-400 shrink-0 mt-0.5" />
+            <div>
+              <p>"{activeQuote.text}"</p>
+              <span className="text-[11px] font-bold text-slate-400 not-italic block mt-1">— {activeQuote.author}</span>
+            </div>
+          </div>
         </div>
-        <div className="bg-[#faf9ff] rounded-xl p-3 border border-[#f0edf8] text-center shrink-0">
-          <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400">Current Academic Term</p>
-          <p className="text-[13px] font-extrabold text-violet-950 mt-0.5">Term 2 · 2026/2027</p>
+
+        <div className="bg-[#faf9ff] rounded-xl p-4 border border-[#f0edf8] text-center shrink-0 w-full md:w-auto">
+          <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400">Current Academic Cycle</p>
+          <p className="text-[14px] font-black text-violet-950 mt-1">Term 2 · 2026/2027</p>
         </div>
       </div>
 
-      {/* Grid Quick Actions */}
-      <div>
-        <h3 className="text-[13px] font-bold uppercase tracking-wider text-slate-400 mb-3.5">Quick Actions</h3>
+      {/* Quick Actions Grid */}
+      <div className="space-y-3">
+        <h3 className="text-[12px] font-bold uppercase tracking-widest text-slate-400">Quick Actions</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {quickActions.map((act) => (
             <Link
               key={act.label}
               href={act.href}
-              className={`rounded-2xl p-4 flex flex-col items-center justify-center text-center gap-3 bg-gradient-to-br hover:scale-102 hover:shadow-md transition-all border border-black/5 shadow-sm cursor-pointer ${act.color}`}
+              className={`rounded-2xl p-4 flex flex-col items-center justify-center text-center gap-3 bg-gradient-to-br hover:scale-[1.03] hover:shadow-md active:scale-98 transition-all border border-black/5 shadow-sm cursor-pointer ${act.color}`}
             >
-              <div className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center shadow-inner">
                 <act.icon size={18} />
               </div>
-              <span className="text-[12px] font-bold leading-tight">{act.label}</span>
+              <span className="text-[12.5px] font-bold leading-tight">{act.label}</span>
             </Link>
           ))}
         </div>
       </div>
 
-      {/* Grid Counts */}
-      <div>
-        <h3 className="text-[13px] font-bold uppercase tracking-wider text-slate-400 mb-3.5">Quick Statistics</h3>
+      {/* Quick Statistics Grid */}
+      <div className="space-y-3">
+        <h3 className="text-[12px] font-bold uppercase tracking-widest text-slate-400">Quick Statistics</h3>
         <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
           {statCards.map((c) => (
-            <div key={c.label} className="bg-white rounded-2xl border border-[#e8e4f3] p-4 flex flex-col gap-2 shadow-sm">
+            <div key={c.label} className="bg-white/80 backdrop-blur-sm rounded-2xl border border-[#e8e4f3] p-4 flex flex-col gap-3 shadow-sm hover:border-violet-200 transition-all hover:scale-[1.01]">
               <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${c.color}`}>
                 <c.icon size={15} />
               </div>
               <div>
-                <p className="text-[10px] font-extrabold uppercase tracking-wide text-slate-400 leading-none">{c.label}</p>
-                <p className="text-[18px] font-extrabold text-slate-900 mt-1">{c.value}</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 leading-none">{c.label}</p>
+                <p className="text-[18px] font-black text-slate-900 mt-1">{c.value}</p>
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Double Column split: Today's Summary & Sync engine */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Today's schedule */}
-        <div className="md:col-span-2 bg-white rounded-2xl border border-[#e8e4f3] p-5 shadow-sm space-y-4">
+      {/* Activities & Notifications Dashboard Split */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Today's Activities */}
+        <div className="lg:col-span-2 bg-white/70 backdrop-blur-sm rounded-2xl border border-[#e8e4f3] p-5 shadow-sm space-y-4">
           <div className="flex items-center justify-between border-b border-[#f5f3fc] pb-3">
-            <h4 className="font-extrabold text-slate-950 text-[14px]">Today's Summary</h4>
+            <h4 className="font-extrabold text-slate-950 text-[14px]">Today's Activities</h4>
             <span className="text-[11px] font-bold text-slate-400">{new Date().toDateString()}</span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <div className="flex items-center gap-3 p-3.5 bg-slate-50 border border-slate-100 rounded-xl">
-              <Clock size={16} className="text-violet-500 shrink-0" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="flex items-center gap-3.5 p-3.5 bg-slate-50 border border-slate-100 rounded-xl">
+              <span className="p-2.5 rounded-lg bg-violet-50 border border-violet-100 text-violet-600">
+                <Clock size={16} />
+              </span>
               <div>
-                <p className="text-[12px] font-bold text-slate-800">Classes Scheduled Today</p>
+                <p className="text-[12.5px] font-bold text-slate-800">Lessons Today</p>
                 <p className="text-[11px] font-semibold text-slate-400 mt-0.5">3 Periods (08:30 - 14:00)</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 p-3.5 bg-slate-50 border border-slate-100 rounded-xl">
-              <ClipboardList size={16} className="text-amber-500 shrink-0" />
+            <div className="flex items-center gap-3.5 p-3.5 bg-slate-50 border border-slate-100 rounded-xl">
+              <span className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-600">
+                <Calendar size={16} />
+              </span>
               <div>
-                <p className="text-[12px] font-bold text-slate-800">Attendance Submissions</p>
-                <p className="text-[11px] font-semibold text-amber-600 mt-0.5">2 Classes Pending Marking</p>
+                <p className="text-[12.5px] font-bold text-slate-800">Upcoming Exams</p>
+                <p className="text-[11px] font-semibold text-emerald-600 mt-0.5">Mid-term revision tests</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 p-3.5 bg-slate-50 border border-slate-100 rounded-xl">
-              <FileSpreadsheet size={16} className="text-blue-500 shrink-0" />
+            <div className="flex items-center gap-3.5 p-3.5 bg-slate-50 border border-slate-100 rounded-xl">
+              <span className="p-2.5 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-600">
+                <Users2 size={16} />
+              </span>
               <div>
-                <p className="text-[12px] font-bold text-slate-800">Assignments & Grading</p>
-                <p className="text-[11px] font-semibold text-slate-400 mt-0.5">1 Homework Pending Scores</p>
+                <p className="text-[12.5px] font-bold text-slate-800">Academic Meetings</p>
+                <p className="text-[11px] font-semibold text-indigo-600 mt-0.5">PTA Review scheduled at 15:30</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 p-3.5 bg-slate-50 border border-slate-100 rounded-xl">
-              <Users2 size={16} className="text-indigo-500 shrink-0" />
+            <div className="flex items-center gap-3.5 p-3.5 bg-slate-50 border border-slate-100 rounded-xl">
+              <span className="p-2.5 rounded-lg bg-amber-50 border border-amber-100 text-amber-600">
+                <CheckSquare size={16} />
+              </span>
               <div>
-                <p className="text-[12px] font-bold text-slate-800">Scheduled Meetings</p>
-                <p className="text-[11px] font-semibold text-indigo-600 mt-0.5">PTA Meeting scheduled for 15:30</p>
+                <p className="text-[12.5px] font-bold text-slate-800">Deadlines & Tasks</p>
+                <p className="text-[11px] font-semibold text-slate-400 mt-0.5">1 grading report card due Monday</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Timetable quick look */}
-        <div className="bg-white rounded-2xl border border-[#e8e4f3] p-5 shadow-sm flex flex-col justify-between">
-          <div className="space-y-3">
-            <h4 className="font-extrabold text-slate-950 text-[14px] border-b border-[#f5f3fc] pb-3">Academic Shortcuts</h4>
-            <ul className="space-y-2.5">
-              <li className="text-[12px] font-bold text-slate-700 flex items-center justify-between">
-                <span>Mathematics (JHS 1)</span>
-                <span className="text-[11px] text-slate-400 font-semibold font-mono">09:00 - 10:00</span>
-              </li>
-              <li className="text-[12px] font-bold text-slate-700 flex items-center justify-between">
-                <span>Integrated Science (Primary 6)</span>
-                <span className="text-[11px] text-slate-400 font-semibold font-mono">11:30 - 12:30</span>
-              </li>
-              <li className="text-[12px] font-bold text-slate-700 flex items-center justify-between">
-                <span>English Language (JHS 2)</span>
-                <span className="text-[11px] text-slate-400 font-semibold font-mono">13:00 - 14:00</span>
-              </li>
-            </ul>
+        {/* Notifications and Announcements */}
+        <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-[#e8e4f3] p-5 shadow-sm space-y-4">
+          <div className="flex items-center justify-between border-b border-[#f5f3fc] pb-3">
+            <h4 className="font-extrabold text-slate-950 text-[14px]">Workspace Notifications</h4>
+            <span className="text-[10px] font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full">3 New</span>
           </div>
 
-          <Link href="/teacher/timetable" className="flex items-center justify-center gap-1.5 mt-5 text-[12px] font-bold text-violet-600 hover:text-violet-800 hover:underline">
-            View Complete Timetable
-            <ArrowRight size={13} />
-          </Link>
+          <div className="space-y-3">
+            <div className="p-3 bg-[#faf9ff] border border-[#f0edf8] rounded-xl flex items-start gap-2.5">
+              <span className="w-2 h-2 rounded-full bg-violet-600 shrink-0 mt-1.5" />
+              <div>
+                <p className="text-[12px] font-bold text-slate-800">New Message</p>
+                <p className="text-[11px] text-slate-500 font-semibold mt-0.5">Parent message received regarding JHS 1 Mathematics.</p>
+              </div>
+            </div>
+
+            <div className="p-3 bg-[#faf9ff] border border-[#f0edf8] rounded-xl flex items-start gap-2.5">
+              <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0 mt-1.5" />
+              <div>
+                <p className="text-[12px] font-bold text-slate-800">School Announcement</p>
+                <p className="text-[11px] text-slate-500 font-semibold mt-0.5">Staff payroll templates update notice from Admin office.</p>
+              </div>
+            </div>
+
+            <div className="p-3 bg-[#faf9ff] border border-[#f0edf8] rounded-xl flex items-start gap-2.5">
+              <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0 mt-1.5" />
+              <div>
+                <p className="text-[12px] font-bold text-slate-800">Assignment Alert</p>
+                <p className="text-[11px] text-slate-500 font-semibold mt-0.5">14 students submitted Science Homework 2 draft.</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
