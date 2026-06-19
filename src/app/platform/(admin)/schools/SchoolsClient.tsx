@@ -153,7 +153,7 @@ export function SchoolsClient({ schools, activeFilter }: { schools: School[]; ac
     if (action === "impersonate") {
       setImpersonating(school.id);
       try {
-        const res = await fetch("/api/platform/impersonate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ schoolId: school.id }) });
+        const res = await fetch("/api/platform/impersonate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ school_id: school.id }) });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? "Failed to impersonate");
         window.open(data.url, "_blank");
@@ -163,21 +163,23 @@ export function SchoolsClient({ schools, activeFilter }: { schools: School[]; ac
       } finally { setImpersonating(null); }
       return;
     }
-    if (action === "suspend" || action === "activate") {
+    if (action === "suspend" || action === "activate" || action === "archive") {
       try {
-        const res = await fetch(`/api/platform/schools/${school.id}/${action}`, { method: "POST" });
-        if (!res.ok) throw new Error("Action failed");
-        toast(`School ${action === "suspend" ? "suspended" : "activated"} successfully`, "success");
+        const res = await fetch(`/api/platform/schools/${school.id}/status`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action }),
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error ?? "Action failed");
+        }
+        toast(`School ${action === "suspend" ? "suspended" : action === "activate" ? "activated" : "archived"} successfully`, "success");
         router.refresh();
-      } catch { toast("Action failed. Please try again.", "error"); }
+      } catch (err: unknown) {
+        toast(err instanceof Error ? err.message : "Action failed. Please try again.", "error");
+      }
       return;
-    }
-    if (action === "archive") {
-      try {
-        const res = await fetch(`/api/platform/schools/${school.id}/archive`, { method: "POST" });
-        if (!res.ok) throw new Error();
-        toast("School archived", "success"); router.refresh();
-      } catch { toast("Failed to archive school.", "error"); }
     }
   }
 

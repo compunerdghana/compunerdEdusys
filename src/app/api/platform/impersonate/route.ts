@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { createClient as createServerClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
 function getAdmin() {
@@ -18,7 +19,26 @@ export async function POST(request: NextRequest) {
     const admin = getAdmin();
     const body = await request.json();
 
-    const { school_id, reason, platform_user_id } = body;
+    const school_id = body.school_id || body.schoolId;
+    const reason = body.reason;
+    let platform_user_id = body.platform_user_id;
+
+    if (!platform_user_id) {
+      const authHeader = request.headers.get("authorization");
+      const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+      let user;
+      if (token) {
+        const { data, error } = await admin.auth.getUser(token);
+        if (!error && data.user) user = data.user;
+      } else {
+        const supabase = await createServerClient();
+        const { data, error } = await supabase.auth.getUser();
+        if (!error && data.user) user = data.user;
+      }
+      if (user) {
+        platform_user_id = user.id;
+      }
+    }
 
     if (!school_id || !platform_user_id) {
       return NextResponse.json(
@@ -26,6 +46,7 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+
 
     // Verify platform user exists
     const { data: platformUser, error: puErr } = await admin
@@ -129,6 +150,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       magic_link: linkData.properties?.action_link ?? null,
+      url: linkData.properties?.action_link ?? null,
       session_id: session?.id ?? null,
       school_admin: {
         email: authUser.user.email,

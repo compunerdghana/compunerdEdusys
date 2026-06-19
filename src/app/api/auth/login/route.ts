@@ -23,17 +23,36 @@ export async function POST(request: Request) {
     return NextResponse.json({ email: trimmed });
   }
 
-  const { data: profile, error } = await adminClient
+  const { data: profiles, error } = await adminClient
     .from("profiles")
-    .select("email")
+    .select("id, email")
     .eq("username", trimmed)
-    .eq("is_active", true)
-    .single();
+    .eq("is_active", true);
 
-  if (error || !profile?.email) {
+  if (error || !profiles || profiles.length === 0) {
     // Return same message as a bad password — don't reveal which part is wrong
     return NextResponse.json({ error: "Invalid username or password." }, { status: 401 });
   }
 
-  return NextResponse.json({ email: profile.email });
+  let resolvedEmail = null;
+  for (const prof of profiles) {
+    if (prof.email) {
+      resolvedEmail = prof.email;
+      break;
+    }
+    const { data: authUser, error: authErr } = await adminClient.auth.admin.getUserById(prof.id);
+    if (!authErr && authUser?.user?.email) {
+      resolvedEmail = authUser.user.email;
+      // Dynamically update profiles table to cache it
+      await adminClient.from("profiles").update({ email: resolvedEmail }).eq("id", prof.id);
+      break;
+    }
+  }
+
+  if (!resolvedEmail) {
+    return NextResponse.json({ error: "Invalid username or password." }, { status: 401 });
+  }
+
+  return NextResponse.json({ email: resolvedEmail });
 }
+

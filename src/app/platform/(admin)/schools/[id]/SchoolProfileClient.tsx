@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Users, GraduationCap, ExternalLink, Ban, CheckCircle,
   Loader2, ArrowLeft, Calendar, StickyNote, FileText,
-  ClockIcon, Pin, Trash2, Plus, Upload, Download,
+  ClockIcon, Pin, Trash2, Plus, Upload, Download, Key, Lock, Edit2, ShieldAlert
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 
-const TABS = ["Overview", "Subscription", "Features", "Onboarding", "Support", "Audit", "Notes", "Documents", "Analytics", "Status History"];
+const TABS = ["Overview", "Subscription", "Features", "Onboarding", "Portal Logins", "Support", "Audit", "Notes", "Documents", "Analytics", "Status History"];
 
 const statusBadge: Record<string, string> = {
   active: "bg-emerald-50 text-emerald-700 border border-emerald-100",
@@ -138,6 +138,106 @@ export function SchoolProfileClient({ school, subscription, features, tickets, a
   const [savingDoc, setSavingDoc] = useState(false);
   const [statusHistory] = useState<StatusHistoryItem[]>([]);
 
+  interface AdminUser {
+    id: string;
+    full_name: string;
+    email: string;
+    username: string;
+    role: string;
+    is_active: boolean;
+    created_at?: string;
+  }
+
+  const [admins, setAdmins] = useState<AdminUser[]>([]);
+  const [loadingAdmins, setLoadingAdmins] = useState(false);
+  const [editingAdmin, setEditingAdmin] = useState<AdminUser | null>(null);
+  const [resettingAdmin, setResettingAdmin] = useState<AdminUser | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [resettingPasswordLoading, setResettingPasswordLoading] = useState(false);
+  const [editForm, setEditForm] = useState({ full_name: "", email: "", username: "", role: "", is_active: true });
+  const [savingAdminLoading, setSavingAdminLoading] = useState(false);
+
+  const fetchAdmins = async () => {
+    setLoadingAdmins(true);
+    try {
+      const res = await fetch(`/api/platform/schools/${school.id}/admins`);
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setAdmins(data.admins);
+    } catch {
+      toastError("Failed to load school administrators.");
+    } finally {
+      setLoadingAdmins(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "Portal Logins") {
+      fetchAdmins();
+    }
+  }, [activeTab]);
+
+  const handleSaveAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingAdmin) return;
+    setSavingAdminLoading(true);
+    try {
+      const res = await fetch(`/api/platform/schools/${school.id}/admins`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ admin_id: editingAdmin.id, ...editForm }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed");
+      success("Admin profile updated successfully.");
+      setEditingAdmin(null);
+      fetchAdmins();
+    } catch (err: unknown) {
+      toastError(err instanceof Error ? err.message : "Failed to update admin profile.");
+    } finally {
+      setSavingAdminLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resettingAdmin) return;
+    setResettingPasswordLoading(true);
+    try {
+      const res = await fetch(`/api/platform/schools/${school.id}/admins`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ admin_id: resettingAdmin.id, action: "reset-password", password: newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed");
+      success("Password reset successfully.");
+      setResettingAdmin(null);
+      setNewPassword("");
+    } catch (err: unknown) {
+      toastError(err instanceof Error ? err.message : "Failed to reset password.");
+    } finally {
+      setResettingPasswordLoading(false);
+    }
+  };
+
+  const handleToggleAdminStatus = async (adminUser: AdminUser) => {
+    try {
+      const nextActive = !adminUser.is_active;
+      const res = await fetch(`/api/platform/schools/${school.id}/admins`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ admin_id: adminUser.id, is_active: nextActive }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed");
+      success(`User ${nextActive ? "activated" : "suspended"} successfully.`);
+      fetchAdmins();
+    } catch (err: unknown) {
+      toastError(err instanceof Error ? err.message : "Failed to update user status.");
+    }
+  };
+
   const schoolId = String(school.id);
   const schoolName = String(school.name ?? "School");
   const schoolStatus = String(school.status ?? "active");
@@ -155,12 +255,19 @@ export function SchoolProfileClient({ school, subscription, features, tickets, a
   async function handleAction(action: "suspend" | "activate") {
     setActionLoading(action);
     try {
-      const res = await fetch(`/api/platform/schools/${schoolId}/${action}`, { method: "POST" });
-      if (!res.ok) throw new Error("Action failed");
+      const res = await fetch(`/api/platform/schools/${schoolId}/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error ?? "Action failed");
+      }
       success(`School ${action === "suspend" ? "suspended" : "activated"} successfully.`);
       setTimeout(() => window.location.reload(), 800);
-    } catch {
-      toastError("Action failed. Please try again.");
+    } catch (err: unknown) {
+      toastError(err instanceof Error ? err.message : "Action failed. Please try again.");
     } finally {
       setActionLoading(null);
     }
@@ -172,7 +279,7 @@ export function SchoolProfileClient({ school, subscription, features, tickets, a
       const res = await fetch("/api/platform/impersonate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ schoolId }),
+        body: JSON.stringify({ school_id: schoolId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed");
@@ -498,6 +605,162 @@ export function SchoolProfileClient({ school, subscription, features, tickets, a
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {/* Portal Logins tab */}
+            {activeTab === "Portal Logins" && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-extrabold text-slate-900 text-[15px] leading-none">Portal Logins</h3>
+                    <p className="text-[11px] text-slate-400 font-semibold mt-1">Configure and manage administrative accounts of the school</p>
+                  </div>
+                </div>
+
+                {loadingAdmins ? (
+                  <div className="flex flex-col items-center py-16 gap-3">
+                    <Loader2 size={24} className="text-violet-600 animate-spin" />
+                    <p className="text-slate-400 text-[13px] font-semibold">Loading administrators...</p>
+                  </div>
+                ) : admins.length === 0 ? (
+                  <div className="flex flex-col items-center py-16 gap-3 border border-dashed border-[#e8e4f3] rounded-2xl bg-slate-50/50">
+                    <ShieldAlert size={32} className="text-slate-300" />
+                    <p className="text-slate-400 text-[13px] font-semibold">No administrator profiles found.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {admins.map((adminUser) => (
+                      <div key={adminUser.id} className="bg-white rounded-2xl border border-[#e8e4f3] p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-violet-200 transition-all shadow-sm">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center shrink-0 font-extrabold text-violet-700 text-[14px]">
+                            {adminUser.full_name.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-bold text-slate-900 text-[13px]">{adminUser.full_name}</p>
+                              <span className="rounded-full text-[9px] font-bold px-2 py-0.5 bg-violet-100 text-violet-700 border border-violet-200 uppercase tracking-wide">
+                                {adminUser.role.replace("_", " ")}
+                              </span>
+                              <span className={`rounded-full text-[9px] font-bold px-2 py-0.5 border ${adminUser.is_active ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-red-50 text-red-700 border-red-100"}`}>
+                                {adminUser.is_active ? "Active" : "Suspended"}
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-[11px] font-semibold text-slate-400 font-mono">
+                              <span className="flex items-center gap-1">
+                                <span className="text-slate-300">Username:</span>
+                                <span className="text-slate-600 font-bold">{adminUser.username || "—"}</span>
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <span className="text-slate-300">Email:</span>
+                                <span className="text-slate-600 font-bold">{adminUser.email || "—"}</span>
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 md:self-center">
+                          <button
+                            onClick={() => {
+                              setEditingAdmin(adminUser);
+                              setEditForm({
+                                full_name: adminUser.full_name,
+                                email: adminUser.email,
+                                username: adminUser.username,
+                                role: adminUser.role,
+                                is_active: adminUser.is_active,
+                              });
+                            }}
+                            className="px-3 py-1.5 rounded-lg border border-[#e0daf0] text-slate-600 text-[11px] font-bold hover:bg-slate-50 transition-colors flex items-center gap-1"
+                          >
+                            <Edit2 size={11} /> Edit Details
+                          </button>
+                          <button
+                            onClick={() => setResettingAdmin(adminUser)}
+                            className="px-3 py-1.5 rounded-lg border border-[#e0daf0] text-violet-600 hover:bg-violet-50 hover:border-violet-200 text-[11px] font-bold transition-colors flex items-center gap-1"
+                          >
+                            <Key size={11} /> Reset PW
+                          </button>
+                          <button
+                            onClick={() => handleToggleAdminStatus(adminUser)}
+                            className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-colors flex items-center gap-1 ${
+                              adminUser.is_active
+                                ? "bg-red-50 text-red-700 border-red-100 hover:bg-red-100"
+                                : "bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-100"
+                            }`}
+                          >
+                            {adminUser.is_active ? <><Ban size={11} /> Suspend</> : <><CheckCircle size={11} /> Activate</>}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Edit details modal */}
+                {editingAdmin && (
+                  <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50">
+                    <div className="bg-white rounded-2xl border border-[#e8e4f3] p-6 w-full max-w-md shadow-xl animate-in fade-in duration-200">
+                      <h3 className="font-extrabold text-slate-900 text-[16px] mb-4 flex items-center gap-1.5"><Edit2 size={16} className="text-violet-600" /> Edit Portal Login Details</h3>
+                      <form onSubmit={handleSaveAdmin} className="space-y-4">
+                        <div>
+                          <label className="block text-[12px] font-bold text-slate-500 mb-1">Full Name</label>
+                          <input type="text" value={editForm.full_name} onChange={(e) => setEditForm(f => ({ ...f, full_name: e.target.value }))} required
+                            className="w-full h-10 px-3 rounded-xl border border-[#e0daf0] text-[13px] font-semibold text-slate-700 outline-none focus:border-[#7c3aed] focus:ring-2 focus:ring-[#7c3aed]/20 transition-all" />
+                        </div>
+                        <div>
+                          <label className="block text-[12px] font-bold text-slate-500 mb-1">Username</label>
+                          <input type="text" value={editForm.username} onChange={(e) => setEditForm(f => ({ ...f, username: e.target.value.trim().toLowerCase() }))} required
+                            className="w-full h-10 px-3 rounded-xl border border-[#e0daf0] text-[13px] font-semibold text-slate-700 outline-none focus:border-[#7c3aed] focus:ring-2 focus:ring-[#7c3aed]/20 transition-all" />
+                        </div>
+                        <div>
+                          <label className="block text-[12px] font-bold text-slate-500 mb-1">Email</label>
+                          <input type="email" value={editForm.email} onChange={(e) => setEditForm(f => ({ ...f, email: e.target.value.trim() }))} required
+                            className="w-full h-10 px-3 rounded-xl border border-[#e0daf0] text-[13px] font-semibold text-slate-700 outline-none focus:border-[#7c3aed] focus:ring-2 focus:ring-[#7c3aed]/20 transition-all" />
+                        </div>
+                        <div>
+                          <label className="block text-[12px] font-bold text-slate-500 mb-1">Role</label>
+                          <select value={editForm.role} onChange={(e) => setEditForm(f => ({ ...f, role: e.target.value }))} required
+                            className="w-full h-10 px-3 rounded-xl border border-[#e0daf0] text-[13px] font-semibold text-slate-700 outline-none focus:border-[#7c3aed] focus:ring-2 focus:ring-[#7c3aed]/20 transition-all bg-white">
+                            <option value="owner">Owner</option>
+                            <option value="admin">Admin</option>
+                            <option value="school_admin">School Admin</option>
+                            <option value="headmaster">Headmaster</option>
+                          </select>
+                        </div>
+                        <div className="flex gap-2 pt-2 justify-end">
+                          <button type="button" onClick={() => setEditingAdmin(null)} className="px-4 py-2 rounded-xl border border-[#e0daf0] text-slate-600 text-[12px] font-bold hover:bg-slate-100 transition-all">Cancel</button>
+                          <button type="submit" disabled={savingAdminLoading} className="px-4 py-2 rounded-xl text-white text-[12px] font-bold disabled:opacity-50 transition-all flex items-center justify-center gap-1.5" style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)" }}>
+                            {savingAdminLoading && <Loader2 size={13} className="animate-spin" />} Save Changes
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                )}
+
+                {/* Reset password modal */}
+                {resettingAdmin && (
+                  <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50">
+                    <div className="bg-white rounded-2xl border border-[#e8e4f3] p-6 w-full max-w-md shadow-xl animate-in fade-in duration-200">
+                      <h3 className="font-extrabold text-slate-900 text-[16px] mb-1 flex items-center gap-1.5"><Lock size={16} className="text-violet-600" /> Reset Password</h3>
+                      <p className="text-[12px] text-slate-400 font-semibold mb-4">Set a new password for <span className="font-bold text-slate-700">{resettingAdmin.full_name}</span> ({resettingAdmin.username})</p>
+                      <form onSubmit={handleResetPassword} className="space-y-4">
+                        <div>
+                          <label className="block text-[12px] font-bold text-slate-500 mb-1">New Password</label>
+                          <input type="text" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={6} placeholder="Minimum 6 characters"
+                            className="w-full h-10 px-3 rounded-xl border border-[#e0daf0] text-[13px] font-semibold text-slate-700 outline-none focus:border-[#7c3aed] focus:ring-2 focus:ring-[#7c3aed]/20 transition-all" />
+                        </div>
+                        <div className="flex gap-2 pt-2 justify-end">
+                          <button type="button" onClick={() => { setResettingAdmin(null); setNewPassword(""); }} className="px-4 py-2 rounded-xl border border-[#e0daf0] text-slate-600 text-[12px] font-bold hover:bg-slate-100 transition-all">Cancel</button>
+                          <button type="submit" disabled={resettingPasswordLoading || newPassword.length < 6} className="px-4 py-2 rounded-xl text-white text-[12px] font-bold disabled:opacity-50 transition-all flex items-center justify-center gap-1.5" style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)" }}>
+                            {resettingPasswordLoading && <Loader2 size={13} className="animate-spin" />} Update Password
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
