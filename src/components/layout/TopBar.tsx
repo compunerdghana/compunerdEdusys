@@ -4,6 +4,7 @@ import { Bell, Menu, Check, AlertCircle, Info, CheckCircle, AlertTriangle, X } f
 import { getInitials } from "@/lib/utils";
 import Link from "next/link";
 import { useEffect, useState, useRef, useCallback } from "react";
+import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +43,11 @@ function timeAgo(dateStr: string): string {
 }
 
 export function TopBar({ userName = "Admin", schoolName, onMenuClick }: TopBarProps) {
+  const pathname = usePathname() || "";
+  const isTeacher = pathname.startsWith("/teacher");
+  const settingsHref = isTeacher ? "/teacher/settings" : "/settings";
+  const notificationsHref = isTeacher ? "/teacher/announcements" : "/communications/notifications";
+
   const [displayName, setDisplayName] = useState(userName);
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -187,7 +193,7 @@ export function TopBar({ userName = "Admin", schoolName, onMenuClick }: TopBarPr
                       <Check size={11} /> Mark all read
                     </button>
                   )}
-                  <Link href="/communications/notifications"
+                  <Link href={notificationsHref}
                     className="text-[11px] font-semibold text-[var(--text-muted)] hover:text-[#262262]"
                     onClick={() => setNotifOpen(false)}>
                     See all
@@ -236,7 +242,7 @@ export function TopBar({ userName = "Admin", schoolName, onMenuClick }: TopBarPr
 
               {/* Footer */}
               <div className="px-4 py-2.5 border-t border-[var(--border)] bg-[var(--neutral-50)]">
-                <Link href="/communications/notifications"
+                <Link href={notificationsHref}
                   className="text-[12px] font-semibold text-[#262262] hover:underline"
                   onClick={() => setNotifOpen(false)}>
                   View all notifications →
@@ -250,7 +256,7 @@ export function TopBar({ userName = "Admin", schoolName, onMenuClick }: TopBarPr
         <div className="w-px h-6 bg-[var(--border)] mx-1" />
 
         {/* User avatar — links to personal settings */}
-        <Link href="/settings" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity">
+        <Link href={settingsHref} className="flex items-center gap-2.5 hover:opacity-90 transition-opacity">
           <div className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0 ring-2 ring-transparent hover:ring-[#262262]/30 transition-all"
             style={{ background: "linear-gradient(135deg, #262262, #92278F)" }}>
             {getInitials(displayName)}
