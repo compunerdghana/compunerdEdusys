@@ -21,6 +21,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
     schoolLogo = school?.logo_url ?? undefined;
   }
 
+  if (profile?.role === "teacher") {
+    return <>{children}</>;
+  }
+
   return (
     <DashboardShell
       userName={profile?.full_name ?? user.email ?? "User"}

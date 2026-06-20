@@ -4,53 +4,89 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
-  LayoutDashboard, User, BookOpen, ClipboardList,
-  GraduationCap, Calendar, Clock, Inbox, Users,
-  HeartHandshake, Smile, FileSpreadsheet, CheckSquare,
-  Users2, Bell, ScrollText, BarChart3, Settings, LogOut, Wallet, FileText, MessagesSquare,
-  ChevronLeft, ChevronRight, UserCog
+  LayoutDashboard, Users2, GraduationCap, ClipboardList, BookOpen,
+  Inbox, ScrollText, MessagesSquare, Clock, CheckSquare, Users,
+  Calendar, BarChart3, FileText, Settings, LogOut, ChevronDown
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
-interface TeacherNavItem {
+interface NavItemChild {
   href: string;
   label: string;
   icon: React.ElementType;
   feature?: string;
 }
 
-const teacherNavItems: TeacherNavItem[] = [
-  { href: "/teacher",                   label: "Dashboard",       icon: LayoutDashboard },
-  { href: "/teacher/classes",           label: "My Classes",      icon: Users2 },
-  { href: "/teacher/students",          label: "Students",        icon: GraduationCap },
-  { href: "/teacher/attendance",        label: "Attendance",      icon: ClipboardList },
-  { href: "/teacher/academics",         label: "Academics",       icon: BookOpen },
-  { href: "/teacher/assignments",       label: "Assignments",     icon: Inbox },
-  { href: "/teacher/lesson-notes",      label: "Lesson Notes",    icon: ScrollText },
-  { href: "/teacher/communication",     label: "Communication",   icon: MessagesSquare },
-  { href: "/teacher/timetable",         label: "Timetable",       icon: Clock },
-  { href: "/teacher/tasks",             label: "Tasks",           icon: CheckSquare },
-  { href: "/teacher/meetings",          label: "Meetings",        icon: Users },
-  { href: "/teacher/leave",             label: "Leave Management",icon: Calendar },
-  { href: "/teacher/reports",           label: "Reports",         icon: BarChart3 },
-  { href: "/teacher/documents",         label: "Documents",       icon: FileText },
-  { href: "/teacher/settings",          label: "Profile & Settings", icon: Settings },
+interface NavItemGroup {
+  label: string;
+  icon: React.ElementType;
+  feature?: string;
+  children: NavItemChild[];
+}
+
+interface NavItemSingle {
+  href: string;
+  label: string;
+  icon: React.ElementType;
+  feature?: string;
+}
+
+type NavItem = NavItemSingle | NavItemGroup;
+
+const teacherNavItems: NavItem[] = [
+  { href: "/teacher", label: "Dashboard", icon: LayoutDashboard },
+  {
+    label: "Academics",
+    icon: BookOpen,
+    children: [
+      { href: "/teacher/academics", label: "Academics Hub", icon: BookOpen },
+      { href: "/teacher/classes", label: "My Classes", icon: Users2 },
+      { href: "/teacher/timetable", label: "Timetable", icon: Clock },
+      { href: "/teacher/assignments", label: "Assignments", icon: Inbox },
+      { href: "/teacher/lesson-notes", label: "Lesson Notes", icon: ScrollText },
+    ]
+  },
+  {
+    label: "Students & Attendance",
+    icon: GraduationCap,
+    children: [
+      { href: "/teacher/students", label: "Student Directory", icon: GraduationCap },
+      { href: "/teacher/attendance", label: "Attendance Record", icon: ClipboardList },
+    ]
+  },
+  {
+    label: "Work & Tools",
+    icon: CheckSquare,
+    children: [
+      { href: "/teacher/communication", label: "Communication", icon: MessagesSquare },
+      { href: "/teacher/tasks", label: "Tasks & Activities", icon: CheckSquare },
+      { href: "/teacher/meetings", label: "Staff Meetings", icon: Users },
+      { href: "/teacher/leave", label: "Leave Requests", icon: Calendar },
+      { href: "/teacher/reports", label: "Class Reports", icon: BarChart3 },
+      { href: "/teacher/documents", label: "Documents Hub", icon: FileText },
+    ]
+  }
 ];
 
 interface Props {
   userName?: string;
   schoolName?: string;
   schoolLogo?: string;
-  collapsed?: boolean;
-  onToggleCollapse?: () => void;
 }
 
-export function TeacherSidebar({ userName = "Teacher", schoolName, schoolLogo, collapsed = false, onToggleCollapse }: Props) {
+export function TeacherSidebar({ userName = "Teacher", schoolName, schoolLogo }: Props) {
   const pathname = usePathname();
   const router = useRouter();
   const [features, setFeatures] = useState<string[]>([]);
+
+  // Track open menus based on pathname
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>(() => ({
+    Academics: ["/teacher/academics", "/teacher/classes", "/teacher/timetable", "/teacher/assignments", "/teacher/lesson-notes"].some((p) => pathname === p || pathname.startsWith(p + "/")),
+    "Students & Attendance": ["/teacher/students", "/teacher/attendance"].some((p) => pathname === p || pathname.startsWith(p + "/")),
+    "Work & Tools": ["/teacher/communication", "/teacher/tasks", "/teacher/meetings", "/teacher/leave", "/teacher/reports", "/teacher/documents"].some((p) => pathname === p || pathname.startsWith(p + "/")),
+  }));
 
   useEffect(() => {
     fetch("/api/school/user-management/current-permissions")
@@ -61,6 +97,10 @@ export function TeacherSidebar({ userName = "Teacher", schoolName, schoolLogo, c
       .catch(() => {});
   }, []);
 
+  function toggleMenu(label: string) {
+    setOpenMenus(prev => ({ ...prev, [label]: !prev[label] }));
+  }
+
   async function handleLogout() {
     const supabase = createClient();
     await supabase.auth.signOut();
@@ -68,115 +108,159 @@ export function TeacherSidebar({ userName = "Teacher", schoolName, schoolLogo, c
   }
 
   const initials = userName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
-  const brandName = schoolName ?? "Compunerd EduSys";
+  const brandName = schoolName ?? "Compunerd";
+
+  function isVisible(item: NavItemChild | NavItemSingle | NavItemGroup): boolean {
+    if (item.feature) {
+      const isFeatureEnabled = features.includes(item.feature);
+      if (!isFeatureEnabled) return false;
+    }
+    if ("children" in item) {
+      return item.children.some((child) => isVisible(child));
+    }
+    return true;
+  }
 
   return (
-    <aside
-      className="flex flex-col h-full text-white overflow-hidden shrink-0 border-r border-white/5 transition-all duration-300"
-      style={{
-        background: "linear-gradient(180deg, #1a1854 0%, #2e1a6b 40%, #6b1f8a 80%, #92278F 100%)",
-        width: collapsed ? "80px" : "256px"
-      }}
-    >
-      {/* Brand Header */}
-      <div className={cn(
-        "h-16 flex items-center border-b border-white/10 shrink-0 gap-3 transition-all duration-300",
-        collapsed ? "justify-center px-2" : "px-6"
-      )}>
-        {schoolLogo ? (
-          <div className="w-8 h-8 rounded-lg overflow-hidden bg-white/10 flex items-center justify-center shrink-0 ring-2 ring-white/10">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={schoolLogo} alt={brandName} className="w-full h-full object-contain p-0.5" />
+    <aside className="w-[260px] shrink-0 flex flex-col h-full overflow-hidden"
+      style={{ background: "linear-gradient(180deg, #1a1854 0%, #2e1a6b 40%, #6b1f8a 80%, #92278F 100%)" }}>
+
+      {/* School branding */}
+      <div className="px-4 pt-5 pb-4">
+        <div className="flex items-center gap-3 px-2">
+          <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 overflow-hidden shadow-lg shadow-black/20"
+            style={{ background: "rgba(255,255,255,0.15)", backdropFilter: "blur(8px)" }}>
+            {schoolLogo
+              ? <img src={schoolLogo} alt="Logo" className="w-full h-full object-contain" />
+              : <GraduationCap size={22} className="text-white" />
+            }
           </div>
-        ) : (
-          <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center shrink-0 ring-2 ring-white/10">
-            <GraduationCap size={16} className="text-white" />
+          <div className="min-w-0 flex-1">
+            <p className="text-[15px] font-extrabold leading-tight text-white truncate">
+              {brandName}
+            </p>
+            <p className="text-[11px] text-white/50 font-medium">Teacher Portal</p>
           </div>
-        )}
-        {!collapsed && (
-          <div className="min-w-0">
-            <p className="text-[12px] font-extrabold truncate leading-none uppercase tracking-wider">{brandName}</p>
-            <span className="text-[9px] text-white/50 font-bold tracking-widest uppercase mt-0.5 inline-block">Teacher OS</span>
-          </div>
-        )}
+        </div>
       </div>
 
-      {/* Nav List */}
-      <nav className="flex-1 overflow-y-auto px-4 py-4 space-y-1.5 scrollbar-hide">
+      {/* Divider */}
+      <div className="mx-4 h-px bg-white/10" />
+
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5 scrollbar-hide">
+        <p className="text-[9px] font-extrabold uppercase tracking-[0.15em] text-white/30 px-3 mb-2">Navigation</p>
+
         {teacherNavItems.map((item) => {
-          if (item.feature && !features.includes(item.feature)) return null;
+          if (!isVisible(item)) return null;
 
-          const active = pathname === item.href || (item.href !== "/teacher" && pathname.startsWith(item.href));
+          if ("children" in item) {
+            const childPaths = (item.children ?? []).map(c => c.href);
+            const groupActive = childPaths.some(p => pathname === p || pathname.startsWith(p + "/"));
+            const isOpen = openMenus[item.label] ?? groupActive;
+            return (
+              <div key={item.label}>
+                <button
+                  onClick={() => toggleMenu(item.label)}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-semibold transition-all",
+                    groupActive
+                      ? "bg-white/15 text-white"
+                      : "text-white/65 hover:text-white hover:bg-white/8",
+                  )}
+                >
+                  <span className={cn(
+                    "w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all",
+                    groupActive ? "bg-white/20 shadow-sm" : "bg-white/8",
+                  )}>
+                    <item.icon size={15} />
+                  </span>
+                  <span className="flex-1 text-left">{item.label}</span>
+                  <ChevronDown size={13} className={cn("transition-transform opacity-50", isOpen && "rotate-180")} />
+                </button>
+                {isOpen && (
+                  <div className="ml-4 mt-1 space-y-0.5 border-l border-white/10 pl-3">
+                    {(item.children ?? [])
+                      .filter((child) => isVisible(child))
+                      .map(({ href, label, icon: Icon }) => {
+                        const active = pathname === href || pathname.startsWith(href + "/");
+                        return (
+                          <Link key={href} href={href}
+                            className={cn(
+                              "flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12.5px] font-medium transition-all",
+                              active
+                                ? "bg-white/20 text-white font-semibold"
+                                : "text-white/55 hover:text-white hover:bg-white/10",
+                            )}>
+                            <Icon size={13} className="shrink-0" />
+                            {label}
+                          </Link>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
+            );
+          }
 
+          const active = pathname === item.href || (item.href !== "/teacher" && pathname.startsWith(item.href + "/"));
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              title={collapsed ? item.label : undefined}
+            <Link key={item.href} href={item.href}
               className={cn(
-                "flex items-center rounded-xl text-[12px] font-semibold transition-all hover:bg-white/10",
-                collapsed ? "justify-center px-0 w-10 h-10 mx-auto" : "gap-3 px-3.5 py-2.5",
+                "flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-semibold transition-all group",
                 active
-                  ? "bg-white/15 border border-white/10 text-white font-bold shadow-md shadow-black/10"
-                  : "text-white/70 hover:text-white"
-              )}
-            >
-              <item.icon
-                size={14}
-                className={cn("shrink-0 transition-transform duration-200", active ? "text-white scale-110" : "text-white/50")}
-              />
-              {!collapsed && <span className="truncate">{item.label}</span>}
+                  ? "bg-white text-[#262262] shadow-md shadow-black/10"
+                  : "text-white/65 hover:text-white hover:bg-white/10",
+              )}>
+              <span className={cn(
+                "w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all",
+                active ? "bg-[#262262]/10" : "bg-white/8 group-hover:bg-white/15",
+              )}>
+                <item.icon size={15} />
+              </span>
+              {item.label}
             </Link>
           );
         })}
+
+        <div className="h-3" />
+        <div className="mx-1 h-px bg-white/10 mb-3" />
+        <p className="text-[9px] font-extrabold uppercase tracking-[0.15em] text-white/30 px-3 mb-2">Account</p>
+
+        <Link href="/teacher/settings"
+          className={cn(
+            "flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-semibold transition-all group",
+            pathname.startsWith("/teacher/settings")
+              ? "bg-white text-[#262262] shadow-md shadow-black/10"
+              : "text-white/65 hover:text-white hover:bg-white/10",
+          )}>
+          <span className={cn(
+            "w-8 h-8 rounded-xl flex items-center justify-center shrink-0",
+            pathname.startsWith("/teacher/settings") ? "bg-[#262262]/10" : "bg-white/8 group-hover:bg-white/15",
+          )}>
+            <Settings size={15} />
+          </span>
+          Settings
+        </Link>
       </nav>
 
-      {/* Collapse Toggle Button (Desktop Only) */}
-      <div className="hidden md:flex items-center justify-center py-2.5 border-t border-white/10 bg-black/5">
-        <button
-          onClick={onToggleCollapse}
-          className={cn(
-            "p-2 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center gap-2",
-            collapsed ? "w-10 h-10" : "w-full mx-4"
-          )}
-          title={collapsed ? "Expand Workspace" : "Collapse Workspace"}
-        >
-          {collapsed ? (
-            <ChevronRight size={14} />
-          ) : (
-            <>
-              <ChevronLeft size={14} />
-              <span className="text-[10px] font-extrabold uppercase tracking-wider">Collapse Workspace</span>
-            </>
-          )}
-        </button>
-      </div>
-
-      {/* User Session Footer */}
-      <div className={cn(
-        "p-4 border-t border-white/10 shrink-0 bg-black/10 flex items-center justify-between gap-3",
-        collapsed ? "justify-center p-2" : "p-4"
-      )}>
-        <Link href="/teacher/settings" className="flex items-center gap-2.5 min-w-0 hover:opacity-90">
-          <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center font-extrabold text-[11px] ring-2 ring-white/10 shrink-0 shadow-inner">
+      {/* User footer */}
+      <div className="mx-4 h-px bg-white/10" />
+      <div className="px-3 py-4">
+        <div className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-white/5 transition-colors">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-[12px] font-extrabold text-white shrink-0 shadow-inner"
+            style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.25), rgba(255,255,255,0.1))" }}>
             {initials}
           </div>
-          {!collapsed && (
-            <div className="min-w-0">
-              <p className="text-[11.5px] font-extrabold text-white leading-none truncate">{userName}</p>
-              <span className="text-[9px] text-white/50 font-bold uppercase mt-0.5 inline-block truncate">Teacher</span>
-            </div>
-          )}
-        </Link>
-        {!collapsed && (
-          <button
-            onClick={handleLogout}
-            className="p-2 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-colors shrink-0"
-            title="Sign Out"
-          >
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-bold text-white truncate leading-tight">{userName}</p>
+            <p className="text-[10px] text-white/45 capitalize truncate">Teacher</p>
+          </div>
+          <button onClick={handleLogout} title="Sign out"
+            className="w-8 h-8 flex items-center justify-center rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-all">
             <LogOut size={14} />
           </button>
-        )}
+        </div>
       </div>
     </aside>
   );

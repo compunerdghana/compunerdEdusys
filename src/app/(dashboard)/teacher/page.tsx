@@ -127,43 +127,6 @@ export default function TeacherDashboard() {
         </div>
       </div>
 
-      {/* Quick Actions Grid */}
-      <div className="space-y-3">
-        <h3 className="text-[12px] font-bold uppercase tracking-widest text-slate-400">Quick Actions</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {quickActions.map((act) => (
-            <Link
-              key={act.label}
-              href={act.href}
-              className={`rounded-2xl p-4 flex flex-col items-center justify-center text-center gap-3 bg-gradient-to-br hover:scale-[1.03] hover:shadow-md active:scale-98 transition-all border border-black/5 shadow-sm cursor-pointer ${act.color}`}
-            >
-              <div className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center shadow-inner">
-                <act.icon size={18} />
-              </div>
-              <span className="text-[12.5px] font-bold leading-tight">{act.label}</span>
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {/* Quick Statistics Grid */}
-      <div className="space-y-3">
-        <h3 className="text-[12px] font-bold uppercase tracking-widest text-slate-400">Quick Statistics</h3>
-        <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
-          {statCards.map((c) => (
-            <div key={c.label} className="bg-white/80 backdrop-blur-sm rounded-2xl border border-[#e8e4f3] p-4 flex flex-col gap-3 shadow-sm hover:border-violet-200 transition-all hover:scale-[1.01]">
-              <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${c.color}`}>
-                <c.icon size={15} />
-              </div>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 leading-none">{c.label}</p>
-                <p className="text-[18px] font-black text-slate-900 mt-1">{c.value}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* Activities & Notifications Dashboard Split */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Today's Activities */}
@@ -248,6 +211,43 @@ export default function TeacherDashboard() {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Quick Statistics Grid */}
+      <div className="space-y-3">
+        <h3 className="text-[12px] font-bold uppercase tracking-widest text-slate-400">Quick Statistics</h3>
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+          {statCards.map((c) => (
+            <div key={c.label} className="bg-white/80 backdrop-blur-sm rounded-2xl border border-[#e8e4f3] p-4 flex flex-col gap-3 shadow-sm hover:border-violet-200 transition-all hover:scale-[1.01]">
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${c.color}`}>
+                <c.icon size={15} />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 leading-none">{c.label}</p>
+                <p className="text-[18px] font-black text-slate-900 mt-1">{c.value}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Quick Actions Grid */}
+      <div className="space-y-3">
+        <h3 className="text-[12px] font-bold uppercase tracking-widest text-slate-400">Quick Actions</h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {quickActions.map((act) => (
+            <Link
+              key={act.label}
+              href={act.href}
+              className={`rounded-2xl p-4 flex flex-col items-center justify-center text-center gap-3 bg-gradient-to-br hover:scale-[1.03] hover:shadow-md active:scale-98 transition-all border border-black/5 shadow-sm cursor-pointer ${act.color}`}
+            >
+              <div className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center shadow-inner">
+                <act.icon size={18} />
+              </div>
+              <span className="text-[12.5px] font-bold leading-tight">{act.label}</span>
+            </Link>
+          ))}
         </div>
       </div>
     </div>
