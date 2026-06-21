@@ -32,7 +32,17 @@ const quotes = [
   { text: "For I know the plans I have for you, plans to prosper you and not to harm you, plans to give you hope and a future.", author: "Jeremiah 29:11" },
   { text: "Education is the most powerful weapon which you can use to change the world.", author: "Nelson Mandela" },
   { text: "Teaching is the greatest act of optimism.", author: "Colleen Wilcox" },
-  { text: "The mind is not a vessel to be filled, but a fire to be kindled.", author: "Plutarch" }
+  { text: "The mind is not a vessel to be filled, but a fire to be kindled.", author: "Plutarch" },
+  { text: "Commit your actions to the Lord, and your plans will succeed.", author: "Proverbs 16:3" },
+  { text: "I can do all things through Christ who strengthens me.", author: "Philippians 4:13" },
+  { text: "Trust in the Lord with all your heart, and do not lean on your own understanding.", author: "Proverbs 3:5" },
+  { text: "Do not be conformed to this world, but be transformed by the renewal of your mind.", author: "Romans 12:2" },
+  { text: "It is the supreme art of the teacher to awaken joy in creative expression and knowledge.", author: "Albert Einstein" },
+  { text: "The influence of a great teacher can never be erased.", author: "Unknown" },
+  { text: "Be strong and courageous. Do not be frightened, and do not be dismayed, for the Lord your God is with you wherever you go.", author: "Joshua 1:9" },
+  { text: "Whatever you do, work heartily, as for the Lord and not for men.", author: "Colossians 3:23" },
+  { text: "The fear of the Lord is the beginning of knowledge.", author: "Proverbs 1:7" },
+  { text: "Ask, and it will be given to you; seek, and you will find; knock, and it will be opened to you.", author: "Matthew 7:7" }
 ];
 
 export default function TeacherDashboard() {
@@ -43,8 +53,8 @@ export default function TeacherDashboard() {
   const [activeQuote, setActiveQuote] = useState(quotes[0]);
 
   useEffect(() => {
-    // Select quote based on day
-    const idx = new Date().getDay() % quotes.length;
+    // Select quote statically based on the day of the month
+    const idx = new Date().getDate() % quotes.length;
     setActiveQuote(quotes[idx]);
 
     async function loadStats() {

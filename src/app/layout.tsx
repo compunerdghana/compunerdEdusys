@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import NextTopLoader from "nextjs-toploader";
 import "./globals.css";
+import CircularPageLoader from "@/components/common/CircularPageLoader";
+import InactivityLogout from "@/components/common/InactivityLogout";
 
 export const metadata: Metadata = {
   title: "CompunerdEduSys — School Management OS",
@@ -18,7 +19,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className="h-full">
       <body className="h-full">
-        <NextTopLoader color="#262262" height={4} showSpinner={true} />
+        <CircularPageLoader />
+        <InactivityLogout />
         {children}
       </body>
     </html>
