@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
       const { data: existing } = await getAdmin()
         .from("profiles")
         .select("id")
-        .eq("email_address", email)
+        .eq("email", email)
         .single();
       if (existing) return NextResponse.json({ profile_id: existing.id });
     }

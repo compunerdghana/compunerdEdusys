@@ -1,11 +1,14 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   ChevronLeft, ChevronRight, Upload, Check, AlertCircle, User,
   Phone, Briefcase, GraduationCap, CreditCard, BookOpen, FileText, Camera,
+  Copy, Eye, EyeOff
 } from "lucide-react";
+import { PhotoCropModal } from "@/components/ui/PhotoCropModal";
+import { Modal } from "@/components/ui/Modal";
 
 const GHANA_REGIONS = [
   "Ahafo","Ashanti","Bono","Bono East","Central","Eastern","Greater Accra",
@@ -106,6 +109,39 @@ export function AddStaffForm({ schoolId, classes, subjects, allStaff }: Props) {
   const [religion, setReligion]     = useState("");
   const [role, setRole]             = useState("teacher");
 
+  // ── Custom States ──────────────────────────────────────────────────
+  const [customUsername, setCustomUsername] = useState("");
+  const [usernameTouched, setUsernameTouched] = useState(false);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [createdCredentials, setCreatedCredentials] = useState<{
+    profileId: string;
+    fullName: string;
+    username: string;
+    email: string;
+    tempPass: string;
+    role: string;
+  } | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+
+
+  // Fetch automatic staff ID based on role
+  useEffect(() => {
+    async function fetchAutoId() {
+      try {
+        const roleType = role === "teacher" ? "teacher" : "staff";
+        const res = await fetch(`/api/school/user-management/id-generator?role_type=${roleType}&increment=false`);
+        const data = await res.json();
+        if (data.id) {
+          setStaffIdManual(data.id);
+        }
+      } catch (err) {
+        console.error("Failed to generate auto staff ID", err);
+      }
+    }
+    fetchAutoId();
+  }, [role]);
+
   // Contact
   const [mobile, setMobile]         = useState("");
   const [altNumber, setAltNumber]   = useState("");
@@ -167,8 +203,7 @@ export function AddStaffForm({ schoolId, classes, subjects, allStaff }: Props) {
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
-    setPhoto(f);
-    setPhotoPreview(URL.createObjectURL(f));
+    setCropSrc(URL.createObjectURL(f));
   }
 
   function addDoc(e: React.ChangeEvent<HTMLInputElement>) {
@@ -194,10 +229,11 @@ export function AddStaffForm({ schoolId, classes, subjects, allStaff }: Props) {
     setError("");
 
     try {
-      // 1. Create auth user via profiles insert (school already has them via invite flow;
-      //    here we just create a profile row with a generated password they can reset)
       const fullName = [firstName, middleName, lastName].filter(Boolean).join(" ");
-      const username = `${firstName.toLowerCase()}.${lastName.toLowerCase()}.${Date.now().toString().slice(-4)}`;
+      const computedUsername = firstName && lastName ? `${firstName.toLowerCase()}.${lastName.toLowerCase()}` : "";
+      const displayUsername = usernameTouched ? customUsername : computedUsername;
+      const generatedUsername = `${firstName.toLowerCase()}.${lastName.toLowerCase()}.${Date.now().toString().slice(-4)}`;
+      const username = (displayUsername.trim() || generatedUsername).toLowerCase().replace(/\s+/g, ".");
 
       // Create Supabase auth user via API route
       const authRes = await fetch("/api/admin/create-staff-user", {
@@ -215,6 +251,11 @@ export function AddStaffForm({ schoolId, classes, subjects, allStaff }: Props) {
       if (!authData.profile_id) throw new Error(authData.error ?? "Failed to create staff profile");
 
       const profileId: string = authData.profile_id;
+      const tempPassword = authData.temp_password || "";
+
+      // Increment sequence counter in DB
+      const roleType = role === "teacher" ? "teacher" : "staff";
+      await fetch(`/api/school/user-management/id-generator?role_type=${roleType}&increment=true`);
 
       // 2. Upload photo
       let photoUrl = "";
@@ -284,6 +325,45 @@ export function AddStaffForm({ schoolId, classes, subjects, allStaff }: Props) {
         house_master: houseMaster,
       });
 
+      // Insert/upsert into teachers table if the role is teacher
+      if (role === "teacher") {
+        await supabase.from("teachers").upsert({
+          school_id: schoolId,
+          user_id: profileId,
+          teacher_id: staffIdManual || `TCH-${Math.floor(1000 + Math.random() * 9000)}`,
+          employment_date: dateEmployed || new Date().toISOString().split("T")[0],
+          department: department || null,
+          qualification: qualification || null,
+          specialization: specialization || null,
+          classes_assigned: assignedClasses,
+          subjects_assigned: assignedSubjects,
+          status: "active"
+        }, { onConflict: "user_id" });
+      } else {
+        // Map employment type to values allowed by check constraint ('full-time', 'part-time', 'contract', 'temporary')
+        let empType = "full-time";
+        if (employmentType === "part_time") empType = "part-time";
+        else if (employmentType === "contract") empType = "contract";
+        else if (employmentType === "temporary" || employmentType === "national_service" || employmentType === "volunteer") empType = "temporary";
+
+        // Map status to values allowed by check constraint ('active', 'suspended', 'withdrawn')
+        let empStatus = "active";
+        if (employmentStatus === "suspended") empStatus = "suspended";
+        else if (employmentStatus === "terminated") empStatus = "withdrawn";
+
+        await supabase.from("staff").upsert({
+          school_id: schoolId,
+          user_id: profileId,
+          staff_id: staffIdManual || `STF-${Math.floor(1000 + Math.random() * 9000)}`,
+          department: department || null,
+          position: designation || role.replace("_", " "),
+          employment_type: empType,
+          employment_date: dateEmployed || new Date().toISOString().split("T")[0],
+          supervisor_id: reportingTo || null,
+          status: empStatus
+        }, { onConflict: "user_id" });
+      }
+
       // 4. Assigned classes
       if (assignedClasses.length > 0) {
         await supabase.from("staff_assigned_classes").insert(
@@ -298,7 +378,7 @@ export function AddStaffForm({ schoolId, classes, subjects, allStaff }: Props) {
         );
       }
 
-      // 6. Upload documents
+      // 6. Upload documents securely via the POST API route to bypass RLS failures
       for (const doc of docs) {
         const ext = doc.file.name.split(".").pop();
         const safeName = doc.type.replace(/\s+/g, "_").toLowerCase();
@@ -306,23 +386,37 @@ export function AddStaffForm({ schoolId, classes, subjects, allStaff }: Props) {
         const { error: docErr } = await supabase.storage.from("school-assets").upload(path, doc.file);
         if (!docErr) {
           const { data: dUrl } = supabase.storage.from("school-assets").getPublicUrl(path);
-          await supabase.from("staff_documents").insert({
-            profile_id: profileId,
-            school_id: schoolId,
-            document_type: doc.type,
-            file_name: doc.file.name,
-            file_url: dUrl.publicUrl,
+          await fetch("/api/admin/staff-documents", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              profile_id: profileId,
+              school_id: schoolId,
+              document_type: doc.type,
+              file_name: doc.file.name,
+              file_url: dUrl.publicUrl,
+            }),
           });
         }
       }
 
-      router.push(`/staff/${profileId}`);
+      setCreatedCredentials({
+        profileId,
+        fullName,
+        username,
+        email: email || `${username}@staff.local`,
+        tempPass: tempPassword,
+        role,
+      });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setSaving(false);
     }
   }
+
+  const computedUsername = firstName && lastName ? `${firstName.toLowerCase()}.${lastName.toLowerCase()}` : "";
+  const displayUsername = usernameTouched ? customUsername : computedUsername;
 
   const isFirst = section === 0;
   const isLast  = section === SECTIONS.length - 1;
@@ -403,7 +497,12 @@ export function AddStaffForm({ schoolId, classes, subjects, allStaff }: Props) {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <Field label="Staff ID" value={staffIdManual} onChange={setStaffIdManual} placeholder="e.g. STF-001" />
+                <Field
+                  label="Staff ID (Automatic & Editable)"
+                  value={staffIdManual}
+                  onChange={setStaffIdManual}
+                  placeholder="e.g. STF-001"
+                />
                 <Field label="Employee Number" value={employeeNumber} onChange={setEmployeeNumber} placeholder="GES/MOE number" />
               </div>
               <div className="grid grid-cols-3 gap-4">
@@ -412,13 +511,26 @@ export function AddStaffForm({ schoolId, classes, subjects, allStaff }: Props) {
                 <Field label="Last Name *" value={lastName} onChange={setLastName} required />
               </div>
               <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Username *</label>
+                  <input
+                    type="text"
+                    value={displayUsername}
+                    onChange={e => {
+                      setCustomUsername(e.target.value);
+                      setUsernameTouched(true);
+                    }}
+                    required
+                    placeholder="e.g. ama.mensah"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#262262]/30 focus:border-[#262262]"
+                  />
+                </div>
                 <Select label="Role *" value={role} onChange={setRole} required options={ROLES} />
-                <Select label="Gender *" value={gender} onChange={setGender} required
-                  options={[{v:"male",l:"Male"},{v:"female",l:"Female"},{v:"other",l:"Other"}]} />
               </div>
               <div className="grid grid-cols-2 gap-4">
+                <Select label="Gender *" value={gender} onChange={setGender} required
+                  options={[{v:"male",l:"Male"},{v:"female",l:"Female"},{v:"other",l:"Other"}]} />
                 <Field label="Date of Birth" value={dob} onChange={setDob} type="date" />
-                <Field label="Nationality" value={nationality} onChange={setNationality} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <Select label="National ID Type" value={idType} onChange={setIdType}
@@ -697,6 +809,121 @@ export function AddStaffForm({ schoolId, classes, subjects, allStaff }: Props) {
           </div>
         </div>
       </form>
+
+      {/* Passport Photo Cropping Modal */}
+      {cropSrc && (
+        <PhotoCropModal
+          src={cropSrc}
+          onConfirm={(blob) => {
+            const croppedFile = new File([blob], "passport.jpg", { type: "image/jpeg" });
+            setPhoto(croppedFile);
+            setPhotoPreview(URL.createObjectURL(croppedFile));
+            setCropSrc(null);
+          }}
+          onCancel={() => setCropSrc(null)}
+        />
+      )}
+
+      {/* Credentials Visibility Modal */}
+      {createdCredentials && (
+        <Modal
+          open={!!createdCredentials}
+          onClose={() => {
+            router.push(`/staff/${createdCredentials.profileId}`);
+          }}
+          title="Staff Account Created Successfully 🎉"
+          subtitle="Please save these credentials securely. The temporary password will not be shown again."
+          size="md"
+        >
+          <div className="space-y-6 py-2">
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 space-y-4">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                <div>
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Full Name</p>
+                  <p className="text-[15px] font-extrabold text-slate-800 mt-0.5">{createdCredentials.fullName}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Role</p>
+                  <span className="px-2 py-0.5 bg-violet-50 text-violet-700 text-[11px] font-bold rounded-full border border-violet-100 uppercase mt-0.5 inline-block">
+                    {createdCredentials.role.replace("_", " ")}
+                  </span>
+                </div>
+              </div>
+
+              {/* Username Field */}
+              <div className="flex items-center justify-between bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm">
+                <div>
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Username</p>
+                  <p className="text-[14px] font-mono font-bold text-slate-800 mt-1">{createdCredentials.username}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(createdCredentials.username);
+                    setCopiedField("username");
+                    setTimeout(() => setCopiedField(null), 2000);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-[12px] font-bold hover:bg-slate-50 transition-all"
+                >
+                  <Copy size={13} />
+                  {copiedField === "username" ? "Copied" : "Copy"}
+                </button>
+              </div>
+
+              {/* Temporary Password Field */}
+              <div className="flex items-center justify-between bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm">
+                <div>
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Temporary Password</p>
+                  <p className="text-[14px] font-mono font-bold text-slate-800 mt-1">{createdCredentials.tempPass}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(createdCredentials.tempPass);
+                    setCopiedField("password");
+                    setTimeout(() => setCopiedField(null), 2000);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-[12px] font-bold hover:bg-slate-50 transition-all"
+                >
+                  <Copy size={13} />
+                  {copiedField === "password" ? "Copied" : "Copy"}
+                </button>
+              </div>
+
+              {/* Internal email */}
+              <div>
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Internal Login Email</p>
+                <p className="text-[13px] text-slate-600 mt-0.5 font-mono">{createdCredentials.email}</p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const credsText = `Full Name: ${createdCredentials.fullName}\nRole: ${createdCredentials.role}\nUsername: ${createdCredentials.username}\nTemporary Password: ${createdCredentials.tempPass}\nInternal Email: ${createdCredentials.email}`;
+                  navigator.clipboard.writeText(credsText);
+                  setCopiedField("all");
+                  setTimeout(() => setCopiedField(null), 2000);
+                }}
+                className="px-4 py-2.5 rounded-xl border border-[#e0daf0] text-slate-600 text-[13px] font-bold hover:bg-slate-50 transition-all"
+              >
+                {copiedField === "all" ? "Copied All" : "Copy All Credentials"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  router.push(`/staff/${createdCredentials.profileId}`);
+                }}
+                className="px-6 py-2.5 rounded-xl text-white text-[13px] font-bold shadow-sm transition-all"
+                style={{ background: "linear-gradient(135deg, #262262, #92278F)" }}
+              >
+                Confirm & Continue
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

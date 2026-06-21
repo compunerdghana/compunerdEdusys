@@ -1,6 +1,7 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import {
   ChevronLeft, User, Phone, Mail, MapPin, Briefcase, BookOpen,
@@ -257,8 +258,20 @@ export function StaffProfileClient({
                   style={{ background: roleStyle.bg, color: roleStyle.text }}>
                   {profile.role?.replace("_"," ")}
                 </span>
+                
+                {/* Reactive Status Badge */}
+                <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider border ${
+                  staffStatus === "active"
+                    ? "bg-emerald-500/20 text-emerald-200 border-emerald-500/30"
+                    : staffStatus === "suspended" || staffStatus === "terminated" || staffStatus === "dismissed" || staffStatus === "suspension"
+                    ? "bg-rose-500/20 text-rose-200 border-rose-500/30"
+                    : "bg-amber-500/20 text-amber-200 border-amber-500/30"
+                }`}>
+                  {staffStatus.replace("_", " ")}
+                </span>
+
                 {!profile.is_active && (
-                  <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-red-500/20 text-red-200">Inactive</span>
+                  <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-red-500/20 text-red-200">Suspended Login</span>
                 )}
               </div>
               <p className="text-[13px] text-white/60 mt-1">@{profile.username}</p>
@@ -414,7 +427,8 @@ export function StaffProfileClient({
                     <InfoRow label="Date Employed" value={details?.date_employed ? new Date(details.date_employed).toLocaleDateString() : null} />
                   </InfoCard>
                   <InfoCard title="Identification">
-                    <InfoRow label="Staff ID" value={details?.staff_id_manual ?? profile.username} />
+                    <InfoRow label="Staff ID" value={details?.staff_id_manual} />
+                    <InfoRow label="Username" value={profile.username} />
                     <InfoRow label="Employee No." value={details?.employee_number} />
                     <InfoRow label="ID Type" value={details?.national_id_type} />
                     <InfoRow label="ID Number" value={details?.national_id_number} />
@@ -755,7 +769,7 @@ function StaffTrainingTab({ profileId, schoolId }: { profileId: string; schoolId
     <div className="py-16 text-center text-gray-400">
       <Dumbbell className="w-10 h-10 mx-auto mb-3 opacity-20" />
       <p className="text-sm">No training records. Add from{" "}
-        <a href="/staff/training" className="text-[#262262] underline">Staff → Training</a>.
+        <Link href="/staff/training" className="text-[#262262] underline">Staff → Training</Link>.
       </p>
     </div>
   );

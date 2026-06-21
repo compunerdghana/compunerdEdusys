@@ -98,35 +98,10 @@ export async function GET(request: NextRequest) {
 
     const admin = getAdmin();
 
-    // Query profiles with matching joins
+    // Query profiles matching school and role filters first
     let query = admin
       .from("profiles")
-      .select(`
-        *,
-        user_roles (
-          role:school_roles ( id, name, display_name )
-        ),
-        students (
-          id, student_id, admission_number, class_id, status, stream, house, academic_year,
-          classroom:classrooms(name)
-        ),
-        teachers (
-          id, teacher_id, employment_date, department, qualification, specialization, subjects_assigned, classes_assigned
-        ),
-        parents (
-          id, parent_id, occupation, employer, address, emergency_contact,
-          parent_student_links (
-            relationship, is_primary,
-            student:students ( id, first_name, last_name, admission_number )
-          )
-        ),
-        staff (
-          id, staff_id, department, position, employment_type, employment_date, supervisor_id
-        ),
-        user_permissions (
-          permission:school_permissions ( id, name, display_name )
-        )
-      `)
+      .select("*")
       .eq("school_id", schoolId)
       .neq("role", "super_admin");
 
@@ -142,10 +117,66 @@ export async function GET(request: NextRequest) {
       query = query.eq("is_active", statusFilter === "active");
     }
 
-    const { data: users, error } = await query;
+    const { data: profiles, error } = await query;
     if (error) throw error;
 
-    let filtered = users ?? [];
+    const users = profiles ?? [];
+    const userIds = users.map(u => u.id);
+
+    let stitched: any[] = [];
+
+    if (userIds.length > 0) {
+      // Fetch all related table records in parallel
+      const [
+        userRolesRes,
+        studentsRes,
+        teachersRes,
+        parentsRes,
+        staffRes,
+        userPermsRes
+      ] = await Promise.all([
+        admin.from("user_roles").select("user_id, role:school_roles ( id, name, display_name )").in("user_id", userIds),
+        admin.from("students").select("id, user_id, student_id, admission_number, class_id, status, stream, house, academic_year, classroom:classrooms(name)").in("user_id", userIds),
+        admin.from("teachers").select("id, user_id, teacher_id, employment_date, department, qualification, specialization, subjects_assigned, classes_assigned").in("user_id", userIds),
+        admin.from("parents").select(`
+          id, user_id, parent_id, occupation, employer, address, emergency_contact,
+          parent_student_links (
+            relationship, is_primary,
+            student:students ( id, first_name, last_name, admission_number )
+          )
+        `).in("user_id", userIds),
+        admin.from("staff").select("id, user_id, staff_id, department, position, employment_type, employment_date, supervisor_id").in("user_id", userIds),
+        admin.from("user_permissions").select("user_id, permission:school_permissions ( id, name, display_name )").in("user_id", userIds)
+      ]);
+
+      const userRoles = userRolesRes.data ?? [];
+      const students = studentsRes.data ?? [];
+      const teachers = teachersRes.data ?? [];
+      const parents = parentsRes.data ?? [];
+      const staff = staffRes.data ?? [];
+      const userPerms = userPermsRes.data ?? [];
+
+      stitched = users.map(u => {
+        const uRoles = userRoles.filter((ur: any) => ur.user_id === u.id);
+        const uStudents = students.filter((s: any) => s.user_id === u.id);
+        const uTeachers = teachers.filter((t: any) => t.user_id === u.id);
+        const uParents = parents.filter((p: any) => p.user_id === u.id);
+        const uStaff = staff.filter((s: any) => s.user_id === u.id);
+        const uPerms = userPerms.filter((up: any) => up.user_id === u.id);
+
+        return {
+          ...u,
+          user_roles: uRoles,
+          students: uStudents,
+          teachers: uTeachers,
+          parents: uParents,
+          staff: uStaff,
+          user_permissions: uPerms
+        };
+      });
+    }
+
+    let filtered = stitched;
     if (searchVal) {
       const q = searchVal.toLowerCase();
       filtered = filtered.filter(u => 
