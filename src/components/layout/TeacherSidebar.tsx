@@ -189,7 +189,7 @@ export function TeacherSidebar({ userName = "Teacher", schoolName, schoolLogo }:
                             className={cn(
                               "flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12.5px] font-medium transition-all",
                               active
-                                ? "bg-white/20 text-white font-semibold"
+                                ? "bg-white text-black shadow-sm font-semibold"
                                 : "text-white/55 hover:text-white hover:bg-white/10",
                             )}>
                             <Icon size={13} className="shrink-0" />
@@ -209,7 +209,7 @@ export function TeacherSidebar({ userName = "Teacher", schoolName, schoolLogo }:
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-semibold transition-all group",
                 active
-                  ? "bg-white text-[#262262] shadow-md shadow-black/10"
+                  ? "bg-white text-black shadow-md"
                   : "text-white/65 hover:text-white hover:bg-white/10",
               )}>
               <span className={cn(
@@ -231,7 +231,7 @@ export function TeacherSidebar({ userName = "Teacher", schoolName, schoolLogo }:
           className={cn(
             "flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-semibold transition-all group",
             pathname.startsWith("/teacher/settings")
-              ? "bg-white text-[#262262] shadow-md shadow-black/10"
+              ? "bg-white text-black shadow-md"
               : "text-white/65 hover:text-white hover:bg-white/10",
           )}>
           <span className={cn(

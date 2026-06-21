@@ -18,7 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className="h-full">
       <body className="h-full">
-        <NextTopLoader color="#453a95" height={3} showSpinner={false} />
+        <NextTopLoader color="#262262" height={4} showSpinner={true} />
         {children}
       </body>
     </html>

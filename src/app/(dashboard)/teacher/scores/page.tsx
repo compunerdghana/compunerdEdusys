@@ -1,10 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Save, FileSpreadsheet, Download, Upload, Loader2, Info, Wifi, WifiOff } from "lucide-react";
+import { Search, Save, FileSpreadsheet, Download, Upload, Loader2, Info, Wifi, WifiOff, FileDown } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import { queueOperation } from "@/lib/offline/db";
 import { syncEngine } from "@/lib/offline/sync";
+import { createClient } from "@/lib/supabase/client";
+import jsPDF from "jspdf";
+import * as XLSX from "xlsx";
 
 interface Classroom {
   id: string;
@@ -43,6 +46,27 @@ export default function EnterScoresView() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
+  const [schoolInfo, setSchoolInfo] = useState<any>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    async function loadSchoolInfo() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data: profile } = await supabase.from("profiles").select("school_id").eq("id", user.id).single();
+        if (profile?.school_id) {
+          const { data: school } = await supabase.from("schools").select("*").eq("id", profile.school_id).single();
+          if (school) {
+            setSchoolInfo(school);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load school branding:", e);
+      }
+    }
+    loadSchoolInfo();
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -214,6 +238,150 @@ export default function EnterScoresView() {
     }
   }
 
+  async function exportScoresPDF() {
+    if (classStudents.length === 0) return;
+    
+    const doc = new jsPDF();
+    
+    // Draw school header
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.setTextColor(38, 34, 98); // Brand Indigo
+    doc.text(schoolInfo?.name?.toUpperCase() ?? "COMPUNERD EDUSYS SCHOOL", 14, 15);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(100, 100, 100);
+    
+    const addressStr = [
+      schoolInfo?.address,
+      schoolInfo?.city,
+      schoolInfo?.region ? `${schoolInfo.region} Region` : null
+    ].filter(Boolean).join(", ");
+    
+    doc.text(addressStr || "Accra, Ghana", 14, 21);
+    doc.text(schoolInfo?.phone ? `Tel: ${schoolInfo.phone} | Email: ${schoolInfo.email || ""}` : "Tel: +233 24 123 4567 | Email: info@school.edu.gh", 14, 26);
+    doc.text("P.O. Box GP 1234, Accra Central, Ghana", 14, 31);
+    
+    doc.setDrawColor(228, 226, 236);
+    doc.line(14, 34, 196, 34);
+    
+    // Document Title
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(38, 34, 98);
+    doc.text("STUDENT ASSESSMENT & TERM SCORES REPORT", 14, 42);
+    
+    // Sub-details (Class / Subject)
+    const activeClass = classrooms.find(c => c.id === selectedClassId)?.name ?? "N/A";
+    const activeSubject = subjects.find(s => s.id === selectedSubjectId)?.name ?? "N/A";
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9.5);
+    doc.setTextColor(50, 50, 50);
+    doc.text(`Class: ${activeClass}   |   Subject: ${activeSubject}   |   Date: ${new Date().toLocaleDateString()}`, 14, 48);
+    
+    // Table Headers
+    let y = 58;
+    doc.setFillColor(245, 243, 252);
+    doc.rect(14, y, 182, 8, "F");
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(38, 34, 98);
+    doc.text("STUDENT NAME", 16, y + 5.5);
+    doc.text("SBA (30%)", 85, y + 5.5);
+    doc.text("EXAM (70%)", 110, y + 5.5);
+    doc.text("TOTAL", 135, y + 5.5);
+    doc.text("GRADE", 155, y + 5.5);
+    doc.text("RANK", 175, y + 5.5);
+    
+    y += 8;
+    
+    // Table Rows
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(80, 80, 80);
+    
+    classStudents.forEach((stud) => {
+      // Check if page overflow
+      if (y > 270) {
+        doc.addPage();
+        y = 20;
+        // Repeat headers
+        doc.setFillColor(245, 243, 252);
+        doc.rect(14, y, 182, 8, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(38, 34, 98);
+        doc.text("STUDENT NAME", 16, y + 5.5);
+        doc.text("SBA (30%)", 85, y + 5.5);
+        doc.text("EXAM (70%)", 110, y + 5.5);
+        doc.text("TOTAL", 135, y + 5.5);
+        doc.text("GRADE", 155, y + 5.5);
+        doc.text("RANK", 175, y + 5.5);
+        y += 8;
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(80, 80, 80);
+      }
+      
+      const sValues = scores[stud.id] || { classScore: "", examScore: "" };
+      const { total, grade } = calculateRowDetails(stud.id);
+      const rank = rankings[stud.id] || "—";
+      
+      doc.text(`${stud.first_name} ${stud.last_name}`, 16, y + 5.5);
+      doc.text(sValues.classScore || "—", 85, y + 5.5);
+      doc.text(sValues.examScore || "—", 110, y + 5.5);
+      doc.text(total ? total.toFixed(1) : "—", 135, y + 5.5);
+      doc.text(grade, 155, y + 5.5);
+      doc.text(total > 0 ? `${rank}th` : "—", 175, y + 5.5);
+      
+      // Divider
+      doc.setDrawColor(245, 243, 252);
+      doc.line(14, y + 8, 196, y + 8);
+      y += 8;
+    });
+    
+    doc.save(`scores_${activeClass.replace(/\s+/g, "_")}_${activeSubject.replace(/\s+/g, "_")}.pdf`);
+  }
+
+  function exportScoresExcel() {
+    if (classStudents.length === 0) return;
+    const activeClass = classrooms.find(c => c.id === selectedClassId)?.name ?? "N/A";
+    const activeSubject = subjects.find(s => s.id === selectedSubjectId)?.name ?? "N/A";
+    
+    // Create header rows with school details
+    const data = [
+      [schoolInfo?.name?.toUpperCase() ?? "COMPUNERD EDUSYS SCHOOL"],
+      [schoolInfo?.address ?? "Accra, Ghana"],
+      [`Tel: ${schoolInfo?.phone || ""} | Email: ${schoolInfo?.email || ""}`],
+      ["P.O. Box GP 1234, Accra Central, Ghana"],
+      [],
+      ["STUDENT ASSESSMENT & TERM SCORES ROSTER"],
+      [`Class: ${activeClass}`, `Subject: ${activeSubject}`, `Export Date: ${new Date().toLocaleDateString()}`],
+      [],
+      ["Student Name", "SBA Score (30%)", "Exam Score (70%)", "Total Score", "Grade", "Rank", "Remarks"]
+    ];
+    
+    classStudents.forEach((stud) => {
+      const sValues = scores[stud.id] || { classScore: "", examScore: "" };
+      const { total, grade, remarks } = calculateRowDetails(stud.id);
+      const rank = rankings[stud.id] || "—";
+      data.push([
+        `${stud.first_name} ${stud.last_name}`,
+        sValues.classScore || "",
+        sValues.examScore || "",
+        total ? total.toFixed(1) : "",
+        grade,
+        total > 0 ? `${rank}th` : "",
+        remarks
+      ]);
+    });
+    
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Assessment Scores");
+    XLSX.writeFile(wb, `scores_${activeClass.replace(/\s+/g, "_")}_${activeSubject.replace(/\s+/g, "_")}.xlsx`);
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
@@ -232,14 +400,6 @@ export default function EnterScoresView() {
           {isOnline ? <Wifi size={13} /> : <WifiOff size={13} />}
           <span>{isOnline ? "Online" : "Offline"} Mode</span>
         </div>
-      </div>
-
-      {/* Info card */}
-      <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex gap-3 text-blue-800">
-        <Info size={18} className="shrink-0 text-blue-600 mt-0.5" />
-        <p className="text-[12px] font-semibold leading-relaxed">
-          <strong>GES Standard Scheme:</strong> Enter SBA Class Score out of 30 max, and Final Exam Score out of 70 max. The portal automatically computes the Total, Letter Grade, Class Position, and Subject Remarks in real-time.
-        </p>
       </div>
 
       {/* Filters Toolbar */}
@@ -274,12 +434,32 @@ export default function EnterScoresView() {
           <button
             onClick={handleSave}
             disabled={saving || classStudents.length === 0}
-            className="h-10 px-4 rounded-xl text-white text-[12px] font-bold hover:opacity-90 disabled:opacity-50 transition-all shrink-0 flex items-center gap-1.5"
+            className="h-10 px-4 rounded-xl text-white text-[12px] font-bold hover:opacity-90 disabled:opacity-50 transition-all shrink-0 flex items-center gap-1.5 animate-scale-up"
             style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)" }}
           >
             {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
             {isOnline ? "Save & Upload" : "Save Offline Draft"}
           </button>
+          {classStudents.length > 0 && (
+            <>
+              <button
+                type="button"
+                onClick={exportScoresPDF}
+                className="h-10 px-4 rounded-xl border border-[#e0daf0] bg-white text-[12px] font-bold text-slate-700 hover:bg-slate-50 transition-all shrink-0 flex items-center gap-1.5 active:scale-98"
+              >
+                <FileDown size={13} />
+                PDF
+              </button>
+              <button
+                type="button"
+                onClick={exportScoresExcel}
+                className="h-10 px-4 rounded-xl border border-[#e0daf0] bg-white text-[12px] font-bold text-slate-700 hover:bg-slate-50 transition-all shrink-0 flex items-center gap-1.5 active:scale-98"
+              >
+                <FileSpreadsheet size={13} />
+                Excel
+              </button>
+            </>
+          )}
         </div>
       </div>
 
