@@ -25,6 +25,12 @@ export function LoginForm({ schoolName, schoolLogo }: Props) {
     setError(null);
     setLoading(true);
 
+    if (username.includes("@")) {
+      setError("Please use your username instead of an email address.");
+      setLoading(false);
+      return;
+    }
+
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -57,6 +63,25 @@ export function LoginForm({ schoolName, schoolLogo }: Props) {
         router.refresh();
         return;
       }
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single();
+
+        if (profile?.role === "teacher") {
+          router.push("/teacher");
+          router.refresh();
+          return;
+        }
+      }
+    } catch (err) {
+      console.error("Error checking role on login:", err);
     }
 
     router.push("/dashboard");

@@ -35,6 +35,7 @@ export default function LessonNotesView() {
   const [selectedPlan, setSelectedPlan] = useState<LessonNote | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
 
   // Form Steps
   const [formStep, setFormStep] = useState(1);
@@ -142,6 +143,59 @@ export default function LessonNotesView() {
     }
   }
 
+  function resetForm() {
+    setEditingPlanId(null);
+    setFormStep(1);
+    setMetadata(prev => ({
+      ...prev,
+      topic: "",
+      week_ending: "",
+      reference: "",
+      learning_indicators: "",
+      performance_indicators: "",
+      resources: "",
+      core_competencies: "",
+      objectives: "",
+      assessment_strategy: "",
+    }));
+    setDailyPhases({
+      Monday: { phase1: "", phase2: "", phase3: "" },
+      Tuesday: { phase1: "", phase2: "", phase3: "" },
+      Wednesday: { phase1: "", phase2: "", phase3: "" },
+      Thursday: { phase1: "", phase2: "", phase3: "" },
+      Friday: { phase1: "", phase2: "", phase3: "" },
+    });
+  }
+
+  function handleEdit(plan: LessonNote) {
+    const details = parseActivities(plan);
+    setEditingPlanId(plan.id);
+    setMetadata({
+      week_number: String(plan.week_number),
+      academic_year: plan.academic_year,
+      class_id: plan.class_id || "",
+      subject_id: plan.subject_id || "",
+      topic: plan.topic,
+      week_ending: details.week_ending || "",
+      reference: details.reference || "",
+      learning_indicators: details.learning_indicators || "",
+      performance_indicators: details.performance_indicators || "",
+      resources: details.resources || "",
+      core_competencies: details.core_competencies || "",
+      objectives: plan.objectives || "",
+      assessment_strategy: plan.assessment_strategy || "",
+    });
+    setDailyPhases(details.days || {
+      Monday: { phase1: "", phase2: "", phase3: "" },
+      Tuesday: { phase1: "", phase2: "", phase3: "" },
+      Wednesday: { phase1: "", phase2: "", phase3: "" },
+      Thursday: { phase1: "", phase2: "", phase3: "" },
+      Friday: { phase1: "", phase2: "", phase3: "" },
+    });
+    setFormStep(1);
+    setShowCreate(true);
+  }
+
   async function handleSubmit(e: React.FormEvent, submitStatus: "draft" | "pending_approval") {
     e.preventDefault();
     setSaving(true);
@@ -157,7 +211,7 @@ export default function LessonNotesView() {
         days: dailyPhases,
       });
 
-      const payload = {
+      const payload: any = {
         week_number: metadata.week_number,
         academic_year: metadata.academic_year,
         class_id: metadata.class_id,
@@ -169,38 +223,28 @@ export default function LessonNotesView() {
         status: submitStatus
       };
 
-      const res = await fetch("/api/teacher/lesson-plan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
+      let res;
+      if (editingPlanId) {
+        payload.id = editingPlanId;
+        res = await fetch("/api/teacher/lesson-plan", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+      } else {
+        res = await fetch("/api/teacher/lesson-plan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+      }
+
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed");
 
       success(submitStatus === "pending_approval" ? "Lesson note submitted for supervisor approval!" : "Lesson note draft saved successfully.");
       setShowCreate(false);
-      
-      // Reset State
-      setFormStep(1);
-      setMetadata(prev => ({
-        ...prev,
-        topic: "",
-        week_ending: "",
-        reference: "",
-        learning_indicators: "",
-        performance_indicators: "",
-        resources: "",
-        core_competencies: "",
-        objectives: "",
-        assessment_strategy: "",
-      }));
-      setDailyPhases({
-        Monday: { phase1: "", phase2: "", phase3: "" },
-        Tuesday: { phase1: "", phase2: "", phase3: "" },
-        Wednesday: { phase1: "", phase2: "", phase3: "" },
-        Thursday: { phase1: "", phase2: "", phase3: "" },
-        Friday: { phase1: "", phase2: "", phase3: "" },
-      });
+      resetForm();
       loadRostersAndPlans();
     } catch (err: any) {
       toastError(err.message || "Failed to submit lesson note.");
@@ -406,21 +450,21 @@ export default function LessonNotesView() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-[20px] font-extrabold text-slate-900 leading-tight">Lesson Note Management</h1>
+          <h1 className="text-[20px] font-extrabold text-slate-900 leading-tight">Lesson note management</h1>
           <p className="text-slate-500 text-[12px] font-semibold mt-0.5 font-sans">
             Prepare weekly curricula lesson notes and submit them for supervisor approval.
           </p>
         </div>
         <button
           onClick={() => {
-            setFormStep(1);
+            resetForm();
             setShowCreate(true);
           }}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-[12px] font-bold transition-all shadow-sm shrink-0 hover:opacity-90 active:scale-98"
           style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)" }}
         >
           <Plus size={15} />
-          New Lesson Note
+          New lesson note
         </button>
       </div>
 
@@ -478,12 +522,21 @@ export default function LessonNotesView() {
                   </div>
 
                   <div className="pt-4 border-t border-[#f5f3fc] flex items-center justify-between gap-2">
-                    <button
-                      onClick={() => setSelectedPlan(p)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-[11.5px] font-bold hover:bg-slate-50 transition-all"
-                    >
-                      <Eye size={13} /> View
-                    </button>
+                    {p.status === "draft" ? (
+                      <button
+                        onClick={() => handleEdit(p)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-violet-200 text-violet-700 bg-violet-50/50 text-[11.5px] font-bold hover:bg-violet-100 transition-all"
+                      >
+                        <Plus size={13} /> Edit
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setSelectedPlan(p)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-[11.5px] font-bold hover:bg-slate-50 transition-all"
+                      >
+                        <Eye size={13} /> View
+                      </button>
+                    )}
                     <div className="flex gap-1.5">
                       <button
                         onClick={() => exportPDF(p)}
@@ -531,7 +584,7 @@ export default function LessonNotesView() {
                     <ScrollText size={20} />
                   </span>
                   <div>
-                    <h3 className="font-extrabold text-slate-900 text-[15px]">Lesson Plan Specification</h3>
+                    <h3 className="font-extrabold text-slate-900 text-[15px]">Lesson plan specification</h3>
                     <p className="text-[11.5px] text-slate-400 font-semibold mt-0.5">GES Scheme of Learning · Week {selectedPlan.week_number}</p>
                   </div>
                 </div>
@@ -541,13 +594,13 @@ export default function LessonNotesView() {
                     onClick={() => exportPDF(selectedPlan)}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-[11.5px] font-bold hover:bg-slate-50 transition-all shadow-sm"
                   >
-                    <FileDown size={13} /> Export PDF
+                    <FileDown size={13} /> Export to PDF
                   </button>
                   <button
                     onClick={() => exportExcel(selectedPlan)}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-[11.5px] font-bold hover:bg-slate-50 transition-all shadow-sm"
                   >
-                    <FileSpreadsheet size={13} /> Export Excel
+                    <FileSpreadsheet size={13} /> Export to Excel
                   </button>
                 </div>
               </div>
@@ -633,14 +686,17 @@ export default function LessonNotesView() {
           <form className="bg-white rounded-2xl border border-[#e8e4f3] p-6 shadow-2xl space-y-5 w-full max-w-2xl relative animate-scale-up my-8 max-h-[90vh] overflow-y-auto">
             <button
               type="button"
-              onClick={() => setShowCreate(false)}
+              onClick={() => {
+                resetForm();
+                setShowCreate(false);
+              }}
               className="absolute right-4 top-4 w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all font-bold text-[14px]"
             >
               ✕
             </button>
             <h3 className="font-extrabold text-slate-900 text-[15px] border-b border-[#f5f3fc] pb-3 flex items-center gap-2">
               <ScrollText size={18} className="text-violet-600" />
-              <span>Draft Lesson Note (Template 2)</span>
+              <span>Draft lesson note (Template 2)</span>
             </h3>
 
             {/* Form Step indicators */}
@@ -913,7 +969,7 @@ export default function LessonNotesView() {
                     onClick={(e) => handleSubmit(e, "draft")}
                     className="flex-1 h-11 rounded-xl border border-slate-200 text-slate-700 font-bold text-[12.5px] hover:bg-slate-50 transition-all active:scale-98"
                   >
-                    Save Draft
+                    Save draft
                   </button>
                   <button
                     type="button"
@@ -923,7 +979,7 @@ export default function LessonNotesView() {
                     style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)" }}
                   >
                     {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
-                    Submit Lesson Note
+                    Submit lesson note
                   </button>
                 </>
               )}

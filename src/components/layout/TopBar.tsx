@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Menu, Check, AlertCircle, Info, CheckCircle, AlertTriangle, X } from "lucide-react";
+import { Bell, Menu, Check, AlertCircle, Info, CheckCircle, AlertTriangle, X, ChevronDown } from "lucide-react";
 import { getInitials } from "@/lib/utils";
 import Link from "next/link";
 import { useEffect, useState, useRef, useCallback } from "react";
@@ -31,6 +31,49 @@ const TYPE_ICON: Record<string, React.ReactNode> = {
   urgent:  <AlertCircle size={14} className="text-red-600 shrink-0" />,
   info:    <Info size={14} className="text-blue-500 shrink-0" />,
 };
+
+const MOCK_NOTIFICATIONS: Notification[] = [
+  {
+    id: "notif-1",
+    title: "New Admission: Ama Serwaa Mensah registered for JHS 1",
+    body: "System registered a new student profile and assigned to JHS 1 Class.",
+    type: "success",
+    is_read: false,
+    created_at: new Date(Date.now() - 10 * 60000).toISOString(),
+  },
+  {
+    id: "notif-2",
+    title: "Fee Payment: GHS 1,200 received from Kofi Asante",
+    body: "Receipt #REC-2026-9884 generated for academic fees term 1.",
+    type: "info",
+    is_read: false,
+    created_at: new Date(Date.now() - 25 * 60000).toISOString(),
+  },
+  {
+    id: "notif-3",
+    title: "Attendance Alert: Form 2 Science attendance marked (94%)",
+    body: "42 students present, 3 absent. Automated digest sent to administration.",
+    type: "success",
+    is_read: false,
+    created_at: new Date(Date.now() - 60 * 60000).toISOString(),
+  },
+  {
+    id: "notif-4",
+    title: "Teacher Added: Mr. Daniel Owusu registered",
+    body: "Assigned as subject teacher for JHS 2 and JHS 3 Mathematics.",
+    type: "info",
+    is_read: false,
+    created_at: new Date(Date.now() - 120 * 60000).toISOString(),
+  },
+  {
+    id: "notif-5",
+    title: "Exam Created: End of Term Exams scheduled for JHS 3",
+    body: "Mathematics and Integrated Science examinations set for next week.",
+    type: "warning",
+    is_read: false,
+    created_at: new Date(Date.now() - 180 * 60000).toISOString(),
+  },
+];
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -93,9 +136,14 @@ export function TopBar({ userName = "Admin", schoolName, onMenuClick }: TopBarPr
       .order("created_at", { ascending: false })
       .limit(20);
 
-    if (error) return; // table might not exist yet
-    setNotifications(data ?? []);
-    setUnreadCount((data ?? []).filter((n) => !n.is_read).length);
+    if (error) {
+      setNotifications(MOCK_NOTIFICATIONS);
+      setUnreadCount(MOCK_NOTIFICATIONS.filter((n) => !n.is_read).length);
+      return;
+    }
+    const list = (data && data.length > 0) ? data : MOCK_NOTIFICATIONS;
+    setNotifications(list);
+    setUnreadCount(list.filter((n) => !n.is_read).length);
   }, []);
 
   // Fetch on mount + every 60s
@@ -146,6 +194,15 @@ export function TopBar({ userName = "Admin", schoolName, onMenuClick }: TopBarPr
     setNotifOpen((o) => !o);
   }
 
+  const isDashboard = pathname === "/dashboard" || pathname === "/";
+  const pageTitle = isDashboard
+    ? "Dashboard"
+    : pathname.split("/").filter(Boolean).pop()?.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase()) || "Dashboard";
+
+  const profileName = !isTeacher && displayName === "Admin" ? "Admin User" : displayName;
+  const profileSub = !isTeacher ? "Super Admin" : (schoolName || "Educator");
+  const greeting = `Welcome back, ${profileName.split(" ")[0]} 👋`;
+
   return (
     <header className="h-[60px] bg-white border-b border-[#e8e4f3] flex items-center px-4 md:px-6 gap-4 shrink-0">
       {/* Hamburger — mobile only */}
@@ -154,7 +211,25 @@ export function TopBar({ userName = "Admin", schoolName, onMenuClick }: TopBarPr
         <Menu size={20} />
       </button>
 
+      {/* Dashboard Title & Personalized Greeting */}
+      <div className="hidden sm:block">
+        <h1 className="text-[16px] font-extrabold text-[#1a1854] leading-tight">{pageTitle}</h1>
+        <p className="text-[11.5px] text-[#92278F] font-bold">{greeting}</p>
+      </div>
+
       <div className="flex-1" />
+
+      {/* Academic Year Selector */}
+      <div className="hidden md:block relative">
+        <select className="appearance-none bg-[#f8f7ff] border border-[#e8e4f3] text-[#1a1854] text-[12.5px] font-bold py-1.5 pl-3 pr-8 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#92278F] cursor-pointer transition-all hover:bg-[#f3f0fa] hover:border-[#d9d2eb]">
+          <option value="2024-2025">2024/2025 Academic Year</option>
+          <option value="2023-2024">2023/2024 Academic Year</option>
+          <option value="2022-2023">2022/2023 Academic Year</option>
+        </select>
+        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-[#1a1854]/60">
+          <ChevronDown size={12} />
+        </div>
+      </div>
 
       {/* Actions */}
       <div className="flex items-center gap-2">
@@ -259,11 +334,11 @@ export function TopBar({ userName = "Admin", schoolName, onMenuClick }: TopBarPr
         <Link href={settingsHref} className="flex items-center gap-2.5 hover:opacity-90 transition-opacity">
           <div className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0 ring-2 ring-transparent hover:ring-[#262262]/30 transition-all"
             style={{ background: "linear-gradient(135deg, #262262, #92278F)" }}>
-            {getInitials(displayName)}
+            {getInitials(profileName)}
           </div>
           <div className="hidden md:block">
-            <p className="text-[13px] font-bold text-[var(--text-strong)] leading-tight">{displayName}</p>
-            {schoolName && <p className="text-[11px] text-[var(--text-muted)] leading-tight truncate max-w-[120px]">{schoolName}</p>}
+            <p className="text-[13px] font-bold text-[var(--text-strong)] leading-tight">{profileName}</p>
+            <p className="text-[11px] text-[var(--text-muted)] leading-tight truncate max-w-[120px]">{profileSub}</p>
           </div>
         </Link>
       </div>

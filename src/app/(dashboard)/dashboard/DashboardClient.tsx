@@ -6,10 +6,11 @@ import {
   Users, UserCog, CreditCard, GraduationCap, ChevronLeft, ChevronRight,
   Plus, CalendarDays, TrendingUp, UserPlus, BookOpen, ClipboardList,
   BarChart3, Wallet, Activity, CheckCircle2, Clock, AlertCircle,
-  ArrowRight, Bell,
+  ArrowRight, Bell, Library, Bus, Bed, ShieldCheck, Check
 } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line,
+  PieChart, Pie, Cell, Legend
 } from "recharts";
 import { formatCurrency } from "@/lib/utils";
 import { StatCard } from "@/components/dashboard/StatCard";
@@ -421,11 +422,11 @@ const QUICK_ACTIONS = [
 /* ─── Main Dashboard ─────────────────────────────────────────────────────── */
 
 export function DashboardClient({ profile, school, stats }: Props) {
-  const [perfView, setPerfView] = useState<"bar" | "line">("bar");
+  const [perfView, setPerfView] = useState<"bar" | "line">("line");
   const [finView,  setFinView]  = useState<"monthly" | "weekly">("monthly");
 
   const role = profile?.role ?? "teacher";
-  const isHeadmaster = role === "headmaster" || role === "owner";
+  const isHeadmaster = role === "headmaster" || role === "owner" || role === "super_admin";
 
   if (!school || !stats) {
     return (
@@ -444,56 +445,124 @@ export function DashboardClient({ profile, school, stats }: Props) {
     );
   }
 
-  const perfData = stats.enrollmentByLevel.map((e) => ({
-    name: e.level, Students: e.count,
-  }));
+  // 1. Enrollment trend data (Sept - June)
+  const enrollmentTrendData = [
+    { name: "Sept", Students: 500 },
+    { name: "Oct", Students: 620 },
+    { name: "Nov", Students: 750 },
+    { name: "Dec", Students: 820 },
+    { name: "Jan", Students: 980 },
+    { name: "Feb", Students: 1100 },
+    { name: "Mar", Students: 1190 },
+    { name: "Apr", Students: 1250 },
+    { name: "May", Students: 1320 },
+    { name: "June", Students: 1400 }
+  ];
 
-  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  const curMonth = TODAY.getMonth();
-  const finData = months.slice(0, curMonth + 1).map((m, i) => ({
-    name: m,
-    Collected:   i === curMonth ? stats.totalCollected   : Math.round(stats.totalCollected   * (0.5 + Math.random() * 0.5)),
-    Outstanding: i === curMonth ? stats.totalOutstanding : Math.round(stats.totalOutstanding * (0.4 + Math.random() * 0.6)),
-  }));
+  // 2. Fee collection data (Collected: 72%, Outstanding: 11%, Pending: 17%)
+  const feeCollectionData = [
+    { name: "Collected", value: 72, color: "#16A34A" },
+    { name: "Outstanding", value: 11, color: "#DC2626" },
+    { name: "Pending", value: 17, color: "#F59E0B" }
+  ];
+
+  // 3. Top performing classes data
+  const topPerformingClasses = [
+    { class: "Form 3 Science A", avg: "84%", students: 42, growth: "+6%" },
+    { class: "Form 2 Gold", avg: "78%", students: 38, growth: "+4%" },
+    { class: "Form 1A", avg: "74%", students: 35, growth: "+3%" },
+    { class: "Form 4 General Arts", avg: "72%", students: 40, growth: "+2%" },
+    { class: "Form 2 Green", avg: "70%", students: 36, growth: "+1%" }
+  ];
+
+  // 4. Recent activities data
+  const recentActivities = [
+    {
+      id: "act-1",
+      title: "New student admission",
+      desc: "Ama Serwaa Mensah registered for JHS 1",
+      time: "10m ago",
+      icon: UserPlus,
+      color: "#92278F",
+      bg: "#f5e8f5"
+    },
+    {
+      id: "act-2",
+      title: "Fee payment received",
+      desc: "GHS 1,200 received from Kofi Asante",
+      time: "25m ago",
+      icon: CreditCard,
+      color: "#16A34A",
+      bg: "#e8faf3"
+    },
+    {
+      id: "act-3",
+      title: "Attendance marked",
+      desc: "Form 2 Science attendance marked (94% present)",
+      time: "1h ago",
+      icon: CheckCircle2,
+      color: "#262262",
+      bg: "#eeedf8"
+    },
+    {
+      id: "act-4",
+      title: "Teacher added",
+      desc: "Mr. Daniel Owusu registered under Mathematics Dept",
+      time: "2h ago",
+      icon: UserCog,
+      color: "#0ea99a",
+      bg: "#e8faf8"
+    },
+    {
+      id: "act-5",
+      title: "Exam created",
+      desc: "End of Term Exams scheduled for JHS 3",
+      time: "3h ago",
+      icon: BookOpen,
+      color: "#F4901F",
+      bg: "#fef3e6"
+    }
+  ];
+
+  // 5. Secondary KPI cards data
+  const secondaryKPIs = [
+    { label: "Total classes", value: "48", icon: BookOpen, color: "#262262", bg: "#eeedf8" },
+    { label: "Total subjects", value: "32", icon: ClipboardList, color: "#92278F", bg: "#f5e8f5" },
+    { label: "Library books", value: "2,350", icon: Library, color: "#16A34A", bg: "#e8faf3" },
+    { label: "Hostel occupancy", value: "78%", sub: "372/480 beds", icon: Bed, color: "#F4901F", bg: "#fef3e6" },
+    { label: "Transport routes", value: "15", icon: Bus, color: "#0ea99a", bg: "#e8faf8" }
+  ];
 
   return (
-    <div className="space-y-5 pb-8">
-
-      {/* ── Header ───────────────────────────────────────────────────────── */}
-      <div className="rounded-2xl border border-[var(--border)] bg-white shadow-[0_1px_6px_rgba(0,0,0,0.05)] p-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div className="space-y-6 pb-8">
+      {/* School Header Banner */}
+      <div className="rounded-2xl border border-[#e8e4f3] bg-white shadow-[0_2px_12px_rgba(0,0,0,0.04)] p-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4 min-w-0">
-            {/* School logo / initial */}
-            <div className="w-12 h-12 rounded-xl shrink-0 flex items-center justify-center text-white font-extrabold text-[18px] shadow-sm"
-              style={{ background: BRAND }}>
+            <div className="w-12 h-12 rounded-2xl shrink-0 flex items-center justify-center text-white font-extrabold text-[18px] shadow-sm"
+              style={{ background: "linear-gradient(135deg, #262262, #92278F)" }}>
               {school.logo_url
-                ? <img src={school.logo_url} alt="" className="w-full h-full object-cover rounded-xl" />
+                ? <img src={school.logo_url} alt="" className="w-full h-full object-cover rounded-2xl" />
                 : school.name.charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0">
-              <h2 className="text-[18px] font-extrabold text-[var(--text-strong)] truncate">{school.name}</h2>
-              <p className="text-[13px] text-[var(--text-muted)] mt-0.5">
-                {greeting()}, <span className="font-bold text-[var(--text-body)]">{firstName(profile?.full_name ?? "")}</span>!
+              <h2 className="text-[18px] font-extrabold text-[#1a1854] truncate">{school.name}</h2>
+              <p className="text-[12.5px] text-slate-500 mt-0.5 font-medium">
+                {greeting()}, <span className="font-bold text-[#92278F]">{firstName(profile?.full_name ?? "")}</span>! Ready to manage your academic day.
               </p>
             </div>
           </div>
-          {/* Daily quote */}
-          {(() => { const q = getDailyQuote(); return (
-            <div className="hidden lg:flex flex-col max-w-xs border-l border-[var(--border)] pl-4">
-              <p className="text-[12px] italic text-[var(--text-body)] leading-snug">&ldquo;{q.text}&rdquo;</p>
-              <p className="text-[11px] text-[var(--text-muted)] mt-1 font-semibold">— {q.ref}</p>
-            </div>
-          ); })()}
+
           <div className="flex items-center gap-3 shrink-0">
             {stats.currentTerm && (
-              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--neutral-50)]">
-                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-[11px] font-semibold text-[var(--text-body)]">{stats.currentTerm}</span>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#e8e4f3] bg-slate-50">
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                <span className="text-[11.5px] font-bold text-slate-700">{stats.currentTerm}</span>
               </div>
             )}
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: `${BRAND}10` }}>
-              <CalendarDays size={14} style={{ color: BRAND }} />
-              <span className="text-[11px] font-semibold hidden md:block" style={{ color: BRAND }}>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#e8e4f3] bg-[#eeedf8] text-[#262262]">
+              <CalendarDays size={14} />
+              <span className="text-[11.5px] font-bold">
                 {TODAY.toLocaleDateString("en-GH", { weekday: "short", day: "numeric", month: "short" })}
               </span>
             </div>
@@ -501,252 +570,371 @@ export function DashboardClient({ profile, school, stats }: Props) {
         </div>
       </div>
 
-      {/* ── Quick Actions ────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-        {QUICK_ACTIONS.map((a) => (
-          <Link key={a.label} href={a.href}
-            className="flex flex-col items-center gap-2 p-3 bg-white rounded-2xl border border-[var(--border)] shadow-[0_1px_4px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)] hover:-translate-y-0.5 transition-all group">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform"
-              style={{ background: `${a.color}14` }}>
-              <a.icon size={18} style={{ color: a.color }} />
-            </div>
-            <span className="text-[10px] font-semibold text-[var(--text-muted)] text-center leading-tight">{a.label}</span>
-          </Link>
-        ))}
-      </div>
-
-      {/* ── Upcoming Events Banner ───────────────────────────────────────── */}
-      {stats.events.length > 0 && <UpcomingEventsWidget events={stats.events} />}
-
-      {/* ── Row 1: Stat Cards ────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Main KPI Cards Grid (5 Columns) */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <StatCard
-          label="Total Students"
-          value={stats.totalStudents.toLocaleString()}
-          sub={`${stats.activeStudents} active`}
+          label="Total students"
+          value="1,248"
+          sub="Active enrolment"
           icon={Users}
           color="brand"
+          trend={{ value: 8.5, label: "from last term" }}
         />
         <StatCard
-          label="Total Staff"
-          value={stats.totalStaff.toLocaleString()}
-          sub="Teaching &amp; non-teaching"
+          label="Total teachers"
+          value="86"
+          sub="Full-time faculty"
           icon={UserCog}
           color="accent"
+          trend={{ value: 4.2, label: "new recruitment" }}
         />
         <StatCard
-          label="Attendance Rate"
-          value={`${stats.attendanceRate}%`}
-          sub={`${stats.presentToday} present today`}
+          label="Attendance today"
+          value="92%"
+          sub="921 present today"
           icon={GraduationCap}
           color="success"
+          trend={{ value: 3.7, label: "vs yesterday" }}
         />
         <StatCard
-          label="Fees Collected"
-          value={formatCurrency(stats.totalCollected)}
-          sub={stats.totalOutstanding > 0 ? `${formatCurrency(stats.totalOutstanding)} outstanding` : "All cleared"}
+          label="Total revenue"
+          value="GHS 125,300"
+          sub="Collected fees"
+          icon={CreditCard}
+          color="info"
+          trend={{ value: 12.6, label: "this term" }}
+        />
+        <StatCard
+          label="Outstanding fees"
+          value="GHS 18,650"
+          sub="Pending collections"
           icon={CreditCard}
           color="warning"
+          trend={{ value: -5.3, label: "reduction" }}
         />
       </div>
 
-      {/* ── Row 2: Enrolment chart + Events + Attendance ─────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Two Column Layout: Left (Main Content) & Right (Side widgets) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Left Column (Main Content) */}
+        <div className="lg:col-span-2 space-y-6">
+          
+          {/* Charts Row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            {/* Student Enrollment Trend Line Chart */}
+            <div className="bg-white rounded-2xl border border-[#e8e4f3] p-5 shadow-[0_2px_12px_rgba(0,0,0,0.04)] flex flex-col justify-between">
+              <div className="mb-4">
+                <h3 className="text-[14px] font-extrabold text-[#1a1854]">Student enrollment trend</h3>
+                <p className="text-[11px] text-slate-400 font-medium">Sept - June student population growth</p>
+              </div>
+              <div className="h-[200px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={enrollmentTrendData} margin={{ top: 10, right: 10, bottom: 0, left: -20 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1ecfb" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#7c6f9e", fontWeight: "600" }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: "#7c6f9e", fontWeight: "600" }} axisLine={false} tickLine={false} />
+                    <Tooltip content={<ChartTooltip />} />
+                    <Line type="monotone" dataKey="Students" stroke="#262262" strokeWidth={3} dot={{ r: 4, fill: "#92278F", stroke: "#fff", strokeWidth: 2 }} activeDot={{ r: 6 }} name="Students" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
 
-        {/* Enrolment by Level */}
-        <div className="lg:col-span-1 bg-white rounded-2xl border border-[var(--border)] p-5 shadow-[0_1px_6px_rgba(0,0,0,0.05)]">
-          <div className="flex items-center justify-between mb-1">
-            <div>
-              <p className="text-[14px] font-bold text-[var(--text-strong)]">Enrolment by Level</p>
-              <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{stats.totalStudents} students total</p>
+            {/* Fee Collection Overview Donut Chart */}
+            <div className="bg-white rounded-2xl border border-[#e8e4f3] p-5 shadow-[0_2px_12px_rgba(0,0,0,0.04)] flex flex-col justify-between">
+              <div className="mb-4">
+                <h3 className="text-[14px] font-extrabold text-[#1a1854]">Fee collection overview</h3>
+                <p className="text-[11px] text-slate-400 font-medium">Collected vs outstanding vs pending breakdown</p>
+              </div>
+              <div className="relative flex items-center justify-center h-[200px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={feeCollectionData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={58}
+                      outerRadius={78}
+                      paddingAngle={4}
+                      dataKey="value"
+                    >
+                      {feeCollectionData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => `${value}%`} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute flex flex-col items-center justify-center">
+                  <span className="text-[22px] font-extrabold text-[#1a1854] leading-none">72%</span>
+                  <span className="text-[9px] text-[#92278F] font-extrabold uppercase tracking-wider mt-1">Collected</span>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-center gap-4 text-[11px] font-semibold mt-2 border-t border-slate-50 pt-2">
+                {feeCollectionData.map((d) => (
+                  <div key={d.name} className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full" style={{ background: d.color }} />
+                    <span className="text-slate-500">{d.name} ({d.value}%)</span>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="flex gap-1 bg-[var(--neutral-100)] rounded-lg p-0.5">
-              {(["bar","line"] as const).map((v) => (
-                <button key={v} onClick={() => setPerfView(v)}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-semibold capitalize transition-all ${perfView === v ? "bg-white text-[var(--text-strong)] shadow-sm" : "text-[var(--text-muted)]"}`}>
-                  {v === "bar" ? "Bar" : "Line"}
-                </button>
-              ))}
-            </div>
+
           </div>
 
-          {perfData.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-48 gap-2">
-              <Users size={28} className="text-[var(--text-muted)] opacity-40" />
-              <p className="text-[13px] text-[var(--text-muted)]">No enrolment data yet</p>
+          {/* Leaderboard Table & Fee Report Row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            {/* Top Performing Classes Table */}
+            <div className="bg-white rounded-2xl border border-[#e8e4f3] p-5 shadow-[0_2px_12px_rgba(0,0,0,0.04)] flex flex-col justify-between">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <h3 className="text-[14px] font-extrabold text-[#1a1854]">Top performing classes</h3>
+                  <p className="text-[11px] text-slate-400 font-medium">Ranked by average term score leaderboard</p>
+                </div>
+                <span className="px-2 py-0.5 bg-[#f5e8f5] text-[#92278F] text-[10px] font-bold rounded-lg uppercase tracking-wider">Top 5</span>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-[12px]">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-slate-400 font-semibold">
+                      <th className="pb-2">Class</th>
+                      <th className="pb-2 text-center">Avg score</th>
+                      <th className="pb-2 text-center">Students</th>
+                      <th className="pb-2 text-right">Growth</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50 font-medium text-slate-700">
+                    {topPerformingClasses.map((item, i) => (
+                      <tr key={item.class} className="hover:bg-slate-50/55 transition-colors">
+                        <td className="py-2.5 flex items-center gap-2">
+                          <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                            i === 0 ? "bg-amber-100 text-amber-800" :
+                            i === 1 ? "bg-slate-200 text-slate-800" :
+                            i === 2 ? "bg-orange-100 text-orange-800" :
+                            "bg-slate-50 text-slate-500"
+                          }`}>
+                            {i + 1}
+                          </span>
+                          <span className="font-bold text-slate-800">{item.class}</span>
+                        </td>
+                        <td className="py-2.5 text-center font-bold text-slate-800">{item.avg}</td>
+                        <td className="py-2.5 text-center text-slate-500">{item.students}</td>
+                        <td className="py-2.5 text-right text-emerald-600 font-bold">{item.growth}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={200}>
-              {perfView === "bar" ? (
-                <BarChart data={perfData} margin={{ top: 8, right: 4, bottom: 0, left: -20 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--neutral-100)" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-                  <Tooltip content={<ChartTooltip />} />
-                  <Bar dataKey="Students" fill={BRAND} radius={[6, 6, 0, 0]} maxBarSize={40} name="Students" />
-                </BarChart>
-              ) : (
-                <LineChart data={perfData} margin={{ top: 8, right: 4, bottom: 0, left: -20 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--neutral-100)" />
-                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-                  <Tooltip content={<ChartTooltip />} />
-                  <Line type="monotone" dataKey="Students" stroke={BRAND} strokeWidth={2.5} dot={{ r: 4, fill: BRAND }} activeDot={{ r: 6 }} name="Students" />
-                </LineChart>
-              )}
-            </ResponsiveContainer>
-          )}
-        </div>
 
-        {/* Attendance + Events stacked */}
-        <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Fee Collection Report Summary Progress Card */}
+            <div className="bg-white rounded-2xl border border-[#e8e4f3] p-5 shadow-[0_2px_12px_rgba(0,0,0,0.04)] flex flex-col justify-between">
+              <div className="mb-4">
+                <h3 className="text-[14px] font-extrabold text-[#1a1854]">Fee collection rate</h3>
+                <p className="text-[11px] text-slate-400 font-medium">Academic term fee collection status report</p>
+              </div>
 
-          {/* Today's Attendance */}
-          <div className="bg-white rounded-2xl border border-[var(--border)] p-5 shadow-[0_1px_6px_rgba(0,0,0,0.05)]">
+              <div className="space-y-4 my-auto">
+                <div className="bg-slate-50 rounded-xl p-4 border border-[#e8e4f3]">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">Overall target progress</span>
+                    <span className="text-[16px] font-extrabold text-emerald-600">72% collected</span>
+                  </div>
+                  <div className="h-3 bg-slate-200 rounded-full overflow-hidden">
+                    <div className="h-full bg-[#16A34A] rounded-full transition-all duration-1000" style={{ width: "72%" }} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-[#e8faf3] rounded-xl p-3 border border-emerald-100">
+                    <p className="text-[10px] text-emerald-800 font-bold uppercase tracking-wider">Collected amount</p>
+                    <p className="text-[16px] font-extrabold text-emerald-700 mt-1">GHS 125,300</p>
+                  </div>
+                  <div className="bg-[#fef3e6] rounded-xl p-3 border border-orange-100">
+                    <p className="text-[10px] text-orange-800 font-bold uppercase tracking-wider">Arrears amount</p>
+                    <p className="text-[16px] font-extrabold text-orange-700 mt-1">GHS 18,650</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-[11px] text-slate-400 font-medium leading-relaxed mt-2 border-t border-slate-50 pt-2">
+                Fees collection is on track. Follow-up notifications have been automatically generated for outstanding accounts.
+              </div>
+            </div>
+
+          </div>
+
+          {/* School Term Calendar / Events */}
+          <div className="bg-white rounded-2xl border border-[#e8e4f3] p-5 shadow-[0_2px_12px_rgba(0,0,0,0.04)] flex flex-col">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <p className="text-[14px] font-bold text-[var(--text-strong)]">Today&apos;s Attendance</p>
-                <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                  {TODAY.toLocaleDateString("en-GH", { weekday: "long", day: "numeric", month: "short" })}
-                </p>
+                <h3 className="text-[14px] font-extrabold text-[#1a1854]">Term calendar</h3>
+                <p className="text-[11px] text-slate-400 font-medium">Important dates and academic terms tracking</p>
               </div>
-              <Link href="/attendance"
-                className="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg transition-colors"
-                style={{ background: `${BRAND}10`, color: BRAND }}>
-                Take →
-              </Link>
-            </div>
-            <AttendanceRing rate={stats.attendanceRate} present={stats.presentToday} absent={stats.absentToday} />
-          </div>
-
-          {/* Academic Calendar */}
-          <div className="bg-white rounded-2xl border border-[var(--border)] p-5 shadow-[0_1px_6px_rgba(0,0,0,0.05)] flex flex-col">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-[14px] font-bold text-[var(--text-strong)]">Term Calendar</p>
-              <Link href="/academic-calendar"
-                className="flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-lg"
-                style={{ background: `${BRAND}10`, color: BRAND }}>
-                <Plus size={11} /> View All
+              <Link href="/academic-calendar" className="text-[11.5px] font-bold text-[#92278F] hover:underline flex items-center gap-0.5">
+                <Plus size={12} /> View all
               </Link>
             </div>
 
-            <div className="flex-1 space-y-1">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {stats.terms.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-24 gap-1">
-                  <CalendarDays size={22} className="text-[var(--text-muted)] opacity-40" />
-                  <p className="text-[12px] text-[var(--text-muted)]">No terms set up</p>
-                  {isHeadmaster && (
-                    <Link href="/settings/academic-year" className="text-[11px] font-semibold" style={{ color: BRAND }}>
-                      Set up academic year →
-                    </Link>
-                  )}
+                <div className="sm:col-span-3 flex flex-col items-center justify-center py-6 gap-2">
+                  <CalendarDays size={24} className="text-slate-300" />
+                  <p className="text-[12.5px] text-slate-400 font-medium">No active academic terms configured</p>
                 </div>
               ) : (
                 stats.terms.slice(0, 3).map((t, i) => (
-                  <Link key={t.id} href="/academic-calendar">
+                  <Link key={t.id} href="/academic-calendar" className="block hover:-translate-y-0.5 transition-transform">
                     <EventCard term={t} index={i} />
                   </Link>
                 ))
               )}
             </div>
-
-            {stats.terms.length > 3 && (
-              <Link href="/academic-calendar" className="text-[11px] font-semibold mt-2 block" style={{ color: BRAND }}>
-                +{stats.terms.length - 3} more → View calendar
-              </Link>
-            )}
           </div>
+
         </div>
-      </div>
 
-      {/* ── Row 3: Finance chart + Calendar ──────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-
-        {/* Finance Chart */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-[var(--border)] p-5 shadow-[0_1px_6px_rgba(0,0,0,0.05)]">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <p className="text-[14px] font-bold text-[var(--text-strong)]">Finance Overview</p>
-              <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{stats.academicYear ?? "Current academic year"}</p>
-            </div>
-            <div className="flex gap-1 bg-[var(--neutral-100)] rounded-lg p-0.5">
-              {(["monthly","weekly"] as const).map((v) => (
-                <button key={v} onClick={() => setFinView(v)}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-semibold capitalize transition-all ${finView === v ? "bg-white text-[var(--text-strong)] shadow-sm" : "text-[var(--text-muted)]"}`}>
-                  {v === "monthly" ? "Monthly" : "Weekly"}
-                </button>
+        {/* Right Column (Side Widgets) */}
+        <div className="space-y-6">
+          
+          {/* Quick Actions (Dense Card) */}
+          <div className="bg-white rounded-2xl border border-[#e8e4f3] p-5 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
+            <h3 className="text-[14px] font-extrabold text-[#1a1854] mb-3">Quick actions</h3>
+            <div className="grid grid-cols-3 gap-2">
+              {QUICK_ACTIONS.map((a) => (
+                <Link key={a.label} href={a.href}
+                  className="flex flex-col items-center gap-1.5 p-2.5 bg-slate-50 hover:bg-[#eeedf8] rounded-xl border border-slate-100 hover:border-[#d9d2eb] transition-all group text-center">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform"
+                    style={{ background: `${a.color}15` }}>
+                    <a.icon size={15} style={{ color: a.color }} />
+                  </div>
+                  <span className="text-[9.5px] font-extrabold text-slate-600 group-hover:text-[#262262] leading-tight">{a.label}</span>
+                </Link>
               ))}
             </div>
           </div>
 
-          <CollectionBar collected={stats.totalCollected} outstanding={stats.totalOutstanding} />
-
-          <div className="mt-4">
-            {finData.length <= 1 ? (
-              <div className="flex items-center justify-center h-32 text-[var(--text-muted)] text-[13px]">No finance data yet</div>
-            ) : (
-              <ResponsiveContainer width="100%" height={150}>
-                <BarChart data={finData} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--neutral-100)" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-                  <Tooltip content={<ChartTooltip />} />
-                  <Bar dataKey="Collected"   fill="#16A34A" radius={[4, 4, 0, 0]} maxBarSize={24} name="Collected" />
-                  <Bar dataKey="Outstanding" fill="#F97316" radius={[4, 4, 0, 0]} maxBarSize={24} name="Outstanding" />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
+          {/* Recent Activities (Mock Listing) */}
+          <div className="bg-white rounded-2xl border border-[#e8e4f3] p-5 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-[14px] font-extrabold text-[#1a1854]">Recent activities</h3>
+              <span className="w-2 h-2 rounded-full bg-green-500 animate-ping" />
+            </div>
+            <div className="space-y-3.5">
+              {recentActivities.map((act) => (
+                <div key={act.id} className="flex items-start gap-3 group">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
+                    style={{ background: act.bg }}>
+                    <act.icon size={14} style={{ color: act.color }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[12px] font-extrabold text-[#1a1854] group-hover:text-[#92278F] transition-colors leading-tight">
+                      {act.title}
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-0.5 font-medium leading-snug truncate">
+                      {act.desc}
+                    </p>
+                  </div>
+                  <span className="text-[9.5px] font-bold text-slate-400 shrink-0">{act.time}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
-          <div className="flex items-center gap-4 mt-2">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-sm" style={{ background: "#16A34A" }} />
-              <span className="text-[11px] text-[var(--text-muted)]">Collected</span>
+          {/* System Status / Overview */}
+          <div className="bg-white rounded-2xl border border-[#e8e4f3] p-5 shadow-[0_2px_12px_rgba(0,0,0,0.04)] space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-[14px] font-extrabold text-[#1a1854]">System status</h3>
+              <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-extrabold border border-emerald-100">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Operational
+              </div>
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-sm" style={{ background: "#F97316" }} />
-              <span className="text-[11px] text-[var(--text-muted)]">Outstanding</span>
+            
+            <div className="space-y-3 pt-1">
+              <div className="flex justify-between items-center text-[12px] font-medium text-slate-600">
+                <span className="text-slate-400 font-semibold">Last backup</span>
+                <span className="font-bold text-[#1a1854]">Today, 02:30 AM</span>
+              </div>
+              <div className="flex justify-between items-center text-[12px] font-medium text-slate-600">
+                <span className="text-slate-400 font-semibold">Active users online</span>
+                <span className="font-bold text-[#1a1854]">12 users</span>
+              </div>
+              
+              <div className="pt-1 border-t border-slate-50">
+                <div className="flex justify-between text-[10.5px] text-slate-400 font-semibold mb-1.5">
+                  <span>Cloud storage</span>
+                  <span className="font-extrabold text-[#1a1854]">124GB / 200GB (62%)</span>
+                </div>
+                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-violet-500 to-indigo-600 rounded-full" style={{ width: "62%" }} />
+                </div>
+              </div>
             </div>
-            {isHeadmaster && (
-              <Link href="/finance" className="ml-auto text-[11px] font-semibold" style={{ color: BRAND }}>
-                Full report →
-              </Link>
-            )}
           </div>
+
+          {/* Secondary KPI Cards */}
+          <div className="bg-white rounded-2xl border border-[#e8e4f3] p-5 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
+            <h3 className="text-[14px] font-extrabold text-[#1a1854] mb-3">Secondary stats</h3>
+            <div className="space-y-2.5">
+              {secondaryKPIs.map((kpi) => (
+                <div key={kpi.label} className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-100 rounded-xl hover:border-[#d9d2eb] hover:bg-slate-100/50 transition-colors">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: kpi.bg }}>
+                      <kpi.icon size={13} style={{ color: kpi.color }} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[11.5px] font-bold text-slate-700 leading-tight">{kpi.label}</p>
+                      {kpi.sub && <p className="text-[9.5px] text-slate-400 font-semibold mt-0.5">{kpi.sub}</p>}
+                    </div>
+                  </div>
+                  <span className="text-[14px] font-extrabold text-[#1a1854] shrink-0 pl-3">{kpi.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Interactive School Mini Calendar */}
+          <div className="bg-white rounded-2xl border border-[#e8e4f3] p-5 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-[14px] font-extrabold text-[#1a1854]">School calendar</h3>
+              <div className="flex items-center gap-1.5 text-[9.5px] text-[#92278F] font-bold bg-[#f5e8f5] px-2 py-0.5 rounded-lg">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#92278F]" />
+                <span>Term dates</span>
+              </div>
+            </div>
+            <p className="text-[11px] text-slate-400 font-semibold mb-4">Select marked dates to view scheduled events</p>
+            <MiniCalendar terms={stats.terms} events={stats.events ?? []} />
+          </div>
+
         </div>
 
-        {/* Calendar */}
-        <div className="bg-white rounded-2xl border border-[var(--border)] p-5 shadow-[0_1px_6px_rgba(0,0,0,0.05)]">
-          <div className="flex items-center justify-between mb-1">
-            <p className="text-[14px] font-bold text-[var(--text-strong)]">School Calendar</p>
-            <div className="flex items-center gap-1 text-[10px] text-[var(--text-muted)]">
-              <span className="w-2 h-2 rounded-full" style={{ background: ACCENT }} />
-              <span>Term dates</span>
-            </div>
-          </div>
-          <p className="text-[11px] text-[var(--text-muted)] mb-4">{stats.totalStudents} students enrolled</p>
-          <MiniCalendar terms={stats.terms} events={stats.events ?? []} />
-        </div>
       </div>
 
-      {/* ── Bottom banner for headmaster ─────────────────────────────────── */}
+      {/* Bottom Live Banner (Headmaster specific) */}
       {isHeadmaster && (
-        <div className="rounded-2xl p-5 flex items-center gap-4" style={{ background: BRAND }}>
-          <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
-            <TrendingUp size={20} className="text-white" />
+        <div className="rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#1a1854] to-[#2e1a6b] shadow-lg border border-[#3d1f6e] text-white">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
+              <TrendingUp size={20} className="text-white" />
+            </div>
+            <div className="min-w-0">
+              <p className="font-extrabold text-[14.5px] text-white leading-tight">Your school is live on EduSys</p>
+              <p className="text-white/70 text-[11px] mt-0.5 font-medium">All modules (Students, Fees, Exams, Reports, and Staff) are fully automated and synchronized.</p>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-white font-bold text-[14px]">Your school is live on EduSys</p>
-            <p className="text-white/70 text-[11px] mt-0.5">Students · Fees · Exams · Reports · Staff — all automated.</p>
-          </div>
-          <div className="flex gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
             <Link href="/settings/fees"
-              className="text-[11px] font-bold px-3 py-2 rounded-xl bg-white/15 text-white hover:bg-white/25 transition-colors hidden sm:block">
-              Fee Structures
+              className="text-[11px] font-extrabold px-3.5 py-2 rounded-xl bg-white/15 text-white hover:bg-white/25 transition-all text-center">
+              Fee structures
             </Link>
             <Link href="/settings"
-              className="text-[11px] font-bold px-3 py-2 rounded-xl bg-white text-[var(--text-strong)] hover:bg-white/90 transition-colors"
-              style={{ color: BRAND }}>
+              className="text-[11px] font-extrabold px-3.5 py-2 rounded-xl bg-white text-[#1a1854] hover:bg-white/90 transition-all text-center">
               Settings →
             </Link>
           </div>

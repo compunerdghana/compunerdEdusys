@@ -11,6 +11,8 @@ import {
   Calendar, Award, ArrowRightLeft, UserMinus, Dumbbell,
   Bell, Send, Smartphone, FileText, Zap, History, Settings2, MessageCircle, BadgeDollarSign,
   AlertCircle, UserCheck, Shield, ScrollText,
+  Library, Bus, Bed, Package, Mail, ArrowRight, Home, HelpCircle,
+  UserPlus, CheckCircle2, Clock,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -44,97 +46,183 @@ type NavItem = NavItemSingle | NavItemGroup;
 
 const navItems: NavItem[] = [
   { href: "/dashboard",      label: "Dashboard",     icon: LayoutDashboard, permission: "dashboard.view" },
-  { href: "/students",       label: "Students",       icon: Users, feature: "students", permission: "students.view" },
   {
-    label: "Staff",
-    icon: UserCog,
+    label: "Academic",
+    icon: BookOpen,
     children: [
-      { href: "/staff/dashboard",   label: "Dashboard",   icon: LayoutDashboard, permission: "staff.view" },
-      { href: "/staff",             label: "All Staff",   icon: Users, permission: "staff.view" },
-      { href: "/staff/attendance",  label: "Attendance",  icon: ClipboardList, feature: "attendance", permission: "staff.attendance.record" },
-      { href: "/staff/leave",       label: "Leave",       icon: Calendar, feature: "payroll", permission: "staff.leave.manage" },
-      { href: "/staff/training",    label: "Training",    icon: Dumbbell, feature: "payroll", permission: "staff.training.manage" },
-      { href: "/staff/promotions",  label: "Promotions",  icon: Award, feature: "payroll", permission: "staff.edit" },
-      { href: "/staff/transfers",   label: "Transfers",   icon: ArrowRightLeft, feature: "payroll", permission: "staff.edit" },
-      { href: "/staff/exits",       label: "Exits",       icon: UserMinus, feature: "payroll", permission: "staff.edit" },
+      { href: "/academics",         label: "Curriculum",       icon: BookOpen, permission: "academics.manage" },
+      { href: "/settings/subjects", label: "Subjects",         icon: ScrollText, permission: "academics.manage" },
+      { href: "/academics/syllabus",label: "Syllabus",         icon: FileText, permission: "academics.manage" },
+      { href: "/academics/departments", label: "Departments",  icon: Home, permission: "academics.manage" },
+      { href: "/academics/programs",label: "Programs",         icon: Award, permission: "academics.manage" },
+      { href: "/timetable",         label: "Class Schedules",  icon: CalendarClock, permission: "timetable.manage" },
+      { href: "/timetable/teachers",label: "Teacher Schedules",icon: UserCog, permission: "timetable.manage" },
+      { href: "/timetable/rooms",   label: "Room Allocations", icon: Building2, permission: "timetable.manage" },
+      { href: "/academic-calendar", label: "Terms",            icon: Calendar, permission: "timetable.manage" },
+      { href: "/academic-calendar/semesters", label: "Semesters", icon: Calendar, permission: "timetable.manage" },
+      { href: "/settings/academic-calendar",  label: "Events",  icon: Bell, permission: "timetable.manage" },
     ],
   },
   {
-    label: "Academics",
-    icon: BookOpen,
+    label: "Admissions",
+    icon: UserPlus || UserCog,
     children: [
-      { href: "/academics",         label: "Academics",     icon: BookOpen, permission: "academics.manage" },
-      { href: "/attendance",        label: "Attendance",    icon: ClipboardList, feature: "attendance", permission: "attendance.record" },
-      { href: "/timetable",         label: "Timetable",     icon: CalendarClock, permission: "timetable.manage" },
-      { href: "/exams",             label: "Enter Scores",  icon: GraduationCap, feature: "exams", permission: "exams.enter" },
-      { href: "/exams/report-card", label: "Report Cards",  icon: GraduationCap, feature: "report_cards", permission: "reports.generate" },
+      { href: "/admissions/new",              label: "New Applications", icon: FileText, permission: "students.view" },
+      { href: "/admissions/online",           label: "Online Admissions",icon: Zap, permission: "students.view" },
+      { href: "/admissions/reviews",          label: "Application Reviews",icon: UserCheck, permission: "students.view" },
+      { href: "/admissions/acceptance",       label: "Acceptance",       icon: CheckCircle2, permission: "students.view" },
+      { href: "/admissions/rejection",        label: "Rejection",        icon: AlertCircle, permission: "students.view" },
+      { href: "/admissions/waiting-list",     label: "Waiting List",     icon: Clock, permission: "students.view" },
+      { href: "/admissions/registration",     label: "Registration",     icon: FileText, permission: "students.view" },
+      { href: "/admissions/placement",        label: "Placement",        icon: TrendingUp, permission: "students.view" },
+      { href: "/admissions/class-assignment", label: "Class Assignment", icon: ArrowRightLeft, permission: "students.view" },
+    ],
+  },
+  {
+    label: "Students",
+    icon: Users,
+    children: [
+      { href: "/students",                    label: "Student Profiles", icon: Users, permission: "students.view" },
+      { href: "/students/medical",            label: "Medical Records",  icon: AlertCircle, permission: "students.view" },
+      { href: "/students/guardians",          label: "Guardian Details", icon: Users, permission: "students.view" },
+      { href: "/students/documents",          label: "Documents",        icon: FileText, permission: "students.view" },
+      { href: "/students/promotion",          label: "Next Class Promotion",icon: TrendingUp, permission: "students.view" },
+      { href: "/students/graduation",         label: "Graduation",       icon: GraduationCap, permission: "students.view" },
+      { href: "/students/behaviour",          label: "Behaviour Tracking",icon: UserCheck, permission: "students.view" },
+      { href: "/students/punishments",        label: "Punishments",      icon: AlertCircle, permission: "students.view" },
+      { href: "/students/rewards",            label: "Rewards",          icon: Award, permission: "students.view" },
+    ],
+  },
+  {
+    label: "Teachers",
+    icon: UserCog,
+    children: [
+      { href: "/user-management/teachers",    label: "Teacher Profiles", icon: UserCog, permission: "staff.view" },
+      { href: "/teachers/qualifications",     label: "Qualifications",   icon: FileText, permission: "staff.view" },
+      { href: "/staff/attendance",            label: "Attendance",       icon: ClipboardList, permission: "staff.view" },
+      { href: "/teachers/workload",           label: "Workload Allocation",icon: History, permission: "staff.view" },
+      { href: "/staff/performance",           label: "Performance Evaluation",icon: TrendingUp, permission: "staff.view" },
+    ],
+  },
+  {
+    label: "Attendance",
+    icon: ClipboardList,
+    children: [
+      { href: "/attendance",                  label: "Daily Attendance",  icon: ClipboardList, permission: "attendance.record" },
+      { href: "/attendance/class",            label: "Class Attendance",  icon: ClipboardList, permission: "attendance.record" },
+      { href: "/staff/attendance?type=teacher",label: "Teacher Attendance",icon: ClipboardList, permission: "staff.attendance.record" },
+      { href: "/staff/attendance?type=non-teaching",label: "Staff Attendance",icon: ClipboardList, permission: "staff.attendance.record" },
+    ],
+  },
+  {
+    label: "Examinations",
+    icon: Award,
+    children: [
+      { href: "/exams",                       label: "Exams",            icon: Award, permission: "exams.enter" },
+      { href: "/exams/quizzes",               label: "Quizzes",          icon: ScrollText, permission: "exams.enter" },
+      { href: "/exams/assignments",           label: "Assignments",      icon: ClipboardList, permission: "exams.enter" },
+      { href: "/exams/grading",               label: "Grading",          icon: GraduationCap, permission: "exams.enter" },
+      { href: "/exams/results",               label: "Result Computation",icon: BarChart3, permission: "exams.enter" },
+      { href: "/exams/transcripts",           label: "Transcripts",      icon: FileText, permission: "reports.generate" },
+    ],
+  },
+  {
+    label: "Fees",
+    icon: BadgeDollarSign,
+    children: [
+      { href: "/settings/fees",               label: "Fee Structures",   icon: BadgeDollarSign, permission: "finance.view" },
+      { href: "/fees/billing",                label: "Billing",          icon: Wallet, permission: "finance.view" },
+      { href: "/fees/invoices",               label: "Invoices",         icon: Receipt, permission: "finance.view" },
+      { href: "/fees/receipts",               label: "Receipts",         icon: Receipt, permission: "finance.view" },
+      { href: "/fees/discounts",              label: "Discounts",        icon: DollarSign, permission: "finance.view" },
+      { href: "/fees/scholarships",           label: "Scholarships",     icon: Award, permission: "finance.view" },
     ],
   },
   {
     label: "Finance",
-    icon: CreditCard,
-    feature: "finance",
+    icon: Wallet,
     children: [
-      { href: "/finance",              label: "Overview",     icon: Wallet, permission: "finance.view" },
-      { href: "/finance/expenses",     label: "Expenses",     icon: Receipt, permission: "finance.expenses.manage" },
-      { href: "/finance/income",       label: "Income",       icon: TrendingUp, permission: "finance.view" },
-      { href: "/finance/budget",       label: "Budget",       icon: PiggyBank, permission: "finance.manage" },
-      { href: "/finance/petty-cash",   label: "Petty Cash",   icon: DollarSign, permission: "finance.expenses.manage" },
-      { href: "/finance/payroll",       label: "Payroll",      icon: BadgeDollarSign, feature: "payroll", permission: "finance.payroll.manage" },
-      { href: "/finance/bank-accounts",label: "Bank Accounts",icon: Building2, permission: "finance.manage" },
+      { href: "/finance/income",              label: "Income",           icon: TrendingUp, permission: "finance.view" },
+      { href: "/finance/expenses",             label: "Expenses",         icon: Receipt, permission: "finance.expenses.manage" },
+      { href: "/finance/payroll",              label: "Payroll",          icon: BadgeDollarSign, permission: "finance.payroll.manage" },
+      { href: "/finance/budget",               label: "Budgeting",        icon: PiggyBank, permission: "finance.manage" },
+      { href: "/finance/accounting",           label: "Accounting",       icon: Wallet, permission: "finance.manage" },
     ],
   },
   {
-    label: "Communications",
+    label: "Communication",
     icon: MessageSquare,
-    feature: "communications",
     children: [
-      { href: "/communications/dashboard",     label: "Dashboard",    icon: LayoutDashboard, permission: "communication.send" },
-      { href: "/communications",               label: "Compose",      icon: Send, permission: "communication.send" },
-      { href: "/communications/whatsapp",      label: "WhatsApp",     icon: MessageCircle, permission: "communication.whatsapp.manage" },
-      { href: "/communications/sms",           label: "SMS Center",   icon: Smartphone, permission: "communication.sms.manage" },
-      { href: "/communications/notifications", label: "Notifications",icon: Bell, permission: "communication.send" },
-      { href: "/communications/templates",     label: "Templates",    icon: FileText, permission: "communication.send" },
-      { href: "/communications/automation",    label: "Automation",   icon: Zap, permission: "communication.settings.manage" },
-      { href: "/communications/logs",          label: "Logs",         icon: History, permission: "communication.send" },
-      { href: "/communications/settings",      label: "Settings",     icon: Settings2, permission: "communication.settings.manage" },
+      { href: "/communications/sms",           label: "SMS Center",       icon: Smartphone, permission: "communication.sms.manage" },
+      { href: "/communications/compose",      label: "Email Compose",    icon: Send, permission: "communication.send" },
+      { href: "/communications/notifications", label: "Push Notifications",icon: Bell, permission: "communication.send" },
+      { href: "/communications/parent",       label: "Parent Messaging", icon: MessageCircle, permission: "communication.send" },
+    ],
+  },
+  {
+    label: "Human Resources",
+    icon: Shield,
+    children: [
+      { href: "/staff",                       label: "Staff Records",    icon: Users, permission: "staff.view" },
+      { href: "/staff/leave",                 label: "Leave Management", icon: Calendar, permission: "staff.leave.manage" },
+      { href: "/staff/recruitment",           label: "Recruitment",      icon: UserPlus || UserCog, permission: "staff.edit" },
+      { href: "/finance/payroll",              label: "Payroll",          icon: BadgeDollarSign, permission: "finance.payroll.manage" },
+    ],
+  },
+  {
+    label: "Library",
+    icon: Library,
+    children: [
+      { href: "/library/books",               label: "Books",            icon: Library, permission: "dashboard.view" },
+      { href: "/library/borrowing",           label: "Borrowing",        icon: ArrowRightLeft, permission: "dashboard.view" },
+      { href: "/library/returns",             label: "Returns",          icon: CheckCircle2, permission: "dashboard.view" },
+      { href: "/library/fines",               label: "Fines",            icon: AlertCircle, permission: "dashboard.view" },
+    ],
+  },
+  {
+    label: "Transport",
+    icon: Bus,
+    children: [
+      { href: "/transport/buses",             label: "Buses",            icon: Bus, permission: "dashboard.view" },
+      { href: "/transport/drivers",           label: "Drivers",          icon: Users, permission: "dashboard.view" },
+      { href: "/transport/routes",            label: "Routes",           icon: History, permission: "dashboard.view" },
+      { href: "/transport/tracking",          label: "Tracking",         icon: Zap, permission: "dashboard.view" },
+    ],
+  },
+  {
+    label: "Hostel",
+    icon: Building2,
+    children: [
+      { href: "/hostel/rooms",                label: "Rooms",            icon: Home, permission: "dashboard.view" },
+      { href: "/hostel/occupancy",            label: "Occupancy",        icon: TrendingUp, permission: "dashboard.view" },
+      { href: "/hostel/beds",                 label: "Bed Allocations",  icon: Bed, permission: "dashboard.view" },
+    ],
+  },
+  {
+    label: "Inventory",
+    icon: Package,
+    children: [
+      { href: "/inventory/assets",            label: "Assets",           icon: Settings2, permission: "dashboard.view" },
+      { href: "/inventory/stock",             label: "Stock",            icon: Package, permission: "dashboard.view" },
+      { href: "/inventory/procurement",       label: "Procurement",      icon: Wallet, permission: "dashboard.view" },
     ],
   },
   {
     label: "Reports",
     icon: BarChart3,
     children: [
-      { href: "/reports",                    label: "Dashboard",       icon: LayoutDashboard, permission: "reports.generate" },
-      { href: "/reports?tab=students",       label: "Student Reports", icon: Users, permission: "reports.generate" },
-      { href: "/reports?tab=attendance",     label: "Attendance",      icon: CalendarClock, permission: "reports.generate" },
-      { href: "/reports?tab=finance",        label: "Fee Collection",  icon: CreditCard, feature: "finance", permission: "reports.generate" },
-      { href: "/reports?tab=outstanding",    label: "Outstanding Fees",icon: AlertCircle, feature: "finance", permission: "reports.generate" },
-      { href: "/reports?tab=staff",          label: "Staff Reports",   icon: UserCheck, permission: "reports.generate" },
-      { href: "/reports?tab=payroll",        label: "Payroll Report",  icon: BadgeDollarSign, feature: "payroll", permission: "reports.generate" },
-      { href: "/reports?tab=exams",          label: "Exam Results",    icon: GraduationCap, feature: "exams", permission: "reports.generate" },
-      { href: "/reports?tab=analytics",      label: "Analytics",       icon: TrendingUp, permission: "reports.generate" },
-      { href: "/reports?tab=comms",          label: "Communications",  icon: MessageSquare, feature: "communications", permission: "reports.generate" },
-      { href: "/reports?tab=reportcards",    label: "Report Cards",    icon: FileText, feature: "report_cards", permission: "reports.generate" },
+      { href: "/reports?tab=exams",           label: "Academic Reports", icon: BarChart3, permission: "reports.generate" },
+      { href: "/reports?tab=finance",        label: "Financial Reports",icon: BarChart3, permission: "reports.generate" },
+      { href: "/reports?tab=attendance",     label: "Attendance Reports",icon: BarChart3, permission: "reports.generate" },
     ],
   },
   {
-    label: "User Management",
-    icon: UserCheck,
+    label: "Settings",
+    icon: Settings,
     children: [
-      { href: "/user-management",             label: "Dashboard",       icon: LayoutDashboard, permission: "users.manage" },
-      { href: "/user-management/users",       label: "All Users",       icon: Users, permission: "users.manage" },
-      { href: "/user-management/students",     label: "Students",        icon: GraduationCap, permission: "students.view" },
-      { href: "/user-management/parents",      label: "Parents",         icon: Users, permission: "users.manage" },
-      { href: "/user-management/teachers",     label: "Teachers",        icon: UserCog, permission: "users.manage" },
-      { href: "/user-management/staff",        label: "Staff Directory", icon: UserCheck, permission: "staff.view" },
-      { href: "/user-management/roles",        label: "User Roles",      icon: Shield, permission: "roles.manage" },
-      { href: "/user-management/permissions",  label: "Permissions",     icon: ScrollText, permission: "roles.manage" },
-      { href: "/user-management/features",     label: "Feature Access",  icon: Zap, permission: "school.settings.manage" },
-      { href: "/user-management/groups",       label: "User Groups",     icon: UserCog, permission: "users.manage" },
-      { href: "/user-management/parent-ward",  label: "Parent-Ward Links",icon: ArrowRightLeft, permission: "users.manage" },
-      { href: "/user-management/login-history",label: "Login History",   icon: History, permission: "audit.view" },
-      { href: "/user-management/activity-logs",label: "Activity Logs",   icon: ScrollText, permission: "audit.view" },
-      { href: "/user-management/archived",     label: "Archived Users",  icon: UserMinus, permission: "users.manage" },
+      { href: "/settings/school",             label: "School Setup",     icon: Home, permission: "school.settings.manage" },
+      { href: "/user-management/permissions",  label: "User Permissions", icon: ScrollText, permission: "school.settings.manage" },
+      { href: "/settings/integrations",       label: "Integrations",     icon: Zap, permission: "school.settings.manage" },
     ],
   }
 ];
@@ -154,12 +242,22 @@ export function Sidebar({ userName = "Admin", userRole = "admin", schoolName, sc
 
   // Generic open state per group label
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>(() => ({
-    Academics: ["/academics", "/timetable", "/exams", "/attendance"].some((p) => pathname.startsWith(p)),
+    Academic: pathname.startsWith("/academics") || pathname.startsWith("/timetable") || pathname.startsWith("/academic-calendar"),
+    Admissions: pathname.startsWith("/admissions"),
+    Students: pathname.startsWith("/students"),
+    Teachers: pathname.startsWith("/teachers") || pathname.startsWith("/user-management/teachers"),
+    Attendance: pathname.startsWith("/attendance"),
+    Examinations: pathname.startsWith("/exams"),
+    Fees: pathname.startsWith("/fees") || pathname.startsWith("/settings/fees"),
     Finance: pathname.startsWith("/finance"),
-    Staff: pathname.startsWith("/staff"),
-    Communications: pathname.startsWith("/communications"),
+    Communication: pathname.startsWith("/communications"),
+    "Human Resources": pathname.startsWith("/staff"),
+    Library: pathname.startsWith("/library"),
+    Transport: pathname.startsWith("/transport"),
+    Hostel: pathname.startsWith("/hostel"),
+    Inventory: pathname.startsWith("/inventory"),
     Reports: pathname.startsWith("/reports"),
-    "User Management": pathname.startsWith("/user-management"),
+    Settings: pathname.startsWith("/settings") || pathname.startsWith("/user-management/permissions"),
   }));
 
   useEffect(() => {
@@ -322,7 +420,7 @@ export function Sidebar({ userName = "Admin", userRole = "admin", schoolName, sc
         <div className="mx-1 h-px bg-white/10 mb-3" />
         <p className="text-[9px] font-extrabold uppercase tracking-[0.15em] text-white/30 px-3 mb-2">Account</p>
 
-        <Link href="/settings"
+        <Link href="/settings/school"
           className={cn(
             "flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-semibold transition-all group",
             pathname.startsWith("/settings")
@@ -338,6 +436,19 @@ export function Sidebar({ userName = "Admin", userRole = "admin", schoolName, sc
           Settings
         </Link>
       </nav>
+
+      {/* Support section */}
+      <div className="px-4 py-3 mx-3 my-2 rounded-2xl bg-white/8 border border-white/12 text-white">
+        <div className="flex items-center gap-2">
+          <HelpCircle size={14} className="text-white/70" />
+          <p className="text-[10px] uppercase font-bold tracking-widest text-white/50">Need Help?</p>
+        </div>
+        <p className="text-[12.5px] font-bold text-white mt-1">Contact Support</p>
+        <p className="text-[10px] text-white/50 mt-1 leading-snug">Technical support, tickets, and live chat are available 24/7.</p>
+        <a href="mailto:support@compunerd.com.gh" className="inline-flex items-center gap-1.5 text-[11px] font-bold text-white bg-white/15 px-3 py-1.5 rounded-lg mt-3.5 hover:bg-white/25 transition-all">
+          Get Help <ArrowRight size={11} />
+        </a>
+      </div>
 
       {/* User footer */}
       <div className="mx-4 h-px bg-white/10" />

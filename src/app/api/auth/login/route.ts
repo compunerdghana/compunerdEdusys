@@ -18,9 +18,9 @@ export async function POST(request: Request) {
 
   const trimmed = username.trim().toLowerCase();
 
-  // If input looks like an email, use it directly (platform admin login)
+  // Block email inputs to enforce login by username only
   if (trimmed.includes("@")) {
-    return NextResponse.json({ email: trimmed });
+    return NextResponse.json({ error: "Please use your username instead of an email address." }, { status: 400 });
   }
 
   const { data: profiles, error } = await adminClient
